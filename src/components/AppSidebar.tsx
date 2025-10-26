@@ -1,5 +1,5 @@
 import { Home, DollarSign, Heart, CreditCard, FileText, ShoppingCart, PiggyBank, TrendingUp, Landmark, BarChart3, Settings } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +28,12 @@ const menuItems = [
 
 export function AppSidebar() {
   const { open } = useSidebar();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isActive = (url: string) => {
+    return location.pathname === url;
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -40,19 +46,13 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-primary font-medium"
-                          : "hover:bg-sidebar-accent/50"
-                      }
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
-                    </NavLink>
+                  <SidebarMenuButton 
+                    tooltip={item.title}
+                    onClick={() => navigate(item.url)}
+                    isActive={isActive(item.url)}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
