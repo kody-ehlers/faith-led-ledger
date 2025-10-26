@@ -1,5 +1,5 @@
 import { Home, DollarSign, Heart, CreditCard, FileText, ShoppingCart, PiggyBank, TrendingUp, Landmark, BarChart3, Settings } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -7,7 +7,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -28,12 +27,6 @@ const menuItems = [
 
 export function AppSidebar() {
   const { open } = useSidebar();
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const isActive = (url: string) => {
-    return location.pathname === url;
-  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -44,18 +37,20 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    tooltip={item.title}
-                    onClick={() => navigate(item.url)}
-                    isActive={isActive(item.url)}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <Link
+                      to={item.url}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary"
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      {open && <span>{item.title}</span>}
+                    </Link>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
