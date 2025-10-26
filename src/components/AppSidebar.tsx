@@ -1,4 +1,4 @@
-import { Home, DollarSign, Heart, CreditCard, FileText, ShoppingCart, PiggyBank, TrendingUp, Landmark, BarChart3, Settings } from "lucide-react";
+import { Home, DollarSign, Church, CreditCard, FileText, ShoppingCart, PiggyBank, TrendingUp, Landmark, BarChart3, Settings, CrossIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -14,7 +14,7 @@ import {
 const menuItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Income", url: "/income", icon: DollarSign },
-  { title: "Tithe", url: "/tithe", icon: Heart },
+  { title: "Tithe", url: "/tithe", icon: Church },
   { title: "Subscriptions", url: "/subscriptions", icon: CreditCard },
   { title: "Bills", url: "/bills", icon: FileText },
   { title: "Expenses", url: "/expenses", icon: ShoppingCart },
@@ -33,7 +33,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="px-3 py-4 text-base font-semibold text-sidebar-primary">
-            {open && "Steward"}
+            {open}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
