@@ -9,7 +9,7 @@ import {
   calculateCategoryTotals,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
 import { TrendingUp, TrendingDown, DollarSign, Heart, ShoppingCart, PiggyBank } from "lucide-react";
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
@@ -28,6 +28,21 @@ export default function Home() {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
+
+  // Prepare last 12 months of income data
+  const now = new Date();
+  const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    const monthName = date.toLocaleString("default", { month: "short" });
+    const year = date.getFullYear();
+    const monthlyAmount = income
+      .filter((inc) => {
+        const incDate = new Date(inc.date);
+        return incDate.getMonth() === date.getMonth() && incDate.getFullYear() === date.getFullYear();
+      })
+      .reduce((sum, inc) => sum + inc.amount, 0);
+    return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}` };
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -150,6 +165,42 @@ export default function Home() {
           </CardContent>
         </Card>
       )}
+
+      {/* Income Over Past Year Bar Chart */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Income Over the Past Year</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="month"
+                tick={({ x, y, payload, index }) => {
+                  const prev = monthlyIncomeData[index - 1];
+                  const showYearDivider = prev && prev.year !== payload.year;
+                  return (
+                    <g transform={`translate(${x},${y + 10})`}>
+                      {/* Year divider line */}
+                      {showYearDivider && (
+                        <line x1={0} y1={-30} x2={0} y2={0} stroke="#888" strokeWidth={1} />
+                      )}
+                      {/* Month label */}
+                      <text x={0} y={15} textAnchor="middle" fill="#000">
+                        {payload.value}
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+              <Bar dataKey="income" fill="#10b981" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }
