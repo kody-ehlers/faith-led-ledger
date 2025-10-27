@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
+import { useState } from "react";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -33,36 +34,59 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
+  const [hovered, setHovered] = useState<string | null>(null);
+
   return (
     <nav
       className={clsx(
-        "flex flex-col py-4 h-full transition-all duration-300",
+        "relative flex flex-col py-4 h-full transition-all duration-300",
         collapsed ? "px-0" : "px-3"
       )}
     >
       {menuItems.map((item) => (
-        <NavLink
+        <div
           key={item.title}
-          to={item.url}
-          className={({ isActive }) =>
-            clsx(
-              "flex items-center gap-3 w-full rounded-lg transition-colors px-3 py-2 hover:bg-accent",
-              isActive && "bg-accent text-accent-foreground",
-              collapsed ? "justify-center" : "justify-start"
-            )
-          }
-          title={collapsed ? item.title : undefined}
+          className="relative"
+          onMouseEnter={() => setHovered(item.title)}
+          onMouseLeave={() => setHovered(null)}
         >
-          <div
-            className={clsx(
-              "flex items-center justify-center",
-              collapsed ? "w-full" : "min-w-[20px]"
-            )}
+          <NavLink
+            to={item.url}
+            className={({ isActive }) =>
+              clsx(
+                "group flex items-center gap-3 w-full rounded-lg transition-colors px-3 py-2 hover:bg-accent",
+                isActive && "bg-accent text-accent-foreground",
+                collapsed ? "justify-center" : "justify-start"
+              )
+            }
           >
             <item.icon size={20} />
-          </div>
-          {!collapsed && <span className="text-sm font-medium">{item.title}</span>}
-        </NavLink>
+            {!collapsed && (
+              <span className="text-sm font-medium">{item.title}</span>
+            )}
+          </NavLink>
+
+          {/* Hover popup tooltip — visible only when collapsed */}
+          {collapsed && hovered === item.title && (
+            <div
+              className={clsx(
+                "fixed bg-card text-foreground text-sm font-medium px-3 py-1.5 rounded-md shadow-md whitespace-nowrap z-50",
+                "flex items-center justify-center transition-all duration-150"
+              )}
+              style={{
+                left: "4.2rem",
+                top: "auto",
+                marginTop: "-2.25rem",
+              }}
+            >
+              {/* Triangle pointer */}
+              <div
+                className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-card"
+              />
+              {item.title}
+            </div>
+          )}
+        </div>
       ))}
     </nav>
   );
