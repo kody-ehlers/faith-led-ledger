@@ -1,0 +1,76 @@
+/* react-datepicker overrides for solid navy background, white text, and highlighted current date */
+
+/* Main calendar popup */
+.react-datepicker {
+  background-color: #001f3f; /* navy */
+  color: #ffffff;            /* white text */
+  border: 1px solid #001f3f;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: inherit;
+  z-index: 9999 !important; /* ensure it is above everything */
+}
+
+/* Popper wrapper */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+/* Header with month and year */
+.react-datepicker__header {
+  background-color: #001f3f; /* navy */
+  border-bottom: 1px solid #ffffff33;
+  color: #ffffff;
+}
+
+/* Month title and navigation */
+.react-datepicker__current-month {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #ffffff;
+}
+
+/* Day names (Sun, Mon, etc.) */
+.react-datepicker__day-name {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Days */
+.react-datepicker__day {
+  color: #ffffff;
+  border-radius: 0.25rem;
+}
+
+.react-datepicker__day:hover {
+  background-color: #ffdc57cc; /* slightly transparent yellow on hover */
+  color: #001f3f;
+}
+
+/* Selected day */
+.react-datepicker__day--selected {
+  background-color: #ffdc57; /* yellow for selected */
+  color: #001f3f;             /* navy text */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Today */
+.react-datepicker__day--today {
+  background-color: #e2e2e2; /* yellow background for today */
+  color: #001f3f;             /* navy text for contrast */
+  font-weight: 600;
+}
+
+/* Time container */
+.react-datepicker__time-container {
+  background-color: #001f3f; /* navy */
+  border-left: 1px solid #ffffff33;
+}
+
+/* Remove default triangle */
+.react-datepicker__triangle {
+  display: none;
+}

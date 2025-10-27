@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import "@/styles/react-datepicker-overrides.css"; // We'll create this
 
 export default function Income() {
   const { income, addIncome, removeIncome } = useFinanceStore();
@@ -16,9 +19,10 @@ export default function Income() {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("Monthly");
   const [preTax, setPreTax] = useState(false);
+  const [date, setDate] = useState<Date | null>(new Date());
 
   const handleAddIncome = () => {
-    if (!source.trim() || !amount || parseFloat(amount) <= 0) {
+    if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
       toast.error("Please fill in all fields with valid values");
       return;
     }
@@ -28,7 +32,7 @@ export default function Income() {
       amount: parseFloat(amount),
       frequency,
       preTax,
-      date: new Date().toISOString(),
+      date: date.toISOString(),
     });
 
     toast.success("Income source added successfully");
@@ -36,6 +40,7 @@ export default function Income() {
     setAmount("");
     setFrequency("Monthly");
     setPreTax(false);
+    setDate(new Date());
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -48,6 +53,7 @@ export default function Income() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-success/10">
           <DollarSign className="h-6 w-6 text-success" />
@@ -89,6 +95,7 @@ export default function Income() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Source Name */}
             <div className="space-y-2">
               <Label htmlFor="source">Source Name</Label>
               <Input
@@ -99,6 +106,7 @@ export default function Income() {
               />
             </div>
 
+            {/* Amount */}
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
               <Input
@@ -112,6 +120,7 @@ export default function Income() {
               />
             </div>
 
+            {/* Frequency */}
             <div className="space-y-2">
               <Label htmlFor="frequency">Frequency</Label>
               <Select value={frequency} onValueChange={(value: any) => setFrequency(value)}>
@@ -129,6 +138,7 @@ export default function Income() {
               </Select>
             </div>
 
+            {/* Pre-Tax Switch */}
             <div className="space-y-2">
               <Label htmlFor="preTax">Pre-Tax Income?</Label>
               <div className="flex items-center space-x-2 h-10">
@@ -141,6 +151,17 @@ export default function Income() {
                   {preTax ? "Yes (before taxes)" : "No (after taxes)"}
                 </span>
               </div>
+            </div>
+
+            {/* Date Picker */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="date">Start Date</Label>
+              <DatePicker
+                id="date"
+                selected={date}
+                onChange={(date) => setDate(date)}
+                className="w-full border border-input rounded-md px-3 py-2 text-foreground bg-background dark:bg-card dark:text-foreground"
+              />
             </div>
           </div>
 
@@ -177,6 +198,8 @@ export default function Income() {
                       <span>{entry.frequency}</span>
                       <span>•</span>
                       <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
+                      <span>•</span>
+                      <span>{entry.date ? new Date(entry.date).toLocaleDateString() : "-"}</span>
                     </div>
                   </div>
                   <Button
