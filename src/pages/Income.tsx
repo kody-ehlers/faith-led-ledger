@@ -94,9 +94,9 @@ export default function Income() {
 
     return (
       <Card key={entry.id} className="shadow-sm border border-border bg-card">
-        <CardContent className="flex justify-between items-center h-20">
+        <CardContent className="flex justify-between items-center py-4">
           {/* Left: Source + Frequency/PreTax */}
-          <div className="flex-1 flex flex-col justify-center h-full">
+          <div className="flex-1 flex flex-col justify-center">
             <h4 className="font-semibold text-foreground">{entry.source}</h4>
             <div className="flex gap-2 text-sm text-muted-foreground items-center">
               {entry.frequency !== "One-time" && <span>{entry.frequency}</span>}
@@ -108,7 +108,7 @@ export default function Income() {
           </div>
 
           {/* Right: Amount + Notes + Edit/Delete */}
-          <div className="flex items-center gap-2 h-full">
+          <div className="flex items-center gap-2">
             <span className={cn("font-semibold", isPast ? "text-green-700" : "text-foreground")}>
               {formatCurrency(entry.amount)}
             </span>
