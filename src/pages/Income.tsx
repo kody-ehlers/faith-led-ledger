@@ -18,10 +18,11 @@ export default function Income() {
   const { income, addIncome, removeIncome } = useFinanceStore();
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
-  const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("Monthly");
+  const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("One-time");
   const [preTax, setPreTax] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false); // 👈 controls calendar visibility
+  const [notes, setNotes] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleAddIncome = () => {
     if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
@@ -35,14 +36,16 @@ export default function Income() {
       frequency,
       preTax,
       date: date.toISOString(),
+      notes: notes.trim(),
     });
 
-    toast.success("Income source added successfully");
+    toast.success("Income added successfully");
     setSource("");
     setAmount("");
-    setFrequency("Monthly");
+    setFrequency("One-time");
     setPreTax(false);
     setDate(new Date());
+    setNotes("");
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -92,14 +95,14 @@ export default function Income() {
       {/* Add Income Form */}
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Add Income Source</CardTitle>
+          <CardTitle>Add Income</CardTitle>
           <CardDescription>Record a new source of income</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Source Name */}
+            {/* Source */}
             <div className="space-y-2">
-              <Label htmlFor="source">Source Name</Label>
+              <Label htmlFor="source">Source</Label>
               <Input
                 id="source"
                 placeholder="e.g., Salary, Freelance, etc."
@@ -111,21 +114,28 @@ export default function Income() {
             {/* Amount */}
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min="0"
-                step="0.01"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
             </div>
 
             {/* Frequency */}
             <div className="space-y-2">
               <Label htmlFor="frequency">Frequency</Label>
-              <Select value={frequency} onValueChange={(value: any) => setFrequency(value)}>
+              <Select
+                value={frequency}
+                onValueChange={(value: any) => setFrequency(value)}
+              >
                 <SelectTrigger id="frequency">
                   <SelectValue />
                 </SelectTrigger>
@@ -153,7 +163,7 @@ export default function Income() {
 
             {/* Date Picker */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="date">Start Date</Label>
+              <Label htmlFor="date">{frequency === "One-time" ? "Date" : "Start Date"}</Label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -171,7 +181,7 @@ export default function Income() {
                 <PopoverContent
                   className="w-auto p-0"
                   align="start"
-                  side="bottom"
+                  side="top"
                   avoidCollisions={false}
                 >
                   <Calendar
@@ -180,7 +190,7 @@ export default function Income() {
                     onSelect={(newDate) => {
                       if (newDate) {
                         setDate(newDate);
-                        setIsCalendarOpen(false); // 👈 auto-close on select
+                        setIsCalendarOpen(false);
                       }
                     }}
                     initialFocus
@@ -195,11 +205,25 @@ export default function Income() {
                 </PopoverContent>
               </Popover>
             </div>
+
+            {/* Notes */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Input
+                id="notes"
+                placeholder="Add any notes (max 200 chars)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value.slice(0, 200))}
+              />
+            </div>
           </div>
 
-          <Button onClick={handleAddIncome} className="w-full bg-success hover:bg-success/90">
+          <Button
+            onClick={handleAddIncome}
+            className="w-full bg-success hover:bg-success/90"
+          >
             <Plus className="h-4 w-4 mr-2" />
-            Add Income Source
+            Add Income
           </Button>
         </CardContent>
       </Card>
@@ -232,6 +256,7 @@ export default function Income() {
                       <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
                       <span>•</span>
                       <span>{entry.date ? new Date(entry.date).toLocaleDateString() : "-"}</span>
+                      {entry.notes && <span>• {entry.notes}</span>}
                     </div>
                   </div>
                   <Button

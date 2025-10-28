@@ -8,6 +8,7 @@ export interface IncomeEntry {
   frequency: 'One-time' | 'Weekly' | 'Biweekly' | 'Monthly' | 'Quarterly' | 'Yearly';
   preTax: boolean;
   date: string;
+  notes: string;
 }
 
 export interface ExpenseEntry {
