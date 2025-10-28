@@ -32,14 +32,17 @@ export default function Home() {
   // Helper function to count occurrences of a payment frequency in a month
   const countOccurrencesInMonth = (startDate: Date, frequency: string, targetMonth: Date, today: Date): number => {
     const monthStart = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
-    const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0);
+    const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59);
     const endDate = monthEnd < today ? monthEnd : today;
     
-    if (startDate > endDate) return 0;
+    // Normalize start date to beginning of day for comparison
+    const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    
+    if (normalizedStart > endDate) return 0;
     
     const interval = frequency === 'Weekly' ? 7 : 14;
     let count = 0;
-    let currentDate = new Date(startDate);
+    let currentDate = new Date(normalizedStart);
     
     // Move forward until we're past the end date or in the target month
     while (currentDate <= endDate) {
