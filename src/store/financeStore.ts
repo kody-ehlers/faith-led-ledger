@@ -9,6 +9,10 @@ export interface IncomeEntry {
   preTax: boolean;
   date: string;
   notes: string;
+  // Optional suspension fields
+  suspendedFrom?: string | null;
+  suspendedTo?: string | null;
+  suspendedIndefinitely?: boolean;
 }
 
 export interface ExpenseEntry {
@@ -55,6 +59,8 @@ interface FinanceState {
   addIncome: (entry: Omit<IncomeEntry, 'id'>) => void;
   removeIncome: (id: string) => void;
   updateIncome: (id: string, updates: Partial<IncomeEntry>) => void;
+  suspendIncome: (id: string, from: string, to?: string | null, indefinite?: boolean) => void;
+  resumeIncome: (id: string) => void;
   
   addExpense: (entry: Omit<ExpenseEntry, 'id'>) => void;
   removeExpense: (id: string) => void;
@@ -82,7 +88,7 @@ export const useFinanceStore = create<FinanceState>()(
       
       addIncome: (entry) =>
         set((state) => ({
-          income: [...state.income, { ...entry, id: crypto.randomUUID() }],
+          income: [...state.income, { ...entry, id: crypto.randomUUID(), suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false }],
         })),
       
       removeIncome: (id) =>
@@ -94,6 +100,20 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           income: state.income.map((i) =>
             i.id === id ? { ...i, ...updates } : i
+          ),
+        })),
+
+      suspendIncome: (id, from, to = null, indefinite = false) =>
+        set((state) => ({
+          income: state.income.map((i) =>
+            i.id === id ? { ...i, suspendedFrom: from, suspendedTo: to, suspendedIndefinitely: indefinite } : i
+          ),
+        })),
+
+      resumeIncome: (id) =>
+        set((state) => ({
+          income: state.income.map((i) =>
+            i.id === id ? { ...i, suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false } : i
           ),
         })),
       

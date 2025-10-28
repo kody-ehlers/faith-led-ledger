@@ -13,7 +13,8 @@ import {
   DollarSign,
   MessageSquareText,
   Calendar as CalendarIcon,
-  SquarePen
+  SquarePen,
+  Pause
 } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,7 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function Income() {
-  const { income, addIncome, removeIncome, updateIncome } = useFinanceStore();
+  const { income, addIncome, removeIncome, updateIncome, suspendIncome, resumeIncome } = useFinanceStore();
 
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
@@ -92,6 +93,25 @@ export default function Income() {
   const IncomeCard = ({ entry }: { entry: typeof income[0] }) => {
     const isPast = entry.frequency === "One-time" ? new Date(entry.date) <= new Date() : false;
 
+    const now = new Date();
+    const isCurrentlySuspended = () => {
+      if (!entry.suspendedFrom) return false;
+      const from = new Date(entry.suspendedFrom);
+      if (now < from) return false;
+      if (entry.suspendedIndefinitely) return true;
+      if (entry.suspendedTo) {
+        const to = new Date(entry.suspendedTo);
+        return now <= to;
+      }
+      return false;
+    };
+
+    // Suspend dialog state
+    const [isSuspendOpen, setIsSuspendOpen] = useState(false);
+    const [suspendStart, setSuspendStart] = useState<Date>(new Date());
+    const [suspendEnd, setSuspendEnd] = useState<Date | null>(null);
+    const [suspendIndefinite, setSuspendIndefinite] = useState<boolean>(true);
+
     return (
       <Card key={entry.id} className="shadow-sm border border-border bg-card">
         <CardContent className="flex justify-between items-center py-4">
@@ -126,6 +146,13 @@ export default function Income() {
                 </Popover>
               )}
             </div>
+            {isCurrentlySuspended() && (
+              <div className="mr-2">
+                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">{
+                  entry.suspendedIndefinitely ? 'Suspended (indefinite)' : `Suspended until ${entry.suspendedTo ? format(new Date(entry.suspendedTo), 'PPP') : ''}`
+                }</span>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -137,6 +164,26 @@ export default function Income() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => {
+                if (isCurrentlySuspended()) {
+                  // Resume
+                  resumeIncome(entry.id);
+                  toast.success('Income resumed');
+                } else {
+                  // Open suspend dialog
+                  setSuspendStart(new Date());
+                  setSuspendEnd(null);
+                  setSuspendIndefinite(true);
+                  setIsSuspendOpen(true);
+                }
+              }}
+              className="text-amber-600 hover:bg-amber-600/10"
+            >
+              <Pause className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => handleRemoveIncome(entry.id)}
               className="text-destructive hover:bg-destructive/10"
             >
@@ -144,9 +191,80 @@ export default function Income() {
             </Button>
           </div>
         </CardContent>
+        {/* Suspend Dialog (per-card) */}
+        <Dialog open={isSuspendOpen} onOpenChange={setIsSuspendOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Suspend Income</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">{suspendStart ? format(suspendStart, 'PPP') : 'Pick a date'}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={suspendStart}
+                      onSelect={(d) => d && setSuspendStart(d)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <div className="flex items-center gap-3">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" disabled={suspendIndefinite}>
+                        {suspendEnd ? format(suspendEnd, 'PPP') : 'Pick an end date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="bottom" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={suspendEnd ?? undefined}
+                        onSelect={(d) => d && setSuspendEnd(d)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex items-center space-x-2">
+                    <Switch checked={suspendIndefinite} onCheckedChange={setSuspendIndefinite} />
+                    <span className="text-sm text-muted-foreground">Indefinite</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  // Save suspension
+                  suspendIncome(
+                    entry.id,
+                    suspendStart.toISOString(),
+                    suspendIndefinite ? null : suspendEnd ? suspendEnd.toISOString() : null,
+                    suspendIndefinite
+                  );
+                  toast.success('Income suspended');
+                  setIsSuspendOpen(false);
+                }}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Card>
     );
   };
+
+  // Suspend Dialog rendered inside page so it can be controlled per-card via state in each card
+  // But we create dialog instances per card inside IncomeCard above (using its state)
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

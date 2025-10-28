@@ -1,7 +1,22 @@
 import { IncomeEntry, ExpenseEntry, SavingsAccount, DebtEntry } from '@/store/financeStore';
 
 export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
+  const now = new Date();
+
+  const isCurrentlySuspended = (entry: IncomeEntry) => {
+    if (!entry.suspendedFrom) return false;
+    const from = new Date(entry.suspendedFrom);
+    if (now < from) return false; // suspension hasn't started yet
+    if (entry.suspendedIndefinitely) return true;
+    if (entry.suspendedTo) {
+      const to = new Date(entry.suspendedTo);
+      return now <= to;
+    }
+    return false;
+  };
+
   return income.reduce((total, entry) => {
+    if (isCurrentlySuspended(entry)) return total;
     let monthlyAmount = 0;
     switch (entry.frequency) {
       case 'Weekly':
@@ -27,8 +42,22 @@ export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
 };
 
 export const calculatePostTaxIncome = (income: IncomeEntry[]): number => {
+  const now = new Date();
+
+  const isCurrentlySuspended = (entry: IncomeEntry) => {
+    if (!entry.suspendedFrom) return false;
+    const from = new Date(entry.suspendedFrom);
+    if (now < from) return false; // suspension hasn't started yet
+    if (entry.suspendedIndefinitely) return true;
+    if (entry.suspendedTo) {
+      const to = new Date(entry.suspendedTo);
+      return now <= to;
+    }
+    return false;
+  };
+
   return income
-    .filter(entry => !entry.preTax)
+    .filter(entry => !entry.preTax && !isCurrentlySuspended(entry))
     .reduce((total, entry) => {
       let monthlyAmount = 0;
       switch (entry.frequency) {
