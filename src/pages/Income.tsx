@@ -109,21 +109,23 @@ export default function Income() {
 
           {/* Right: Amount + Notes + Edit/Delete */}
           <div className="flex items-center gap-2">
-            <span className={cn("font-semibold", isPast ? "text-green-700" : "text-foreground")}>
+            <span className={cn("font-semibold w-24 text-right", isPast ? "text-green-700" : "text-foreground")}>
               {formatCurrency(entry.amount)}
             </span>
-            {entry.notes && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <MessageSquareText className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64">
-                  <p className="text-sm text-foreground">{entry.notes}</p>
-                </PopoverContent>
-              </Popover>
-            )}
+            <div className="w-10 flex justify-center">
+              {entry.notes && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground">
+                      <MessageSquareText className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64">
+                    <p className="text-sm text-foreground">{entry.notes}</p>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="icon"
