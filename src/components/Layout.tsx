@@ -26,7 +26,7 @@ export function Layout({ children }: LayoutProps) {
         {/* --- Sidebar --- */}
         <div
           className={clsx(
-            "flex flex-col border-r border-border bg-card transition-all duration-300",
+            "flex flex-col border-r border-border bg-card transition-all duration-300 sticky top-0 h-screen",
             isSidebarCollapsed ? "w-16 items-center" : "w-64"
           )}
         >
