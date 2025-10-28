@@ -67,6 +67,18 @@ export default function Home() {
       .filter((inc) => {
         const incDate = new Date(inc.date);
         const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        // Debug logging for June specifically
+        if (monthName === 'Jun' && year === 2024) {
+          console.log('June debug:', {
+            source: inc.source,
+            incDate: incDate.toISOString(),
+            lastDayOfMonth: lastDayOfMonth.toISOString(),
+            now: now.toISOString(),
+            passes: incDate <= lastDayOfMonth && incDate <= now
+          });
+        }
+        
         return incDate <= lastDayOfMonth && incDate <= now;
       })
       .reduce((sum, inc) => {
@@ -83,6 +95,21 @@ export default function Home() {
         // For weekly and biweekly, count actual occurrences
         if (inc.frequency === 'Weekly' || inc.frequency === 'Biweekly') {
           const occurrences = countOccurrencesInMonth(incDate, inc.frequency, date, now);
+          
+          // Debug logging for June specifically
+          if (date.toLocaleString("default", { month: "short" }) === 'Jun' && date.getFullYear() === 2024) {
+            console.log('Occurrences debug:', {
+              source: inc.source,
+              frequency: inc.frequency,
+              startDate: incDate.toISOString(),
+              month: date.toLocaleString("default", { month: "short" }),
+              year: date.getFullYear(),
+              occurrences: occurrences,
+              amount: inc.amount,
+              total: inc.amount * occurrences
+            });
+          }
+          
           return sum + (inc.amount * occurrences);
         }
         
