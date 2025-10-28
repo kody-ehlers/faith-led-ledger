@@ -67,6 +67,8 @@ interface FinanceState {
   
   addTithe: (tithe: Omit<TithePayment, 'id'>) => void;
   markTitheGiven: (id: string) => void;
+  updateTithe: (id: string, updates: Partial<TithePayment>) => void;
+  removeTithe: (id: string) => void;
   
   addSavings: (account: Omit<SavingsAccount, 'id'>) => void;
   updateSavings: (id: string, updates: Partial<SavingsAccount>) => void;
@@ -137,6 +139,15 @@ export const useFinanceStore = create<FinanceState>()(
           tithes: state.tithes.map((t) =>
             t.id === id ? { ...t, given: true } : t
           ),
+        })),
+      updateTithe: (id, updates) =>
+        set((state) => ({
+          tithes: state.tithes.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+        })),
+
+      removeTithe: (id) =>
+        set((state) => ({
+          tithes: state.tithes.filter((t) => t.id !== id),
         })),
       
       addSavings: (account) =>

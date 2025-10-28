@@ -1,55 +1,98 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculatePostTaxIncome, calculateTitheAmount, formatCurrency } from "@/utils/calculations";
+import { calculatePostTaxIncomeForMonth, calculatePostTaxIncomeReceivedSoFar, calculateTitheAmount, formatCurrency } from "@/utils/calculations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Heart, CheckCircle2, Circle } from "lucide-react";
+import { Heart, CheckCircle2, Circle, SquarePen, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 export default function Tithe() {
-  const { income, tithes, addTithe, markTitheGiven } = useFinanceStore();
-  const postTaxIncome = calculatePostTaxIncome(income);
-  const recommendedTithe = calculateTitheAmount(postTaxIncome);
+  const { income, tithes, addTithe, markTitheGiven, updateTithe, removeTithe } = useFinanceStore();
+  const postTaxIncome = calculatePostTaxIncomeForMonth(income);
+  const postTaxReceivedSoFar = calculatePostTaxIncomeReceivedSoFar(income);
+  const recommendedTithe = calculateTitheAmount(postTaxReceivedSoFar);
   
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthlyTithes = tithes.filter(t => t.date.startsWith(currentMonth));
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  // Only consider tithe payments that have occurred up to now in the current month
+  const monthlyTithes = tithes.filter(t => t.date.startsWith(currentMonth) && new Date(t.date) <= now);
   const totalTithed = monthlyTithes.reduce((sum, t) => sum + t.amount, 0);
   const remaining = Math.max(0, recommendedTithe - totalTithed);
   const percentageGiven = recommendedTithe > 0 ? (totalTithed / recommendedTithe) * 100 : 0;
 
-  const handleMarkAsTithed = () => {
-    if (remaining <= 0) {
-      toast.info("You've already given your full tithe this month!");
-      return;
-    }
+  const [fullDialogOpen, setFullDialogOpen] = useState(false);
+  const [fullDate, setFullDate] = useState<Date>(new Date());
+  const [partialDialogOpen, setPartialDialogOpen] = useState(false);
+  const [partialAmount, setPartialAmount] = useState<string>('');
+  const [partialDate, setPartialDate] = useState<Date>(new Date());
 
-    addTithe({
-      amount: remaining,
-      date: new Date().toISOString(),
-      given: true,
-    });
+  // Editing existing tithe
+  const [editingTithe, setEditingTithe] = useState<typeof tithes[0] | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-    toast.success("Tithe marked as given. Thank you for your faithfulness!");
-  };
+  const handleMarkAsTithed = () => setFullDialogOpen(true);
 
   const handlePartialTithe = () => {
-    const amount = prompt("Enter the amount you'd like to give:");
-    if (!amount) return;
-    
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error("Please enter a valid amount");
+    setPartialAmount('');
+    setPartialDate(new Date());
+    setPartialDialogOpen(true);
+  };
+
+  const saveFullTithe = () => {
+    if (remaining <= 0) {
+      toast.info("You've already given your full tithe this month!");
+      setFullDialogOpen(false);
       return;
     }
+    addTithe({ amount: remaining, date: fullDate.toISOString(), given: true });
+    toast.success('Tithe marked as given. Thank you!');
+    setFullDialogOpen(false);
+  };
 
-    addTithe({
-      amount: parsedAmount,
-      date: new Date().toISOString(),
-      given: true,
-    });
+  const savePartialTithe = () => {
+    const parsed = parseFloat(partialAmount);
+    if (isNaN(parsed) || parsed <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    addTithe({ amount: parsed, date: partialDate.toISOString(), given: true });
+    toast.success('Tithe recorded. Thank you!');
+    setPartialDialogOpen(false);
+  };
 
-    toast.success("Tithe recorded. God loves a cheerful giver!");
+  const handleEditSave = () => {
+    if (!editingTithe) return;
+    if (!editingTithe.amount || editingTithe.amount <= 0) {
+      toast.error('Invalid amount');
+      return;
+    }
+    updateTithe(editingTithe.id, { amount: editingTithe.amount, date: editingTithe.date, given: editingTithe.given });
+    toast.success('Tithe updated');
+    setEditDialogOpen(false);
+    setEditingTithe(null);
+  };
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingTitheId, setDeletingTitheId] = useState<string | null>(null);
+
+  const handleDeleteTithe = (id: string) => {
+    setDeletingTitheId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteTithe = () => {
+    if (!deletingTitheId) return;
+    removeTithe(deletingTitheId);
+    toast.success('Tithe record removed');
+    setDeleteDialogOpen(false);
+    setDeletingTitheId(null);
   };
 
   return (
@@ -82,10 +125,10 @@ export default function Tithe() {
         <Card className="shadow-md border-primary/20">
           <CardHeader>
             <CardTitle>Post-Tax Income</CardTitle>
-            <CardDescription>This month</CardDescription>
+            <CardDescription>Received this month</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(postTaxIncome)}</p>
+            <p className="text-2xl font-bold text-primary">{formatCurrency(postTaxReceivedSoFar)}</p>
           </CardContent>
         </Card>
 
@@ -147,6 +190,136 @@ export default function Tithe() {
         </CardContent>
       </Card>
 
+      {/* Full tithe dialog */}
+      <Dialog open={fullDialogOpen} onOpenChange={setFullDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Mark Full Tithe as Given</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              This will record a tithe of <strong>{formatCurrency(remaining)}</strong> for this month.
+            </p>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">{format(fullDate, 'PPP')}</Button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="w-auto p-0">
+                  <Calendar mode="single" selected={fullDate} onSelect={(d) => d && setFullDate(d)} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={saveFullTithe}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partial tithe dialog */}
+      <Dialog open={partialDialogOpen} onOpenChange={setPartialDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Record Partial Tithe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  className="pl-6"
+                  value={partialAmount}
+                  onChange={(e) => setPartialAmount(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">{format(partialDate, 'PPP')}</Button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="w-auto p-0">
+                  <Calendar mode="single" selected={partialDate} onSelect={(d) => d && setPartialDate(d)} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={savePartialTithe}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit tithe dialog */}
+      {editingTithe && (
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Tithe</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    className="pl-6"
+                    type="text"
+                    inputMode="decimal"
+                    value={editingTithe.amount}
+                    onChange={(e) => setEditingTithe({ ...editingTithe, amount: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">{editingTithe.date ? format(new Date(editingTithe.date), 'PPP') : 'Pick a date'}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={editingTithe.date ? new Date(editingTithe.date) : new Date()}
+                      onSelect={(d) => d && setEditingTithe({ ...editingTithe, date: d.toISOString() })}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleEditSave}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Tithe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Are you sure you want to delete this tithe record? This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeletingTitheId(null); }}>
+              Cancel
+            </Button>
+            <Button className="ml-2 text-destructive bg-destructive/5 hover:bg-destructive/10" onClick={confirmDeleteTithe}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Tithe History */}
       <Card className="shadow-md">
         <CardHeader>
@@ -176,13 +349,36 @@ export default function Tithe() {
                         <Circle className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
-                        <p className="font-semibold text-foreground">
-                          {formatCurrency(tithe.amount)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(tithe.date).toLocaleDateString()}
-                        </p>
+                        <p className="font-semibold text-foreground">{formatCurrency(tithe.amount)}</p>
+                        <p className="text-sm text-muted-foreground">{new Date(tithe.date).toLocaleDateString()}</p>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setEditingTithe(tithe);
+                          setEditDialogOpen(true);
+                        }}
+                        aria-label="Edit tithe"
+                        title="Edit"
+                      >
+                        <SquarePen className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteTithe(tithe.id)}
+                        aria-label="Delete tithe"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}

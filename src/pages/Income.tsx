@@ -14,7 +14,8 @@ import {
   MessageSquareText,
   Calendar as CalendarIcon,
   SquarePen,
-  Pause
+  Pause,
+  Play
 } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -136,7 +137,13 @@ export default function Income() {
               {entry.notes && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
+                      aria-label="View notes"
+                      title="View notes"
+                    >
                       <MessageSquareText className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
@@ -157,30 +164,40 @@ export default function Income() {
               variant="ghost"
               size="icon"
               onClick={() => handleEditIncome(entry)}
-              className="text-primary hover:bg-primary/10"
+              className="text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label="Edit income"
+              title="Edit"
             >
               <SquarePen className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                if (isCurrentlySuspended()) {
-                  // Resume
-                  resumeIncome(entry.id);
-                  toast.success('Income resumed');
-                } else {
-                  // Open suspend dialog
-                  setSuspendStart(new Date());
-                  setSuspendEnd(null);
-                  setSuspendIndefinite(true);
-                  setIsSuspendOpen(true);
-                }
-              }}
-              className="text-amber-600 hover:bg-amber-600/10"
-            >
-              <Pause className="h-4 w-4" />
-            </Button>
+            {entry.frequency !== "One-time" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (isCurrentlySuspended()) {
+                    // Resume
+                    resumeIncome(entry.id);
+                    toast.success("Income resumed");
+                  } else {
+                    // Open suspend dialog
+                    setSuspendStart(new Date());
+                    setSuspendEnd(null);
+                    setSuspendIndefinite(true);
+                    setIsSuspendOpen(true);
+                  }
+                }}
+                className={isCurrentlySuspended() ? "text-success hover:bg-success/10" : "text-amber-600 hover:bg-amber-600/10"}
+                aria-label={isCurrentlySuspended() ? "Resume income" : "Suspend income"}
+                title={isCurrentlySuspended() ? "Resume income" : "Suspend income"}
+              >
+                {isCurrentlySuspended() ? (
+                  <Play className="h-4 w-4" />
+                ) : (
+                  <Pause className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
