@@ -7,15 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, DollarSign, CalendarIcon } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  DollarSign,
+  MessageSquareText,
+  Calendar as CalendarIcon,
+  SquarePen
+} from "lucide-react";
 import { toast } from "sonner";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function Income() {
-  const { income, addIncome, removeIncome } = useFinanceStore();
+  const { income, addIncome, removeIncome, updateIncome } = useFinanceStore();
+
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("One-time");
@@ -23,6 +32,10 @@ export default function Income() {
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [showOneTimeList, setShowOneTimeList] = useState(false);
+
+  const [editingIncome, setEditingIncome] = useState<typeof income[0] | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleAddIncome = () => {
     if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
@@ -36,7 +49,7 @@ export default function Income() {
       frequency,
       preTax,
       date: date.toISOString(),
-      notes: notes.trim(),
+      notes: notes.trim()
     });
 
     toast.success("Income added successfully");
@@ -53,8 +66,85 @@ export default function Income() {
     toast.success("Income source removed");
   };
 
+  const handleEditIncome = (entry: typeof income[0]) => {
+    setEditingIncome(entry);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingIncome || !editingIncome.source || !editingIncome.amount) return;
+
+    updateIncome(editingIncome.id, { ...editingIncome, date: editingIncome.date });
+    toast.success("Income updated");
+    setIsEditModalOpen(false);
+    setEditingIncome(null);
+  };
+
   const monthlyTotal = calculateMonthlyIncome(income);
   const annualProjection = monthlyTotal * 12;
+
+  const recurringIncomes = income.filter((i) => i.frequency !== "One-time");
+  const oneTimeIncomes = income.filter((i) => i.frequency === "One-time");
+  const sortedOneTime = [...oneTimeIncomes].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const IncomeCard = ({ entry }: { entry: typeof income[0] }) => {
+    const isPast = entry.frequency === "One-time" ? new Date(entry.date) <= new Date() : false;
+
+    return (
+      <Card key={entry.id} className="shadow-sm border border-border bg-card">
+        <CardContent className="flex justify-between items-center h-20">
+          {/* Left: Source + Frequency/PreTax */}
+          <div className="flex-1 flex flex-col justify-center h-full">
+            <h4 className="font-semibold text-foreground">{entry.source}</h4>
+            <div className="flex gap-2 text-sm text-muted-foreground items-center">
+              {entry.frequency !== "One-time" && <span>{entry.frequency}</span>}
+              {entry.frequency !== "One-time" && <span>•</span>}
+              <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
+              {entry.frequency === "One-time" && <span>•</span>}
+              {entry.frequency === "One-time" && <span>{format(new Date(entry.date), "PPP")}</span>}
+            </div>
+          </div>
+
+          {/* Right: Amount + Notes + Edit/Delete */}
+          <div className="flex items-center gap-2 h-full">
+            <span className={cn("font-semibold", isPast ? "text-green-700" : "text-foreground")}>
+              {formatCurrency(entry.amount)}
+            </span>
+            {entry.notes && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground">
+                    <MessageSquareText className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <p className="text-sm text-foreground">{entry.notes}</p>
+                </PopoverContent>
+              </Popover>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleEditIncome(entry)}
+              className="text-primary hover:bg-primary/10"
+            >
+              <SquarePen className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleRemoveIncome(entry.id)}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -105,9 +195,9 @@ export default function Income() {
               <Label htmlFor="source">Source</Label>
               <Input
                 id="source"
-                placeholder="e.g., Salary, Freelance, etc."
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
+                placeholder="e.g., Salary, Freelance"
               />
             </div>
 
@@ -119,11 +209,11 @@ export default function Income() {
                 <Input
                   id="amount"
                   type="number"
-                  placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   min="0"
                   step="0.01"
+                  placeholder="0.00"
                   className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
@@ -132,10 +222,7 @@ export default function Income() {
             {/* Frequency */}
             <div className="space-y-2">
               <Label htmlFor="frequency">Frequency</Label>
-              <Select
-                value={frequency}
-                onValueChange={(value: any) => setFrequency(value)}
-              >
+              <Select value={frequency} onValueChange={(value: any) => setFrequency(value)}>
                 <SelectTrigger id="frequency">
                   <SelectValue />
                 </SelectTrigger>
@@ -150,7 +237,7 @@ export default function Income() {
               </Select>
             </div>
 
-            {/* Pre-Tax Switch */}
+            {/* Pre-Tax */}
             <div className="space-y-2">
               <Label htmlFor="preTax">Pre-Tax Income?</Label>
               <div className="flex items-center space-x-2 h-10">
@@ -161,29 +248,20 @@ export default function Income() {
               </div>
             </div>
 
-            {/* Date Picker */}
+            {/* Date */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="date">{frequency === "One-time" ? "Date" : "Start Date"}</Label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
+                    className={cn("w-full justify-start text-left font-normal")}
                     onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                    <CalendarIcon className="mr-2 h-4 w-4" /> {date ? format(date, "PPP") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0"
-                  align="start"
-                  side="top"
-                  avoidCollisions={false}
-                >
+                <PopoverContent className="w-auto p-0" align="start" side="bottom">
                   <Calendar
                     mode="single"
                     selected={date}
@@ -195,12 +273,6 @@ export default function Income() {
                     }}
                     initialFocus
                     className="pointer-events-auto"
-                    modifiers={{
-                      today: new Date(),
-                    }}
-                    modifiersClassNames={{
-                      today: "bg-muted text-foreground rounded-md",
-                    }}
                   />
                 </PopoverContent>
               </Popover>
@@ -211,68 +283,148 @@ export default function Income() {
               <Label htmlFor="notes">Notes (optional)</Label>
               <Input
                 id="notes"
-                placeholder="Add any notes (max 200 chars)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value.slice(0, 200))}
+                placeholder="Add notes (max 200 chars)"
               />
             </div>
           </div>
 
-          <Button
-            onClick={handleAddIncome}
-            className="w-full bg-success hover:bg-success/90"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Income
+          <Button onClick={handleAddIncome} className="w-full bg-success hover:bg-success/90">
+            <Plus className="h-4 w-4 mr-2" /> Add Income
           </Button>
         </CardContent>
       </Card>
 
-      {/* Income List */}
+      {/* Recurring Incomes */}
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Income Sources</CardTitle>
-          <CardDescription>All your recorded income sources</CardDescription>
+          <CardTitle>Recurring Income</CardTitle>
+          <CardDescription>All your recurring income sources</CardDescription>
         </CardHeader>
-        <CardContent>
-          {income.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No income sources added yet. Start by adding your first source above.
-            </p>
+        <CardContent className="space-y-3">
+          {recurringIncomes.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No recurring income recorded.</p>
           ) : (
-            <div className="space-y-3">
-              {income.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-foreground">{entry.source}</h4>
-                    <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>{formatCurrency(entry.amount)}</span>
-                      <span>•</span>
-                      <span>{entry.frequency}</span>
-                      <span>•</span>
-                      <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
-                      <span>•</span>
-                      <span>{entry.date ? new Date(entry.date).toLocaleDateString() : "-"}</span>
-                      {entry.notes && <span>• {entry.notes}</span>}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveIncome(entry.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+            recurringIncomes.map((entry) => <IncomeCard key={entry.id} entry={entry} />)
           )}
         </CardContent>
       </Card>
+
+      {/* One-Time Income Toggle */}
+      {sortedOneTime.length > 0 && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setShowOneTimeList(!showOneTimeList)}>
+            {showOneTimeList ? "Hide One-Time Incomes" : "View One-Time Incomes"}
+          </Button>
+        </div>
+      )}
+
+      {/* One-Time Income List */}
+      {showOneTimeList && (
+        <div className="space-y-3 mt-2">
+          {sortedOneTime.map((entry) => (
+            <IncomeCard key={entry.id} entry={entry} />
+          ))}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingIncome && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Income</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Source</Label>
+                <Input
+                  value={editingIncome.source}
+                  onChange={(e) => setEditingIncome({ ...editingIncome, source: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    value={editingIncome.amount}
+                    onChange={(e) =>
+                      setEditingIncome({ ...editingIncome, amount: parseFloat(e.target.value) })
+                    }
+                    className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select
+                  value={editingIncome.frequency}
+                  onValueChange={(value: any) => setEditingIncome({ ...editingIncome, frequency: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="One-time">One-time</SelectItem>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Biweekly">Biweekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pre-Tax Income?</Label>
+                <Switch
+                  checked={editingIncome.preTax}
+                  onCheckedChange={(val) => setEditingIncome({ ...editingIncome, preTax: val })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">
+                      {editingIncome.date ? format(new Date(editingIncome.date), "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(editingIncome.date)}
+                      onSelect={(newDate) =>
+                        newDate &&
+                        setEditingIncome({ ...editingIncome, date: newDate.toISOString() })
+                      }
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input
+                  value={editingIncome.notes}
+                  onChange={(e) => setEditingIncome({ ...editingIncome, notes: e.target.value.slice(0, 200) })}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleSaveEdit}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
