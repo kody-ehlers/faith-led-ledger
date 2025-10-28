@@ -54,6 +54,7 @@ interface FinanceState {
   // Actions
   addIncome: (entry: Omit<IncomeEntry, 'id'>) => void;
   removeIncome: (id: string) => void;
+  updateIncome: (id: string, updates: Partial<IncomeEntry>) => void;
   
   addExpense: (entry: Omit<ExpenseEntry, 'id'>) => void;
   removeExpense: (id: string) => void;
@@ -87,6 +88,13 @@ export const useFinanceStore = create<FinanceState>()(
       removeIncome: (id) =>
         set((state) => ({
           income: state.income.filter((i) => i.id !== id),
+        })),
+
+      updateIncome: (id, updates) =>
+        set((state) => ({
+          income: state.income.map((i) =>
+            i.id === id ? { ...i, ...updates } : i
+          ),
         })),
       
       addExpense: (entry) =>
