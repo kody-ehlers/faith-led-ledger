@@ -15,8 +15,10 @@ import {
   Calendar as CalendarIcon,
   SquarePen,
   Pause,
-  Play
+  Play,
+  TrendingUp,
 } from "lucide-react";
+import { subDays } from "date-fns";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -27,9 +29,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 export default function Income() {
   const { income, addIncome, removeIncome, updateIncome, suspendIncome, resumeIncome } = useFinanceStore();
 
+  type Frequency = "Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time";
+
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
-  const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("One-time");
+  const [frequency, setFrequency] = useState<Frequency>("One-time");
   const [preTax, setPreTax] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
@@ -112,6 +116,10 @@ export default function Income() {
     const [suspendStart, setSuspendStart] = useState<Date>(new Date());
     const [suspendEnd, setSuspendEnd] = useState<Date | null>(null);
     const [suspendIndefinite, setSuspendIndefinite] = useState<boolean>(true);
+  // Adjust pay dialog state
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState<string>(entry.amount.toString());
+  const [adjustDate, setAdjustDate] = useState<Date>(new Date());
 
     return (
       <Card key={entry.id} className="shadow-sm border border-border bg-card">
@@ -153,6 +161,22 @@ export default function Income() {
                 </Popover>
               )}
             </div>
+                    {entry.frequency !== "One-time" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setAdjustAmount(entry.amount.toString());
+                          setAdjustDate(new Date());
+                          setIsAdjustOpen(true);
+                        }}
+                        className="text-sky-600 hover:bg-sky-600/10"
+                        aria-label="Adjust pay"
+                        title="Adjust pay"
+                      >
+                        <TrendingUp className="h-4 w-4" />
+                      </Button>
+                    )}
             {isCurrentlySuspended() && (
               <div className="mr-2">
                 <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">{
@@ -276,6 +300,75 @@ export default function Income() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Adjust pay dialog (per-card) */}
+        <Dialog open={isAdjustOpen} onOpenChange={setIsAdjustOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adjust Pay</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>New Amount</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input className="pl-6" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} inputMode="decimal" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Effective Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">{format(adjustDate, 'PPP')}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar mode="single" selected={adjustDate} onSelect={(d) => d && setAdjustDate(d)} />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-sm text-muted-foreground">If the date is in the future, the current income will stop the day before and a new income will start on the effective date.</p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  const parsed = parseFloat(adjustAmount);
+                  if (isNaN(parsed) || parsed <= 0) {
+                    toast.error('Please enter a valid amount');
+                    return;
+                  }
+
+                  const eff = adjustDate;
+                  const today = new Date();
+                  if (eff <= today) {
+                    // apply immediately
+                    updateIncome(entry.id, { amount: parsed });
+                    toast.success('Income updated');
+                  } else {
+                    // schedule: add new income starting eff, and end the current income the day before
+                    addIncome({
+                      source: entry.source,
+                      amount: parsed,
+                      frequency: entry.frequency,
+                      preTax: entry.preTax,
+                      date: eff.toISOString(),
+                      notes: entry.notes,
+                    });
+                    const stopDate = subDays(eff, 1);
+                    updateIncome(entry.id, { suspendedTo: stopDate.toISOString(), suspendedIndefinitely: false });
+                    toast.success('Income change scheduled');
+                  }
+
+                  setIsAdjustOpen(false);
+                }}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Card>
     );
   };
@@ -292,6 +385,7 @@ export default function Income() {
         </div>
         <div>
           <h2 className="text-3xl font-bold text-foreground">Income</h2>
+
           <p className="text-muted-foreground">Track and manage your income sources</p>
         </div>
       </div>
@@ -359,7 +453,7 @@ export default function Income() {
             {/* Frequency */}
             <div className="space-y-2">
               <Label htmlFor="frequency">Frequency</Label>
-              <Select value={frequency} onValueChange={(value: any) => setFrequency(value)}>
+              <Select value={frequency} onValueChange={(value: Frequency) => setFrequency(value)}>
                 <SelectTrigger id="frequency">
                   <SelectValue />
                 </SelectTrigger>
@@ -502,7 +596,7 @@ export default function Income() {
                 <Label>Frequency</Label>
                 <Select
                   value={editingIncome.frequency}
-                  onValueChange={(value: any) => setEditingIncome({ ...editingIncome, frequency: value })}
+                  onValueChange={(value: Frequency) => setEditingIncome({ ...editingIncome, frequency: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
