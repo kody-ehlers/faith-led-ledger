@@ -35,12 +35,47 @@ export default function Home() {
     const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const monthName = date.toLocaleString("default", { month: "short" });
     const year = date.getFullYear();
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
     const monthlyAmount = income
       .filter((inc) => {
         const incDate = new Date(inc.date);
-        return incDate.getMonth() === date.getMonth() && incDate.getFullYear() === date.getFullYear();
+        // Include income if it started on or before the last day of this month AND on or before today
+        return incDate <= lastDayOfMonth && incDate <= now;
       })
-      .reduce((sum, inc) => sum + inc.amount, 0);
+      .reduce((sum, inc) => {
+        const incDate = new Date(inc.date);
+        
+        // For one-time income, only count in the month it occurred
+        if (inc.frequency === 'One-time') {
+          if (incDate.getMonth() === date.getMonth() && incDate.getFullYear() === date.getFullYear()) {
+            return sum + inc.amount;
+          }
+          return sum;
+        }
+        
+        // For recurring income, calculate monthly amount if it was active during this month
+        let monthlyAmount = 0;
+        switch (inc.frequency) {
+          case 'Weekly':
+            monthlyAmount = inc.amount * 4.33;
+            break;
+          case 'Biweekly':
+            monthlyAmount = inc.amount * 2.17;
+            break;
+          case 'Monthly':
+            monthlyAmount = inc.amount;
+            break;
+          case 'Quarterly':
+            monthlyAmount = inc.amount / 3;
+            break;
+          case 'Yearly':
+            monthlyAmount = inc.amount / 12;
+            break;
+        }
+        return sum + monthlyAmount;
+      }, 0);
+    
     return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}` };
   });
 
