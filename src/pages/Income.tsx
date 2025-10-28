@@ -21,6 +21,7 @@ export default function Income() {
   const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("Monthly");
   const [preTax, setPreTax] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false); // 👈 controls calendar visibility
 
   const handleAddIncome = () => {
     if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
@@ -143,11 +144,7 @@ export default function Income() {
             <div className="space-y-2">
               <Label htmlFor="preTax">Pre-Tax Income?</Label>
               <div className="flex items-center space-x-2 h-10">
-                <Switch
-                  id="preTax"
-                  checked={preTax}
-                  onCheckedChange={setPreTax}
-                />
+                <Switch id="preTax" checked={preTax} onCheckedChange={setPreTax} />
                 <span className="text-sm text-muted-foreground">
                   {preTax ? "Yes (before taxes)" : "No (after taxes)"}
                 </span>
@@ -157,7 +154,7 @@ export default function Income() {
             {/* Date Picker */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="date">Start Date</Label>
-              <Popover>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -165,18 +162,35 @@ export default function Income() {
                       "w-full justify-start text-left font-normal",
                       !date && "text-muted-foreground"
                     )}
+                    onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? format(date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="start"
+                  side="bottom"
+                  avoidCollisions={false}
+                >
                   <Calendar
                     mode="single"
                     selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
+                    onSelect={(newDate) => {
+                      if (newDate) {
+                        setDate(newDate);
+                        setIsCalendarOpen(false); // 👈 auto-close on select
+                      }
+                    }}
                     initialFocus
                     className="pointer-events-auto"
+                    modifiers={{
+                      today: new Date(),
+                    }}
+                    modifiersClassNames={{
+                      today: "bg-muted text-foreground rounded-md",
+                    }}
                   />
                 </PopoverContent>
               </Popover>
