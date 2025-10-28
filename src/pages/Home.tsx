@@ -37,20 +37,16 @@ export default function Home() {
     
     if (startDate > endDate) return 0;
     
+    const interval = frequency === 'Weekly' ? 7 : 14;
     let count = 0;
     let currentDate = new Date(startDate);
     
-    // Fast forward to the target month if start date is before it
-    if (currentDate < monthStart) {
-      const daysDiff = Math.floor((monthStart.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      const interval = frequency === 'Weekly' ? 7 : 14;
-      const periods = Math.floor(daysDiff / interval);
-      currentDate = new Date(currentDate.getTime() + periods * interval * 24 * 60 * 60 * 1000);
-    }
-    
-    const interval = frequency === 'Weekly' ? 7 : 14;
-    while (currentDate >= monthStart && currentDate <= endDate) {
-      count++;
+    // Move forward until we're past the end date or in the target month
+    while (currentDate <= endDate) {
+      // Check if this payment date falls within the target month
+      if (currentDate >= monthStart && currentDate <= monthEnd) {
+        count++;
+      }
       currentDate = new Date(currentDate.getTime() + interval * 24 * 60 * 60 * 1000);
     }
     
