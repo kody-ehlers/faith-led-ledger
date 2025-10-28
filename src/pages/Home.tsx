@@ -62,74 +62,53 @@ export default function Home() {
     const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const monthName = date.toLocaleString("default", { month: "short" });
     const year = date.getFullYear();
-    
+
+    const incomeBreakdown: { source: string; amount: number }[] = [];
+
     const monthlyAmount = income
       .filter((inc) => {
         const incDate = new Date(inc.date);
         const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        
-        // Debug logging for June specifically
-        if (monthName === 'Jun' && year === 2024) {
-          console.log('June debug:', {
-            source: inc.source,
-            incDate: incDate.toISOString(),
-            lastDayOfMonth: lastDayOfMonth.toISOString(),
-            now: now.toISOString(),
-            passes: incDate <= lastDayOfMonth && incDate <= now
-          });
-        }
-        
         return incDate <= lastDayOfMonth && incDate <= now;
       })
       .reduce((sum, inc) => {
         const incDate = new Date(inc.date);
-        
+        let contributionAmount = 0;
+
         // For one-time income, only count in the month it occurred
         if (inc.frequency === 'One-time') {
           if (incDate.getMonth() === date.getMonth() && incDate.getFullYear() === date.getFullYear()) {
-            return sum + inc.amount;
+            contributionAmount = inc.amount;
           }
-          return sum;
         }
-        
         // For weekly and biweekly, count actual occurrences
-        if (inc.frequency === 'Weekly' || inc.frequency === 'Biweekly') {
+        else if (inc.frequency === 'Weekly' || inc.frequency === 'Biweekly') {
           const occurrences = countOccurrencesInMonth(incDate, inc.frequency, date, now);
-          
-          // Debug logging for June specifically
-          if (date.toLocaleString("default", { month: "short" }) === 'Jun' && date.getFullYear() === 2024) {
-            console.log('Occurrences debug:', {
-              source: inc.source,
-              frequency: inc.frequency,
-              startDate: incDate.toISOString(),
-              month: date.toLocaleString("default", { month: "short" }),
-              year: date.getFullYear(),
-              occurrences: occurrences,
-              amount: inc.amount,
-              total: inc.amount * occurrences
-            });
-          }
-          
-          return sum + (inc.amount * occurrences);
+          contributionAmount = inc.amount * occurrences;
         }
-        
         // For other recurring income, calculate monthly amount
-        let monthlyAmount = 0;
-        switch (inc.frequency) {
-          case 'Monthly':
-            monthlyAmount = inc.amount;
-            break;
-          case 'Quarterly':
-            monthlyAmount = inc.amount / 3;
-            break;
-          case 'Yearly':
-            monthlyAmount = inc.amount / 12;
-            break;
+        else {
+          switch (inc.frequency) {
+            case 'Monthly':
+              contributionAmount = inc.amount;
+              break;
+            case 'Quarterly':
+              contributionAmount = inc.amount / 3;
+              break;
+            case 'Yearly':
+              contributionAmount = inc.amount / 12;
+              break;
+          }
         }
-        return sum + monthlyAmount;
+
+        if (contributionAmount > 0) {
+          incomeBreakdown.push({ source: inc.source, amount: contributionAmount });
+        }
+
+        return sum + contributionAmount;
       }, 0);
-    
-    return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}` };
+
+    return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, breakdown: incomeBreakdown };
   });
 
   return (
@@ -264,31 +243,39 @@ export default function Home() {
             <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis
-                dataKey="month"
+                dataKey="label"
                 className="text-muted-foreground"
-                tick={({ x, y, payload, index }) => {
-                  const prev = monthlyIncomeData[index - 1];
-                  const showYearDivider = prev && prev.year !== payload.year;
-                  return (
-                    <g transform={`translate(${x},${y + 10})`}>
-                      {showYearDivider && (
-                        <line x1={0} y1={-30} x2={0} y2={0} className="stroke-border" strokeWidth={1} />
-                      )}
-                      <text x={0} y={15} textAnchor="middle" className="fill-muted-foreground text-sm">
-                        {payload.value}
-                      </text>
-                    </g>
-                  );
-                }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                tick={{ fontSize: 12 }}
               />
               <YAxis className="text-muted-foreground" />
-              <Tooltip 
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  color: 'hsl(var(--foreground))'
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-background border border-border rounded-md p-3 shadow-lg">
+                        <p className="font-semibold mb-2">{data.label}</p>
+                        <p className="text-success font-bold mb-2">
+                          Total: {formatCurrency(data.income)}
+                        </p>
+                        {data.breakdown && data.breakdown.length > 0 && (
+                          <div className="space-y-1 border-t border-border pt-2">
+                            <p className="text-xs text-muted-foreground font-medium mb-1">Sources:</p>
+                            {data.breakdown.map((item: { source: string; amount: number }, idx: number) => (
+                              <div key={idx} className="text-sm flex justify-between gap-4">
+                                <span className="text-muted-foreground">{item.source}</span>
+                                <span className="font-medium">{formatCurrency(item.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
               />
               <Bar dataKey="income" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
