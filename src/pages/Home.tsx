@@ -29,18 +29,45 @@ export default function Home() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 
+  // Helper function to count occurrences of a payment frequency in a month
+  const countOccurrencesInMonth = (startDate: Date, frequency: string, targetMonth: Date, today: Date): number => {
+    const monthStart = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+    const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0);
+    const endDate = monthEnd < today ? monthEnd : today;
+    
+    if (startDate > endDate) return 0;
+    
+    let count = 0;
+    let currentDate = new Date(startDate);
+    
+    // Fast forward to the target month if start date is before it
+    if (currentDate < monthStart) {
+      const daysDiff = Math.floor((monthStart.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      const interval = frequency === 'Weekly' ? 7 : 14;
+      const periods = Math.floor(daysDiff / interval);
+      currentDate = new Date(currentDate.getTime() + periods * interval * 24 * 60 * 60 * 1000);
+    }
+    
+    const interval = frequency === 'Weekly' ? 7 : 14;
+    while (currentDate >= monthStart && currentDate <= endDate) {
+      count++;
+      currentDate = new Date(currentDate.getTime() + interval * 24 * 60 * 60 * 1000);
+    }
+    
+    return count;
+  };
+
   // Prepare last 12 months of income data
   const now = new Date();
   const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const monthName = date.toLocaleString("default", { month: "short" });
     const year = date.getFullYear();
-    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
     
     const monthlyAmount = income
       .filter((inc) => {
         const incDate = new Date(inc.date);
-        // Include income if it started on or before the last day of this month AND on or before today
+        const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
         return incDate <= lastDayOfMonth && incDate <= now;
       })
       .reduce((sum, inc) => {
@@ -54,15 +81,15 @@ export default function Home() {
           return sum;
         }
         
-        // For recurring income, calculate monthly amount if it was active during this month
+        // For weekly and biweekly, count actual occurrences
+        if (inc.frequency === 'Weekly' || inc.frequency === 'Biweekly') {
+          const occurrences = countOccurrencesInMonth(incDate, inc.frequency, date, now);
+          return sum + (inc.amount * occurrences);
+        }
+        
+        // For other recurring income, calculate monthly amount
         let monthlyAmount = 0;
         switch (inc.frequency) {
-          case 'Weekly':
-            monthlyAmount = inc.amount * 4.33;
-            break;
-          case 'Biweekly':
-            monthlyAmount = inc.amount * 2.17;
-            break;
           case 'Monthly':
             monthlyAmount = inc.amount;
             break;
@@ -209,29 +236,36 @@ export default function Home() {
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis
                 dataKey="month"
+                className="text-muted-foreground"
                 tick={({ x, y, payload, index }) => {
                   const prev = monthlyIncomeData[index - 1];
                   const showYearDivider = prev && prev.year !== payload.year;
                   return (
                     <g transform={`translate(${x},${y + 10})`}>
-                      {/* Year divider line */}
                       {showYearDivider && (
-                        <line x1={0} y1={-30} x2={0} y2={0} stroke="#888" strokeWidth={1} />
+                        <line x1={0} y1={-30} x2={0} y2={0} className="stroke-border" strokeWidth={1} />
                       )}
-                      {/* Month label */}
-                      <text x={0} y={15} textAnchor="middle" fill="#000">
+                      <text x={0} y={15} textAnchor="middle" className="fill-muted-foreground text-sm">
                         {payload.value}
                       </text>
                     </g>
                   );
                 }}
               />
-              <YAxis />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Bar dataKey="income" fill="#10b981" />
+              <YAxis className="text-muted-foreground" />
+              <Tooltip 
+                formatter={(value) => formatCurrency(Number(value))}
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--background))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+              <Bar dataKey="income" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

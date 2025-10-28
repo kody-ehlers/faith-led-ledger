@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import { Plus, Trash2, DollarSign, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import "@/styles/react-datepicker-overrides.css"; // We'll create this
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function Income() {
   const { income, addIncome, removeIncome } = useFinanceStore();
@@ -19,7 +20,7 @@ export default function Income() {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<"Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time">("Monthly");
   const [preTax, setPreTax] = useState(false);
-  const [date, setDate] = useState<Date | null>(new Date());
+  const [date, setDate] = useState<Date>(new Date());
 
   const handleAddIncome = () => {
     if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
@@ -156,12 +157,29 @@ export default function Income() {
             {/* Date Picker */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="date">Start Date</Label>
-              <DatePicker
-                id="date"
-                selected={date}
-                onChange={(date: Date | null) => setDate(date)}
-                className="w-full border border-input rounded-md px-3 py-2 text-foreground bg-background dark:bg-card dark:text-foreground"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(newDate) => newDate && setDate(newDate)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
