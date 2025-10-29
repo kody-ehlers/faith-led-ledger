@@ -7,8 +7,15 @@ import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import Income from "./pages/Income";
 import Tithe from "./pages/Tithe";
+import Subscriptions from "./pages/Subscriptions"
 import Expenses from "./pages/Expenses";
 import Placeholder from "./pages/Placeholder";
+import Bills from "./pages/Bills";
+import Savings from "./pages/Savings";
+import Investments from "./pages/Investments";
+import Debt from "./pages/Debt";
+import Statistics from "./pages/Statistics";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,34 +27,13 @@ const AppRoutes = () => (
       <Route path="/income" element={<Income />} />
       <Route path="/tithe" element={<Tithe />} />
       <Route path="/expenses" element={<Expenses />} />
-      <Route 
-        path="/subscriptions" 
-        element={<Placeholder title="Subscriptions" description="Manage your recurring subscriptions" />} 
-      />
-      <Route 
-        path="/bills" 
-        element={<Placeholder title="Bills" description="Track your monthly bills" />} 
-      />
-      <Route 
-        path="/savings" 
-        element={<Placeholder title="Savings" description="Monitor your savings goals" />} 
-      />
-      <Route 
-        path="/investments" 
-        element={<Placeholder title="Investments" description="Track your investment portfolio" />} 
-      />
-      <Route 
-        path="/debt" 
-        element={<Placeholder title="Debt" description="Manage and pay down your debts" />} 
-      />
-      <Route 
-        path="/statistics" 
-        element={<Placeholder title="Statistics" description="View your financial insights" />} 
-      />
-      <Route 
-        path="/settings" 
-        element={<Placeholder title="Settings" description="Customize your app preferences" />} 
-      />
+      <Route path="/subscriptions" element={<Subscriptions />} />
+      <Route path="/bills" element={<Bills />} />
+      <Route path="/savings" element={<Savings />} />
+      <Route path="/investments" element={<Investments />} />
+      <Route path="/debt" element={<Debt />} />
+      <Route path="/statistics" element={<Statistics />} />
+      <Route path="/settings" element={<Settings />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

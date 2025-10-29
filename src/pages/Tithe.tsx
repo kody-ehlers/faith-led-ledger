@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculatePostTaxIncomeForMonth, calculatePostTaxIncomeReceivedSoFar, calculateTitheAmount, formatCurrency } from "@/utils/calculations";
+import { calculatePostTaxIncomeForMonth, calculatePostTaxIncomeReceivedSoFar, calculateTitheAmount, formatCurrency, getEntryIncomeForMonth } from "@/utils/calculations";
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -117,6 +118,81 @@ export default function Tithe() {
             </p>
             <p className="text-sm text-muted-foreground font-medium">Malachi 3:10 (NLT)</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tithe Over the Past Year (stacked region showing tithe vs remaining) */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Tithe Over the Past Year</CardTitle>
+          <CardDescription className="text-muted-foreground">Tithe shown as a portion of monthly income (10%)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Build last 12 months using income change history so chart matches other views */}
+          {(() => {
+            const now = new Date();
+            const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
+              const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+              const monthName = date.toLocaleString("default", { month: "short" });
+              const year = date.getFullYear();
+              const monthKey = `${year}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+
+              const monthlyAmount = income.reduce((sum, inc) => {
+                return sum + getEntryIncomeForMonth(inc, date, /*includePreTax*/ false);
+              }, 0);
+
+              return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, monthKey };
+            });
+
+            const chartData = monthlyIncomeData.map(d => {
+              const target = d.income * 0.1;
+              // Sum tithe payments recorded in that month
+              const paid = tithes
+                .filter(t => t.date.startsWith(d.monthKey))
+                .reduce((s, t) => s + t.amount, 0);
+
+              const paidCapped = Math.min(paid, target);
+              const remainingToTarget = Math.max(0, target - paidCapped);
+              const overpaid = Math.max(0, paid - target);
+
+              return { ...d, target, paid, paidCapped, remainingToTarget, overpaid };
+            });
+
+            return (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} interval={0} padding={{ left: 20, right: 20 }} />
+                  <YAxis className="text-muted-foreground" />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(Number(value))}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        const percent = data.target > 0 ? (Math.min(data.paid, data.target) / data.target) * 100 : 0;
+                        return (
+                          <div className="bg-background border border-border rounded-md p-3 shadow-lg">
+                            <p className="font-semibold mb-2">{data.label}</p>
+                            <p className="text-accent font-bold mb-1">Paid toward tithe: {formatCurrency(data.paid)}</p>
+                            <p className="text-sm text-muted-foreground mb-1">Target: {formatCurrency(data.target)}</p>
+                            <p className="font-medium">Progress: {percent.toFixed(1)}%</p>
+                            {data.overpaid > 0 && <p className="text-sm text-success">Overpaid: {formatCurrency(data.overpaid)}</p>}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  {/* paidCapped + remainingToTarget stack to represent the target bar and progress */}
+                    <Bar dataKey="paidCapped" stackId="a" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="remainingToTarget" stackId="a" fill="rgba(59,130,246,0.12)" radius={[6, 6, 0, 0]} />
+                    {/* show any overpayment as an extra bar extending beyond the target */}
+                    <Bar dataKey="overpaid" stackId="b" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+                
+                </BarChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </CardContent>
       </Card>
 

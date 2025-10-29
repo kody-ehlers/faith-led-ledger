@@ -38,6 +38,26 @@ export interface TithePayment {
   given: boolean;
 }
 
+export interface SubscriptionEntry {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: 'Weekly' | 'Biweekly' | 'Monthly' | 'Quarterly' | 'Yearly';
+  date: string; // start date ISO
+  notes?: string;
+  // cancellation fields
+  cancelledFrom?: string | null;
+  cancelledTo?: string | null;
+  cancelledIndefinitely?: boolean;
+  cancelledNote?: string | null;
+  // change history similar to incomes
+  changes?: Array<{
+    amount: number;
+    start: string;
+    end?: string | null;
+  }>;
+}
+
 export interface SavingsAccount {
   id: string;
   name: string;
@@ -61,6 +81,7 @@ interface FinanceState {
   tithes: TithePayment[];
   savings: SavingsAccount[];
   debts: DebtEntry[];
+  subscriptions: SubscriptionEntry[];
   
   // Actions
   addIncome: (entry: Omit<IncomeEntry, 'id'>) => void;
@@ -84,6 +105,12 @@ interface FinanceState {
   addDebt: (debt: Omit<DebtEntry, 'id'>) => void;
   updateDebt: (id: string, updates: Partial<DebtEntry>) => void;
   removeDebt: (id: string) => void;
+  // Subscriptions
+  addSubscription: (entry: Omit<SubscriptionEntry, 'id'>) => void;
+  removeSubscription: (id: string) => void;
+  updateSubscription: (id: string, updates: Partial<SubscriptionEntry>) => void;
+  cancelSubscription: (id: string, from: string, to?: string | null, indefinite?: boolean, comment?: string | null) => void;
+  renewSubscription: (id: string) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -94,6 +121,7 @@ export const useFinanceStore = create<FinanceState>()(
       tithes: [],
       savings: [],
       debts: [],
+  subscriptions: [],
       
       addIncome: (entry) =>
         set((state) => ({
@@ -191,6 +219,35 @@ export const useFinanceStore = create<FinanceState>()(
       removeDebt: (id) =>
         set((state) => ({
           debts: state.debts.filter((d) => d.id !== id),
+        })),
+
+      addSubscription: (entry) =>
+        set((state) => ({
+          subscriptions: [...state.subscriptions, { ...entry, id: crypto.randomUUID(), changes: [{ amount: entry.amount, start: entry.date, end: null }] }],
+        })),
+
+      removeSubscription: (id) =>
+        set((state) => ({
+          subscriptions: state.subscriptions.filter((s) => s.id !== id),
+        })),
+
+      updateSubscription: (id, updates) =>
+        set((state) => ({
+          subscriptions: state.subscriptions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+        })),
+
+      cancelSubscription: (id, from, to = null, indefinite = false, comment = undefined) =>
+        set((state) => ({
+          subscriptions: state.subscriptions.map((s) =>
+            s.id === id ? { ...s, cancelledFrom: from, cancelledTo: to, cancelledIndefinitely: indefinite, cancelledNote: comment } : s
+          ),
+        })),
+
+      renewSubscription: (id) =>
+        set((state) => ({
+          subscriptions: state.subscriptions.map((s) =>
+            s.id === id ? { ...s, cancelledFrom: undefined, cancelledTo: undefined, cancelledIndefinitely: false, cancelledNote: undefined } : s
+          ),
         })),
     }),
     {

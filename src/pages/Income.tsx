@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculateMonthlyIncome, formatCurrency } from "@/utils/calculations";
+import { calculateMonthlyIncome, formatCurrency, getEntryIncomeForMonth } from "@/utils/calculations";
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,6 +131,26 @@ export default function Income() {
 
   const monthlyTotal = calculateMonthlyIncome(income);
   const annualProjection = monthlyTotal * 12;
+
+  // Prepare last 12 months of income data for the chart (uses per-entry helper so it respects changes/suspensions)
+  const now = new Date();
+  const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    const monthName = date.toLocaleString("default", { month: "short" });
+    const year = date.getFullYear();
+
+    const incomeBreakdown: { source: string; amount: number }[] = [];
+
+    const monthlyAmount = income.reduce((sum, inc) => {
+      const contributionAmount = getEntryIncomeForMonth(inc, date, /*includePreTax*/ true);
+      if (contributionAmount > 0) {
+        incomeBreakdown.push({ source: inc.source, amount: contributionAmount });
+      }
+      return sum + contributionAmount;
+    }, 0);
+
+    return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, breakdown: incomeBreakdown };
+  });
 
   const recurringIncomes = income.filter((i) => i.frequency !== "One-time");
   const oneTimeIncomes = income.filter((i) => i.frequency === "One-time");
@@ -518,6 +539,48 @@ export default function Income() {
           <p className="text-muted-foreground">Track and manage your income sources</p>
         </div>
       </div>
+
+      {/* Income Over Past Year Bar Chart (moved from Home) */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Income Over the Past Year</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} />
+              <YAxis className="text-muted-foreground" />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-background border border-border rounded-md p-3 shadow-lg">
+                        <p className="font-semibold mb-2">{data.label}</p>
+                        <p className="text-success font-bold mb-2">Total: {formatCurrency(data.income)}</p>
+                        {data.breakdown && data.breakdown.length > 0 && (
+                          <div className="space-y-1 border-t border-border pt-2">
+                            <p className="text-xs text-muted-foreground font-medium mb-1">Sources:</p>
+                            {data.breakdown.map((item: { source: string; amount: number }, idx: number) => (
+                              <div key={idx} className="text-sm flex justify-between gap-4">
+                                <span className="text-muted-foreground">{item.source}</span>
+                                <span className="font-medium">{formatCurrency(item.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="income" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2">

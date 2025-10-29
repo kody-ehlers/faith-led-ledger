@@ -97,6 +97,8 @@ export default function Home() {
         </CardContent>
       </Card>
 
+      
+
       {/* Net Worth Hero Card */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
         <CardHeader>
@@ -200,56 +202,7 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Income Over Past Year Bar Chart */}
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Income Over the Past Year</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="label"
-                className="text-muted-foreground"
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis className="text-muted-foreground" />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div className="bg-background border border-border rounded-md p-3 shadow-lg">
-                        <p className="font-semibold mb-2">{data.label}</p>
-                        <p className="text-success font-bold mb-2">
-                          Total: {formatCurrency(data.income)}
-                        </p>
-                        {data.breakdown && data.breakdown.length > 0 && (
-                          <div className="space-y-1 border-t border-border pt-2">
-                            <p className="text-xs text-muted-foreground font-medium mb-1">Sources:</p>
-                            {data.breakdown.map((item: { source: string; amount: number }, idx: number) => (
-                              <div key={idx} className="text-sm flex justify-between gap-4">
-                                <span className="text-muted-foreground">{item.source}</span>
-                                <span className="font-medium">{formatCurrency(item.amount)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar dataKey="income" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      
     </div>
   );
 }
