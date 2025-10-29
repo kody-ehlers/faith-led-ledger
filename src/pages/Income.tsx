@@ -547,9 +547,9 @@ export default function Income() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }}>
+            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }} barSize={40} barCategoryGap="10%" barGap={6}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} />
+              <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} interval={0} />
               <YAxis className="text-muted-foreground" />
               <Tooltip
                 content={({ active, payload }) => {

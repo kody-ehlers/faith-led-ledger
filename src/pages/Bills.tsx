@@ -1,9 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { useState } from 'react';
+import { useFinanceStore } from '@/store/financeStore';
+import { toast } from 'sonner';
 
 export default function Bills() {
-  const now = new Date();
+  const { expenses, addExpense, removeExpense } = useFinanceStore();
+  const bills = expenses.filter(e => e.category === 'bill');
+
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState<Date>(new Date());
+
+  const handleAdd = () => {
+    const parsed = parseFloat(amount);
+    if (!name.trim() || isNaN(parsed) || parsed <= 0) { toast.error('Please provide name and valid amount'); return; }
+    addExpense({ name: name.trim(), amount: parsed, category: 'bill', date: date.toISOString(), type: 'need' });
+    toast.success('Bill added');
+    setName(''); setAmount(''); setDate(new Date());
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center gap-3">
@@ -18,23 +39,60 @@ export default function Bills() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming Bills</CardTitle>
-          <CardDescription>Quick glance at upcoming due dates</CardDescription>
+          <CardTitle>Add Bill</CardTitle>
+          <CardDescription>Record an upcoming bill</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">This is a first-cut page for bills. It will show upcoming recurring bills and allow scheduling payments.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input className="pl-6" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">{format(date, 'PPP')}</Button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="w-auto p-0">
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           <div className="mt-4">
-            <Button variant="outline">Add a bill (coming soon)</Button>
+            <Button onClick={handleAdd} className="w-full">Add Bill</Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Sample bill</CardTitle>
+          <CardTitle>Upcoming Bills</CardTitle>
+          <CardDescription>Your recorded bills</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm">Electric — Due {format(new Date(now.getFullYear(), now.getMonth(), 28), 'PPP')}</p>
+        <CardContent className="space-y-3">
+          {bills.length === 0 ? (
+            <p className="text-muted-foreground">No bills recorded.</p>
+          ) : bills.map(b => (
+            <div key={b.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+              <div>
+                <p className="font-semibold">{b.name}</p>
+                <p className="text-sm text-muted-foreground">Due {format(new Date(b.date), 'PPP')}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="font-semibold">{new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(b.amount)}</div>
+                <Button variant="ghost" size="icon" onClick={() => { removeExpense(b.id); toast.success('Bill marked as paid/removed'); }} className="text-success">Paid</Button>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
