@@ -13,6 +13,13 @@ export interface IncomeEntry {
   suspendedFrom?: string | null;
   suspendedTo?: string | null;
   suspendedIndefinitely?: boolean;
+  suspendedNote?: string | null;
+  // Change history: records amount changes over time for this income
+  changes?: Array<{
+    amount: number;
+    start: string; // ISO date when this amount became active
+    end?: string | null; // ISO date when this amount ended (inclusive) or null if current
+  }>;
 }
 
 export interface ExpenseEntry {
@@ -59,7 +66,7 @@ interface FinanceState {
   addIncome: (entry: Omit<IncomeEntry, 'id'>) => void;
   removeIncome: (id: string) => void;
   updateIncome: (id: string, updates: Partial<IncomeEntry>) => void;
-  suspendIncome: (id: string, from: string, to?: string | null, indefinite?: boolean) => void;
+  suspendIncome: (id: string, from: string, to?: string | null, indefinite?: boolean, comment?: string | null) => void;
   resumeIncome: (id: string) => void;
   
   addExpense: (entry: Omit<ExpenseEntry, 'id'>) => void;
@@ -90,7 +97,7 @@ export const useFinanceStore = create<FinanceState>()(
       
       addIncome: (entry) =>
         set((state) => ({
-          income: [...state.income, { ...entry, id: crypto.randomUUID(), suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false }],
+          income: [...state.income, { ...entry, id: crypto.randomUUID(), suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false, changes: [{ amount: entry.amount, start: entry.date, end: null }] }],
         })),
       
       removeIncome: (id) =>
@@ -105,17 +112,19 @@ export const useFinanceStore = create<FinanceState>()(
           ),
         })),
 
-      suspendIncome: (id, from, to = null, indefinite = false) =>
+      suspendIncome: (id, from, to = null, indefinite = false, comment = undefined) =>
         set((state) => ({
           income: state.income.map((i) =>
-            i.id === id ? { ...i, suspendedFrom: from, suspendedTo: to, suspendedIndefinitely: indefinite } : i
+            i.id === id
+              ? { ...i, suspendedFrom: from, suspendedTo: to, suspendedIndefinitely: indefinite, suspendedNote: comment }
+              : i
           ),
         })),
 
       resumeIncome: (id) =>
         set((state) => ({
           income: state.income.map((i) =>
-            i.id === id ? { ...i, suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false } : i
+            i.id === id ? { ...i, suspendedFrom: undefined, suspendedTo: undefined, suspendedIndefinitely: false, suspendedNote: undefined } : i
           ),
         })),
       

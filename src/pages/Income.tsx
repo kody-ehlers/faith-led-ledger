@@ -17,6 +17,7 @@ import {
   Pause,
   Play,
   TrendingUp,
+  Settings,
 } from "lucide-react";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export default function Income() {
 
   const [editingIncome, setEditingIncome] = useState<typeof income[0] | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
   const handleAddIncome = () => {
     if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
@@ -76,15 +78,55 @@ export default function Income() {
     setEditingIncome(entry);
     setIsEditModalOpen(true);
   };
+  const applyEditAndTruncateHistory = () => {
+    if (!editingIncome) return;
+    const original = income.find((i) => i.id === editingIncome.id);
+    if (!original) return;
+
+    // Truncate changes that start on/after the new date, and add a new change starting at the edited date
+  const newDate = new Date(editingIncome.date);
+  // normalize to date-only at noon to avoid timezone shifts when converting to ISO
+  const newDateStart = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate(), 12, 0, 0, 0);
+
+    // copy changes deeply so we don't mutate store objects in-place
+    const prevChanges = original.changes ? original.changes.map((c) => ({ ...c })) : [];
+    const kept = prevChanges.filter((ch) => new Date(ch.start) < newDateStart);
+
+    // If there is a kept last change, close it the day before the new date
+    if (kept.length > 0) {
+      const lastKept = kept[kept.length - 1];
+      if (!lastKept.end) {
+        lastKept.end = subDays(newDateStart, 1).toISOString();
+      }
+    }
+
+  // Add new change representing edited amount starting at edited date (stored at noon to avoid tz shifts)
+  kept.push({ amount: editingIncome.amount, start: newDateStart.toISOString(), end: null });
+
+    updateIncome(editingIncome.id, { ...editingIncome, changes: kept, amount: editingIncome.amount });
+    toast.success('Income updated; subsequent history truncated');
+    setEditConfirmOpen(false);
+    setIsEditModalOpen(false);
+    setEditingIncome(null);
+  };
 
   const handleSaveEdit = () => {
-    if (!editingIncome || !editingIncome.source || !editingIncome.amount) return;
+    if (!editingIncome || !editingIncome.source) return;
 
-    updateIncome(editingIncome.id, { ...editingIncome, date: editingIncome.date });
+    // Only allow editing non-amount/date fields here (source, frequency, preTax, notes)
+    const updates: Partial<typeof editingIncome> = {
+      source: editingIncome.source,
+      frequency: editingIncome.frequency,
+      preTax: editingIncome.preTax,
+      notes: editingIncome.notes,
+    };
+
+    updateIncome(editingIncome.id, updates);
     toast.success("Income updated");
     setIsEditModalOpen(false);
     setEditingIncome(null);
   };
+  
 
   const monthlyTotal = calculateMonthlyIncome(income);
   const annualProjection = monthlyTotal * 12;
@@ -116,16 +158,35 @@ export default function Income() {
     const [suspendStart, setSuspendStart] = useState<Date>(new Date());
     const [suspendEnd, setSuspendEnd] = useState<Date | null>(null);
     const [suspendIndefinite, setSuspendIndefinite] = useState<boolean>(true);
+  const [suspendComment, setSuspendComment] = useState<string>(entry.suspendedNote ?? "");
+    // Settings dialog state (collapses multiple per-card icons into one)
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Adjust pay dialog state
   const [isAdjustOpen, setIsAdjustOpen] = useState(false);
   const [adjustAmount, setAdjustAmount] = useState<string>(entry.amount.toString());
   const [adjustDate, setAdjustDate] = useState<Date>(new Date());
+  // History dialog state
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    const suspendedNow = isCurrentlySuspended();
+    const cardClass = cn(
+      "shadow-sm border border-border bg-card",
+      suspendedNow ? "ring-2 ring-amber-200/50 border-amber-300" : ""
+    );
 
     return (
-      <Card key={entry.id} className="shadow-sm border border-border bg-card">
+      <Card key={entry.id} className={cardClass}>
         <CardContent className="flex justify-between items-center py-4">
           {/* Left: Source + Frequency/PreTax */}
           <div className="flex-1 flex flex-col justify-center">
+            {suspendedNow && (
+              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+                {entry.suspendedIndefinitely ? 'Suspended — Indefinitely' : `Suspended until ${entry.suspendedTo ? format(new Date(entry.suspendedTo), 'PPP') : ''}`}
+                {entry.suspendedNote && (
+                  <span className="ml-2 text-sm text-muted-foreground italic">({entry.suspendedNote})</span>
+                )}
+              </div>
+            )}
             <h4 className="font-semibold text-foreground">{entry.source}</h4>
             <div className="flex gap-2 text-sm text-muted-foreground items-center">
               {entry.frequency !== "One-time" && <span>{entry.frequency}</span>}
@@ -161,67 +222,20 @@ export default function Income() {
                 </Popover>
               )}
             </div>
-                    {entry.frequency !== "One-time" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setAdjustAmount(entry.amount.toString());
-                          setAdjustDate(new Date());
-                          setIsAdjustOpen(true);
-                        }}
-                        className="text-sky-600 hover:bg-sky-600/10"
-                        aria-label="Adjust pay"
-                        title="Adjust pay"
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </Button>
-                    )}
-            {isCurrentlySuspended() && (
-              <div className="mr-2">
-                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">{
-                  entry.suspendedIndefinitely ? 'Suspended (indefinite)' : `Suspended until ${entry.suspendedTo ? format(new Date(entry.suspendedTo), 'PPP') : ''}`
-                }</span>
-              </div>
-            )}
+
+            {/* Settings button (collapses Adjust/History/Suspend/Edit into one modal) */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleEditIncome(entry)}
-              className="text-primary hover:bg-primary/10 hover:text-primary"
-              aria-label="Edit income"
-              title="Edit"
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-muted-foreground hover:bg-muted-foreground/10"
+              aria-label="Settings"
+              title="Settings"
             >
-              <SquarePen className="h-4 w-4" />
+              <Settings className="h-4 w-4" />
             </Button>
-            {entry.frequency !== "One-time" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (isCurrentlySuspended()) {
-                    // Resume
-                    resumeIncome(entry.id);
-                    toast.success("Income resumed");
-                  } else {
-                    // Open suspend dialog
-                    setSuspendStart(new Date());
-                    setSuspendEnd(null);
-                    setSuspendIndefinite(true);
-                    setIsSuspendOpen(true);
-                  }
-                }}
-                className={isCurrentlySuspended() ? "text-success hover:bg-success/10" : "text-amber-600 hover:bg-amber-600/10"}
-                aria-label={isCurrentlySuspended() ? "Resume income" : "Suspend income"}
-                title={isCurrentlySuspended() ? "Resume income" : "Suspend income"}
-              >
-                {isCurrentlySuspended() ? (
-                  <Play className="h-4 w-4" />
-                ) : (
-                  <Pause className="h-4 w-4" />
-                )}
-              </Button>
-            )}
+            {/* suspended badge removed - border + heading indicate suspension */}
+
             <Button
               variant="ghost"
               size="icon"
@@ -255,7 +269,6 @@ export default function Income() {
                   </PopoverContent>
                 </Popover>
               </div>
-
               <div className="space-y-2">
                 <Label>End Date</Label>
                 <div className="flex items-center gap-3">
@@ -279,6 +292,11 @@ export default function Income() {
                   </div>
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label>Comment (optional)</Label>
+                <Input value={suspendComment} onChange={(e) => setSuspendComment(e.target.value.slice(0, 200))} placeholder="Why is this suspended?" />
+              </div>
             </div>
 
             <DialogFooter>
@@ -289,7 +307,8 @@ export default function Income() {
                     entry.id,
                     suspendStart.toISOString(),
                     suspendIndefinite ? null : suspendEnd ? suspendEnd.toISOString() : null,
-                    suspendIndefinite
+                    suspendIndefinite,
+                    suspendComment || undefined
                   );
                   toast.success('Income suspended');
                   setIsSuspendOpen(false);
@@ -301,7 +320,7 @@ export default function Income() {
           </DialogContent>
         </Dialog>
 
-        {/* Adjust pay dialog (per-card) */}
+  {/* Adjust pay dialog (per-card) */}
         <Dialog open={isAdjustOpen} onOpenChange={setIsAdjustOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -341,23 +360,34 @@ export default function Income() {
                   }
 
                   const eff = adjustDate;
-                  const today = new Date();
-                  if (eff <= today) {
-                    // apply immediately
-                    updateIncome(entry.id, { amount: parsed });
+                  // create date-at-noon to avoid timezone shifts when converting to ISO
+                  const effStart = new Date(eff.getFullYear(), eff.getMonth(), eff.getDate(), 12, 0, 0, 0);
+                  const todayStart = new Date();
+                  todayStart.setHours(12, 0, 0, 0);
+
+                  // deep copy existing changes to avoid mutating store objects
+                  const prevChanges = entry.changes ? entry.changes.map((c) => ({ ...c })) : [];
+
+                  // Keep only changes that start before the effective date (truncate future changes)
+                  const kept = prevChanges.filter((ch) => new Date(ch.start) < effStart);
+
+                  // Close the last kept change the day before effStart
+                  if (kept.length > 0) {
+                    const lastKept = kept[kept.length - 1];
+                    if (!lastKept.end) {
+                      lastKept.end = subDays(effStart, 1).toISOString();
+                    }
+                  }
+
+                  // Insert the new change starting at effStart
+                  kept.push({ amount: parsed, start: effStart.toISOString(), end: null });
+
+                  // If effective date is today or earlier, apply immediately (update current amount)
+                  if (effStart.getTime() <= todayStart.getTime()) {
+                    updateIncome(entry.id, { amount: parsed, changes: kept });
                     toast.success('Income updated');
                   } else {
-                    // schedule: add new income starting eff, and end the current income the day before
-                    addIncome({
-                      source: entry.source,
-                      amount: parsed,
-                      frequency: entry.frequency,
-                      preTax: entry.preTax,
-                      date: eff.toISOString(),
-                      notes: entry.notes,
-                    });
-                    const stopDate = subDays(eff, 1);
-                    updateIncome(entry.id, { suspendedTo: stopDate.toISOString(), suspendedIndefinitely: false });
+                    updateIncome(entry.id, { changes: kept });
                     toast.success('Income change scheduled');
                   }
 
@@ -366,6 +396,105 @@ export default function Income() {
               >
                 Save
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* History dialog (per-card) */}
+        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Pay History</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {entry.changes && entry.changes.length > 0 ? (
+                entry.changes.map((ch, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{format(new Date(ch.start), 'PPP')}</p>
+                      <p className="text-sm text-muted-foreground">{ch.end ? format(new Date(ch.end), 'PPP') : 'to now'}</p>
+                    </div>
+                    <div className="font-semibold">{formatCurrency(ch.amount)}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No history available</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsHistoryOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Settings dialog (per-card) - collapses multiple actions into one place */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Settings</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Quick actions for this income</p>
+              <div className="grid gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    // open edit modal (handled globally)
+                    handleEditIncome(entry);
+                  }}
+                >
+                  <SquarePen className="mr-2 h-4 w-4" /> Edit
+                </Button>
+
+                {entry.frequency !== "One-time" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsSettingsOpen(false);
+                        setAdjustAmount(entry.amount.toString());
+                        setAdjustDate(new Date());
+                        setIsAdjustOpen(true);
+                      }}
+                    >
+                      <TrendingUp className="mr-2 h-4 w-4" /> Adjust Pay
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsSettingsOpen(false);
+                        setIsHistoryOpen(true);
+                      }}
+                    >
+                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      View History
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (isCurrentlySuspended()) {
+                          resumeIncome(entry.id);
+                          toast.success('Income resumed');
+                          setIsSettingsOpen(false);
+                        } else {
+                          setSuspendStart(new Date());
+                          setSuspendEnd(null);
+                          setSuspendIndefinite(true);
+                          setIsSuspendOpen(true);
+                          setIsSettingsOpen(false);
+                        }
+                      }}
+                    >
+                      {isCurrentlySuspended() ? 'Resume Income' : 'Suspend Income'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsSettingsOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -581,14 +710,7 @@ export default function Income() {
                 <Label>Amount</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    value={editingIncome.amount}
-                    onChange={(e) =>
-                      setEditingIncome({ ...editingIncome, amount: parseFloat(e.target.value) })
-                    }
-                    className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
+                  <div className="pl-6 py-2 text-foreground font-medium">{formatCurrency(editingIncome.amount)}</div>
                 </div>
               </div>
 
@@ -621,24 +743,8 @@ export default function Income() {
               </div>
 
               <div className="space-y-2">
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {editingIncome.date ? format(new Date(editingIncome.date), "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={new Date(editingIncome.date)}
-                      onSelect={(newDate) =>
-                        newDate &&
-                        setEditingIncome({ ...editingIncome, date: newDate.toISOString() })
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label>Start Date</Label>
+                <div className="py-2 text-foreground">{editingIncome.date ? format(new Date(editingIncome.date), 'PPP') : '-'}</div>
               </div>
 
               <div className="space-y-2">
@@ -656,6 +762,23 @@ export default function Income() {
           </DialogContent>
         </Dialog>
       )}
+      {/* Confirm edit/truncate history dialog */}
+      <Dialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Edit</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Changing the amount or start date will remove any subsequent scheduled changes (they will be truncated). Do you want to proceed?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={applyEditAndTruncateHistory}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

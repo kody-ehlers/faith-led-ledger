@@ -7,6 +7,7 @@ import {
   calculateNetWorth,
   formatCurrency,
   calculateCategoryTotals,
+  getEntryIncomeForMonth,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -65,48 +66,14 @@ export default function Home() {
 
     const incomeBreakdown: { source: string; amount: number }[] = [];
 
-    const monthlyAmount = income
-      .filter((inc) => {
-        const incDate = new Date(inc.date);
-        const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        return incDate <= lastDayOfMonth && incDate <= now;
-      })
-      .reduce((sum, inc) => {
-        const incDate = new Date(inc.date);
-        let contributionAmount = 0;
-
-        // For one-time income, only count in the month it occurred
-        if (inc.frequency === 'One-time') {
-          if (incDate.getMonth() === date.getMonth() && incDate.getFullYear() === date.getFullYear()) {
-            contributionAmount = inc.amount;
-          }
-        }
-        // For weekly and biweekly, count actual occurrences
-        else if (inc.frequency === 'Weekly' || inc.frequency === 'Biweekly') {
-          const occurrences = countOccurrencesInMonth(incDate, inc.frequency, date, now);
-          contributionAmount = inc.amount * occurrences;
-        }
-        // For other recurring income, calculate monthly amount
-        else {
-          switch (inc.frequency) {
-            case 'Monthly':
-              contributionAmount = inc.amount;
-              break;
-            case 'Quarterly':
-              contributionAmount = inc.amount / 3;
-              break;
-            case 'Yearly':
-              contributionAmount = inc.amount / 12;
-              break;
-          }
-        }
-
-        if (contributionAmount > 0) {
-          incomeBreakdown.push({ source: inc.source, amount: contributionAmount });
-        }
-
-        return sum + contributionAmount;
-      }, 0);
+    // Use the shared calculation helper so amounts respect change history and suspensions
+    const monthlyAmount = income.reduce((sum, inc) => {
+      const contributionAmount = getEntryIncomeForMonth(inc, date, /*includePreTax*/ true);
+      if (contributionAmount > 0) {
+        incomeBreakdown.push({ source: inc.source, amount: contributionAmount });
+      }
+      return sum + contributionAmount;
+    }, 0);
 
     return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, breakdown: incomeBreakdown };
   });

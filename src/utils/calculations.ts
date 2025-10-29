@@ -11,86 +11,184 @@ import {
 } from 'date-fns';
 
 export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
+  // Calculate the total income for the current month by enumerating occurrences
+  // and using any change history to determine the amount for each occurrence.
   const now = new Date();
-
-  const isCurrentlySuspended = (entry: IncomeEntry) => {
-    if (!entry.suspendedFrom) return false;
-    const from = new Date(entry.suspendedFrom);
-    if (now < from) return false; // suspension hasn't started yet
-    if (entry.suspendedIndefinitely) return true;
-    if (entry.suspendedTo) {
-      const to = new Date(entry.suspendedTo);
-      return now <= to;
-    }
-    return false;
-  };
-
-  return income.reduce((total, entry) => {
-    if (isCurrentlySuspended(entry)) return total;
-    let monthlyAmount = 0;
-    switch (entry.frequency) {
-      case 'Weekly':
-        monthlyAmount = entry.amount * 4.33;
-        break;
-      case 'Biweekly':
-        monthlyAmount = entry.amount * 2.17;
-        break;
-      case 'Monthly':
-        monthlyAmount = entry.amount;
-        break;
-      case 'Quarterly':
-        monthlyAmount = entry.amount / 3;
-        break;
-      case 'Yearly':
-        monthlyAmount = entry.amount / 12;
-        break;
-      default:
-        monthlyAmount = 0;
-    }
-    return total + monthlyAmount;
-  }, 0);
+  return calculateIncomeForMonth(income, now, /*includePreTax*/ true);
 };
 
 export const calculatePostTaxIncome = (income: IncomeEntry[]): number => {
+  // Use the monthly occurrence enumeration but exclude pre-tax incomes
   const now = new Date();
+  return calculateIncomeForMonth(income, now, /*includePreTax*/ false);
+};
 
-  const isCurrentlySuspended = (entry: IncomeEntry) => {
+// Public wrapper to calculate income for an arbitrary month. includePreTax controls
+// whether pre-tax incomes are counted (default true).
+export const calculateIncomeForMonthPublic = (income: IncomeEntry[], targetDate = new Date(), includePreTax = true): number => {
+  return calculateIncomeForMonth(income, targetDate, includePreTax);
+};
+
+// Calculate how much a single income entry contributes in the given month (respects
+// suspensions and change history). Returns 0 for preTax entries when includePreTax is false.
+export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date(), includePreTax = true): number => {
+  if (!includePreTax && entry.preTax) return 0;
+
+  const monthStart = startOfMonth(targetDate);
+  const monthEnd = endOfMonth(targetDate);
+
+  const isDateSuspended = (date: Date) => {
     if (!entry.suspendedFrom) return false;
     const from = new Date(entry.suspendedFrom);
-    if (now < from) return false; // suspension hasn't started yet
+    if (isAfter(from, date)) return false; // suspension starts after this date
     if (entry.suspendedIndefinitely) return true;
     if (entry.suspendedTo) {
       const to = new Date(entry.suspendedTo);
-      return now <= to;
+      return !isAfter(date, to); // date <= to
     }
     return false;
   };
 
-  return income
-    .filter(entry => !entry.preTax && !isCurrentlySuspended(entry))
-    .reduce((total, entry) => {
-      let monthlyAmount = 0;
+  // One-time
+  if (entry.frequency === 'One-time') {
+    const d = new Date(entry.date);
+    if (d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth()) {
+      if (!isDateSuspended(d)) return getAmountForDate(entry, d);
+    }
+    return 0;
+  }
+
+  // Recurring: iterate occurrences within the month and sum per-occurrence amounts
+  let total = 0;
+  let occurrence = new Date(entry.date);
+  const advanceOnce = (date: Date) => {
+    switch (entry.frequency) {
+      case 'Weekly':
+        return addDays(date, 7);
+      case 'Biweekly':
+        return addDays(date, 14);
+      case 'Monthly':
+        return addMonths(date, 1);
+      case 'Quarterly':
+        return addMonths(date, 3);
+      case 'Yearly':
+        return addYears(date, 1);
+      default:
+        return addMonths(date, 1);
+    }
+  };
+
+  if (isAfter(occurrence, monthEnd)) return 0;
+
+  let guard = 0;
+  while (isBefore(occurrence, monthStart) && guard < 1000) {
+    occurrence = advanceOnce(occurrence);
+    guard++;
+    if (isAfter(occurrence, monthEnd)) break;
+  }
+
+  guard = 0;
+  while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
+    if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(occurrence)) {
+      total += getAmountForDate(entry, occurrence);
+    }
+    occurrence = advanceOnce(occurrence);
+    guard++;
+  }
+
+  return total;
+};
+
+// Helper: normalize a date to date-only (local) for comparisons
+const toDateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+// Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
+const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
+  if (!entry.changes || entry.changes.length === 0) return entry.amount;
+  const target = toDateOnly(date).getTime();
+  // Ensure changes are processed in ascending start order
+  const changes = [...entry.changes].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  for (const ch of changes) {
+    const start = toDateOnly(new Date(ch.start)).getTime();
+    const end = ch.end ? toDateOnly(new Date(ch.end)).getTime() : null;
+    if (target >= start && (!end || target <= end)) {
+      return ch.amount;
+    }
+  }
+  // Fallback: return the last change amount
+  return changes[changes.length - 1].amount;
+};
+
+// Enumerate occurrences in the month and sum amounts; respects suspensions and changes
+const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includePreTax: boolean) => {
+  const monthStart = startOfMonth(targetDate);
+  const monthEnd = endOfMonth(targetDate);
+
+  const isDateSuspended = (entry: IncomeEntry, date: Date) => {
+    if (!entry.suspendedFrom) return false;
+    const from = new Date(entry.suspendedFrom);
+    if (isAfter(from, date)) return false; // suspension starts after this date
+    if (entry.suspendedIndefinitely) return true;
+    if (entry.suspendedTo) {
+      const to = new Date(entry.suspendedTo);
+      return !isAfter(date, to); // date <= to
+    }
+    return false;
+  };
+
+  let total = 0;
+
+  for (const entry of income) {
+    if (!includePreTax && entry.preTax) continue;
+
+    const start = new Date(entry.date);
+
+    if (entry.frequency === 'One-time') {
+      const d = start;
+      if (d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth()) {
+        if (!isDateSuspended(entry, d)) total += getAmountForDate(entry, d);
+      }
+      continue;
+    }
+
+    let occurrence = new Date(start);
+    const advanceOnce = (date: Date) => {
       switch (entry.frequency) {
         case 'Weekly':
-          monthlyAmount = entry.amount * 4.33;
-          break;
+          return addDays(date, 7);
         case 'Biweekly':
-          monthlyAmount = entry.amount * 2.17;
-          break;
+          return addDays(date, 14);
         case 'Monthly':
-          monthlyAmount = entry.amount;
-          break;
+          return addMonths(date, 1);
         case 'Quarterly':
-          monthlyAmount = entry.amount / 3;
-          break;
+          return addMonths(date, 3);
         case 'Yearly':
-          monthlyAmount = entry.amount / 12;
-          break;
+          return addYears(date, 1);
         default:
-          monthlyAmount = 0;
+          return addMonths(date, 1);
       }
-      return total + monthlyAmount;
-    }, 0);
+    };
+
+    if (isAfter(occurrence, monthEnd)) continue;
+
+    let guard = 0;
+    while (isBefore(occurrence, monthStart) && guard < 1000) {
+      occurrence = advanceOnce(occurrence);
+      guard++;
+      if (isAfter(occurrence, monthEnd)) break;
+    }
+
+    guard = 0;
+    while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
+      if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(entry, occurrence)) {
+        total += getAmountForDate(entry, occurrence);
+      }
+      occurrence = advanceOnce(occurrence);
+      guard++;
+    }
+  }
+
+  return total;
 };
 
 export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate = new Date()): number => {
@@ -122,7 +220,7 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
         d.getFullYear() === monthStart.getFullYear() &&
         d.getMonth() === monthStart.getMonth()
       ) {
-        if (!isDateSuspended(entry, d)) total += entry.amount;
+        if (!isDateSuspended(entry, d)) total += getAmountForDate(entry, d);
       }
       continue;
     }
@@ -164,7 +262,7 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
     while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
       // If occurrence is within monthStart..monthEnd and not suspended on that date, count it
       if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(entry, occurrence)) {
-        total += entry.amount;
+        total += getAmountForDate(entry, occurrence);
       }
       occurrence = advanceOnce(occurrence);
       guard++;
@@ -205,7 +303,7 @@ export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfD
         d.getMonth() === monthStart.getMonth() &&
         (isBefore(d, asOfDate) || isEqual(d, asOfDate))
       ) {
-        if (!isDateSuspended(entry, d)) total += entry.amount;
+        if (!isDateSuspended(entry, d)) total += getAmountForDate(entry, d);
       }
       continue;
     }
@@ -242,7 +340,7 @@ export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfD
     while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
       // only include occurrences on or before asOfDate
       if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && (isBefore(occurrence, asOfDate) || isEqual(occurrence, asOfDate)) && !isDateSuspended(entry, occurrence)) {
-        total += entry.amount;
+        total += getAmountForDate(entry, occurrence);
       }
       occurrence = advanceOnce(occurrence);
       guard++;
