@@ -69,12 +69,19 @@ export interface SubscriptionEntry {
 export interface LiquidAsset {
   id: string;
   name: string;
-  type: 'Cash' | 'Checking' | 'Savings' | 'Credit Card' | 'Other';
+  type: 'Cash' | 'Checking' | 'Savings' | 'Credit Card';
   startingAmount: number;
   currentAmount: number;
   enactDate?: string; // when the account becomes active
+  closed?: boolean; // when true no new transactions can be created through the UI
   // Credit card specific fields
   creditLimit?: number | null;
+  // credit limit change history
+  creditLimitChanges?: Array<{
+    amount: number;
+    start: string; // YYYY-MM-DD
+    end?: string | null;
+  }>;
   paymentDueDay?: number | null; // day of month
   // simple transaction history
   transactions?: Array<{
@@ -138,6 +145,8 @@ interface FinanceState {
   updateAsset: (id: string, updates: Partial<LiquidAsset>) => void;
   removeAsset: (id: string) => void;
   addAssetTransaction: (assetId: string, tx: { date: string; amount: number; memo?: string }) => void;
+  removeAssetTransaction: (assetId: string, txId: string) => void;
+  updateAssetCreditLimit: (assetId: string, newLimit: number, startDate: string) => void;
   // Subscriptions
   addSubscription: (entry: Omit<SubscriptionEntry, 'id'>) => void;
   removeSubscription: (id: string) => void;
@@ -254,8 +263,22 @@ export const useFinanceStore = create<FinanceState>()(
           debts: state.debts.filter((d) => d.id !== id),
         })),
 
-      // Assets (wallet accounts)
-      assets: [],
+      // Assets (wallet accounts) - include a default Cash account
+      assets: [
+        {
+          id: crypto.randomUUID(),
+          name: 'Cash',
+          type: 'Cash',
+          startingAmount: 0,
+          currentAmount: 0,
+          enactDate: new Date().toISOString().slice(0,10),
+          closed: false,
+          creditLimit: null,
+          creditLimitChanges: [],
+          paymentDueDay: null,
+          transactions: [],
+        },
+      ],
 
       addAsset: (asset) =>
         set((state) => ({
@@ -264,10 +287,17 @@ export const useFinanceStore = create<FinanceState>()(
             {
               ...asset,
               id: crypto.randomUUID(),
-              currentAmount: asset.startingAmount ?? 0,
-              transactions: asset.startingAmount
-                ? [{ id: crypto.randomUUID(), date: asset.enactDate ?? new Date().toISOString(), amount: asset.startingAmount, memo: 'Starting amount' }]
-                : [],
+              // For credit cards we store starting/current amounts as negative values to represent money owed
+              startingAmount: asset.type === 'Credit Card' ? -Math.abs(asset.startingAmount ?? 0) : (asset.startingAmount ?? 0),
+              currentAmount: asset.type === 'Credit Card' ? -Math.abs(asset.startingAmount ?? 0) : (asset.startingAmount ?? 0),
+              // Only create a starting transaction for credit card accounts; other account types have no transactions
+              transactions:
+                asset.type === 'Credit Card' && (asset.startingAmount ?? 0) !== 0
+                  ? [{ id: crypto.randomUUID(), date: asset.enactDate ? `${asset.enactDate}T12:00:00` : new Date().toISOString(), amount: -Math.abs(asset.startingAmount ?? 0), memo: 'Starting balance' }]
+                  : [],
+              // Initialize credit limit change history if provided
+              creditLimitChanges: asset.creditLimit ? [{ amount: asset.creditLimit, start: asset.enactDate ?? new Date().toISOString().slice(0,10), end: null }] : [],
+              closed: false,
             },
           ],
         })),
@@ -286,9 +316,59 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           assets: state.assets.map((a) => {
             if (a.id !== assetId) return a;
-            const newTx = { id: crypto.randomUUID(), date: tx.date, amount: tx.amount, memo: tx.memo };
-            const newCurrent = (a.currentAmount ?? 0) + tx.amount;
+            // For non-credit accounts, disallow transactions that would drive the balance below zero.
+            const curr = a.currentAmount ?? 0;
+            let amt = tx.amount;
+            if (a.type !== 'Credit Card' && amt < 0) {
+              // Allowed outflow is at most current balance
+              const allowedOutflow = Math.min(Math.abs(amt), curr);
+              amt = -allowedOutflow;
+            }
+            const newTx = { id: crypto.randomUUID(), date: tx.date, amount: amt, memo: tx.memo };
+            const newCurrent = (a.currentAmount ?? 0) + amt;
             return { ...a, transactions: [...(a.transactions || []), newTx], currentAmount: newCurrent };
+          }),
+        })),
+      removeAssetTransaction: (assetId, txId) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            const newTransactions = (a.transactions || []).filter((t) => t.id !== txId);
+            // Recompute currentAmount conservatively from starting amount + remaining transactions
+            const starting = a.startingAmount ?? 0;
+            const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
+            return { ...a, transactions: newTransactions, currentAmount: computed };
+          }),
+        })),
+      updateAssetCreditLimit: (assetId, newLimit, startDate) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            const prev = a.creditLimitChanges ? a.creditLimitChanges.map((c) => ({ ...c })) : [];
+            const newStart = startDate; // expected YYYY-MM-DD
+
+            // keep only changes that start before the new start
+            const kept = prev.filter((c) => new Date(c.start) < new Date(newStart + 'T12:00:00'));
+
+            // close the last kept change the day before newStart
+            if (kept.length > 0) {
+              const last = kept[kept.length - 1];
+              if (!last.end) {
+                const dayBefore = new Date(newStart + 'T12:00:00');
+                dayBefore.setDate(dayBefore.getDate() - 1);
+                last.end = dayBefore.toISOString().slice(0,10);
+              }
+            }
+
+            kept.push({ amount: newLimit, start: newStart, end: null });
+
+            // If effective date is today or earlier, apply immediately
+            const today = new Date();
+            today.setHours(12,0,0,0);
+            const eff = new Date(newStart + 'T12:00:00');
+            const newCreditLimit = eff.getTime() <= today.getTime() ? newLimit : a.creditLimit;
+
+            return { ...a, creditLimit: newCreditLimit, creditLimitChanges: kept };
           }),
         })),
 

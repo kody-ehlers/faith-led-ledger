@@ -8,25 +8,49 @@ import { useFinanceStore, type LiquidAsset } from '@/store/financeStore';
 import { formatCurrency } from '@/utils/calculations';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset } = useFinanceStore();
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction } = useFinanceStore();
+
+  // Helpers to normalize and parse date-only strings safely
+  const normalizeDateOnly = (d?: string | null) => {
+    if (!d) return '';
+    return d.includes('T') ? d.slice(0, 10) : d;
+  };
+
+  const parseDateSafe = (d?: string | null) => {
+    const s = normalizeDateOnly(d);
+    if (!s) return new Date();
+    return new Date(s + 'T12:00:00');
+  };
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<'Cash' | 'Checking' | 'Savings' | 'Credit Card' | 'Other'>('Checking');
-  const [startingAmount, setStartingAmount] = useState<number>(0);
+  const [type, setType] = useState<'Cash' | 'Checking' | 'Savings' | 'Credit Card'>('Checking');
+  // Keep these as strings to make it easy to clear fields in the UI
+  const [startingAmount, setStartingAmount] = useState<string>('');
   const [enactDate, setEnactDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [creditLimit, setCreditLimit] = useState<number | ''>('');
-  const [paymentDueDay, setPaymentDueDay] = useState<number | ''>('');
+  const [creditLimit, setCreditLimit] = useState<string>('');
+  const [paymentDueDay, setPaymentDueDay] = useState<string>('');
+  const [isEnactOpen, setIsEnactOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [isRemoveOpen, setIsRemoveOpen] = useState(false);
+  // Adjust Credit Limit dialog state
+  const [adjustTarget, setAdjustTarget] = useState<string | null>(null);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState<string>('');
+  const [adjustDate, setAdjustDate] = useState<string>(new Date().toISOString().slice(0,10));
 
   const handleAdd = () => {
     if (!name.trim()) { toast.error('Enter a name'); return; }
-    addAsset({ name: name.trim(), type, startingAmount: Number(startingAmount || 0), enactDate: enactDate ? new Date(enactDate).toISOString() : undefined, creditLimit: creditLimit === '' ? null : Number(creditLimit), paymentDueDay: paymentDueDay === '' ? null : Number(paymentDueDay) });
+    const starting = startingAmount === '' ? 0 : Number(startingAmount);
+    // store enactDate as a date-only YYYY-MM-DD string
+    addAsset({ name: name.trim(), type, startingAmount: Number(starting || 0), enactDate: enactDate || undefined, creditLimit: creditLimit === '' ? null : Number(creditLimit), paymentDueDay: paymentDueDay === '' ? null : Number(paymentDueDay) });
     toast.success('Wallet item added');
     setName('');
-    setStartingAmount(0);
+    setStartingAmount('');
     setCreditLimit('');
     setPaymentDueDay('');
   };
@@ -62,30 +86,44 @@ export default function Wallet() {
                   <SelectValue placeholder={type} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Checking">Checking</SelectItem>
-                  <SelectItem value="Savings">Savings</SelectItem>
-                  <SelectItem value="Credit Card">Credit Card</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Checking">Checking</SelectItem>
+                    <SelectItem value="Savings">Savings</SelectItem>
+                    <SelectItem value="Credit Card">Credit Card</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Starting Amount</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input className="pl-6" type="number" value={startingAmount} onChange={(e) => setStartingAmount(Number(e.target.value))} />
+            {/* Starting Balance for non-Other account types */}
+            {/** Show starting balance for Cash/Checking/Savings/Credit Card */}
+            {type !== undefined && (
+              <div className="space-y-2">
+                <Label>Starting Balance</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" value={startingAmount} onChange={(e) => setStartingAmount(e.target.value)} />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
-              <Label>Enact Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline">{enactDate ? format(new Date(enactDate), 'PPP') : 'Pick a date'}</Button>
-                </PopoverTrigger>
+              <Label>Date First Available</Label>
+              <Popover open={isEnactOpen} onOpenChange={setIsEnactOpen}>
+                    <PopoverTrigger asChild>
+                      <Button className="w-full justify-start text-left font-normal" variant="outline">{enactDate ? format(parseDateSafe(enactDate), 'PPP') : 'Pick a date'}</Button>
+                    </PopoverTrigger>
                 <PopoverContent side="bottom" className="w-auto p-0">
-                  <Calendar mode="single" selected={new Date(enactDate)} onSelect={(d) => d && setEnactDate(d.toISOString().slice(0,10))} />
+                    <Calendar
+                      mode="single"
+                      selected={parseDateSafe(enactDate)}
+                      onSelect={(d) => {
+                        if (d) {
+                          // store date-only in YYYY-MM-DD to avoid TZ shifts
+                          setEnactDate(d.toISOString().slice(0,10));
+                          setIsEnactOpen(false);
+                        }
+                      }}
+                    />
                 </PopoverContent>
               </Popover>
             </div>
@@ -94,11 +132,14 @@ export default function Wallet() {
               <>
                 <div className="space-y-2">
                   <Label>Credit Limit</Label>
-                  <Input type="number" value={creditLimit === '' ? '' : creditLimit} onChange={(e) => setCreditLimit(e.target.value === '' ? '' : Number(e.target.value))} />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" value={creditLimit === '' ? '' : creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Payment Due Day (1-28)</Label>
-                  <Input type="number" min={1} max={28} value={paymentDueDay === '' ? '' : paymentDueDay} onChange={(e) => setPaymentDueDay(e.target.value === '' ? '' : Number(e.target.value))} />
+                  <Label>Payment Due Date (1-28)</Label>
+                  <Input className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" min={1} max={28} value={paymentDueDay === '' ? '' : paymentDueDay} onChange={(e) => setPaymentDueDay(e.target.value)} />
                 </div>
               </>
             )}
@@ -116,34 +157,112 @@ export default function Wallet() {
           <Card key={a.id}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>{a.name} <small className="text-muted-foreground">{a.type}</small></span>
-                <span className="font-semibold">{formatCurrency(a.currentAmount || 0)}</span>
+                <span>
+                  {a.name} <small className="text-muted-foreground">{a.type}{a.closed ? ' • Closed' : ''}</small>
+                </span>
+                {/* Display balances: credit cards show negative only when balance < 0; zero or positive show without negative */}
+                {(() => {
+                  const raw = a.currentAmount ?? 0;
+                  // If credit card, keep stored sign (negative means owed). Only force negative when < 0.
+                  const display = raw;
+                  const cls = display < 0 ? 'text-destructive' : 'text-success';
+                  return <span className={`font-semibold ${cls}`}>{formatCurrency(display)}</span>;
+                })()}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-muted-foreground mb-2">Enacted: {a.enactDate ? new Date(a.enactDate).toLocaleDateString() : '—'}</div>
+              <div className="text-sm text-muted-foreground mb-2">Enacted: {a.enactDate ? parseDateSafe(a.enactDate).toLocaleDateString() : '—'}</div>
               {a.type === 'Credit Card' && (
                 <div className="text-sm text-muted-foreground mb-2">Limit: {a.creditLimit ? formatCurrency(a.creditLimit) : '—'} • Due day: {a.paymentDueDay ?? '—'}</div>
               )}
 
-              <div className="mt-4">
-                <div className="text-xs text-muted-foreground">Recent transactions</div>
-                <div className="mt-2 space-y-1">
-                  {(a.transactions || []).slice().reverse().slice(0,5).map((t) => (
-                    <div key={t.id} className="flex justify-between text-sm">
-                      <div>{new Date(t.date).toLocaleDateString()} {t.memo ? `• ${t.memo}` : ''}</div>
-                      <div className={t.amount >= 0 ? 'text-success' : 'text-destructive'}>{formatCurrency(t.amount)}</div>
-                    </div>
-                  ))}
+              {/* Only show transactions for Credit Card accounts */}
+              {a.type === 'Credit Card' && (
+                <div className="mt-4">
+                  <div className="text-xs text-muted-foreground">Recent transactions</div>
+                  <div className="mt-2 space-y-1">
+                    {(a.transactions || []).slice().reverse().slice(0,5).map((t) => (
+                      <div key={t.id} className="flex justify-between text-sm items-center">
+                        <div>{new Date(t.date).toLocaleDateString()} {t.memo ? `• ${t.memo}` : ''}</div>
+                        <div className="flex items-center gap-3">
+                          <div className={t.amount >= 0 ? 'text-success' : 'text-destructive'}>{formatCurrency(t.amount)}</div>
+                          {/* allow removing recent transactions for credit card accounts */}
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm('Remove this transaction?')) { removeAssetTransaction(a.id, t.id); toast.success('Transaction removed'); } }}>
+                            ✕
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="mt-4 flex gap-2">
-                <Button variant="ghost" className="text-destructive" onClick={() => { if (confirm('Remove this account? This will delete its transactions.')) { removeAsset(a.id); toast.success('Account removed'); } }}>Remove</Button>
+                {!a.closed && (
+                  <Button variant="outline" onClick={() => { updateAsset(a.id, { closed: true }); toast.success('Account closed — no further transactions allowed'); }}>Close Account</Button>
+                )}
+                {a.type === 'Credit Card' && (
+                  <Button variant="outline" onClick={() => { setAdjustTarget(a.id); setAdjustAmount(a.creditLimit?.toString() ?? ''); setAdjustDate(a.enactDate ?? new Date().toISOString().slice(0,10)); setAdjustOpen(true); }}>
+                    Adjust Limit
+                  </Button>
+                )}
+                <Button variant="ghost" className="text-destructive" onClick={() => { setRemoveTarget(a.id); setIsRemoveOpen(true); }}>Remove</Button>
               </div>
             </CardContent>
           </Card>
         ))}
+        {/* Remove confirmation dialog */}
+        <Dialog open={isRemoveOpen} onOpenChange={setIsRemoveOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Remove Account</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">Removing this account will permanently delete its transaction history. This action cannot be undone.</div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsRemoveOpen(false)}>Cancel</Button>
+              <Button className="bg-destructive text-white" onClick={() => { if (removeTarget) { removeAsset(removeTarget); toast.success('Account removed'); } setIsRemoveOpen(false); }}>Remove Account</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Adjust Credit Limit dialog */}
+        <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adjust Credit Limit</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>New Limit</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Effective Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">{adjustDate ? format(new Date(adjustDate + 'T12:00:00'), 'PPP') : 'Pick a date'}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar mode="single" selected={parseDateSafe(adjustDate)} onSelect={(d) => { if (d) { setAdjustDate(d.toISOString().slice(0,10)); } }} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setAdjustOpen(false)}>Cancel</Button>
+              <Button onClick={() => {
+                if (!adjustTarget) return;
+                const parsed = Number(adjustAmount);
+                if (Number.isNaN(parsed)) { toast.error('Enter a valid amount'); return; }
+                updateAssetCreditLimit(adjustTarget, parsed, adjustDate);
+                toast.success('Credit limit adjusted');
+                setAdjustOpen(false);
+              }}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
