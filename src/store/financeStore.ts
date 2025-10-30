@@ -20,6 +20,8 @@ export interface IncomeEntry {
     start: string; // ISO date when this amount became active
     end?: string | null; // ISO date when this amount ended (inclusive) or null if current
   }>;
+  // Optional association to a wallet asset
+  assetId?: string | null;
 }
 
 export interface ExpenseEntry {
@@ -29,6 +31,8 @@ export interface ExpenseEntry {
   category: string;
   date: string;
   type: 'need' | 'want';
+  // Optional association to a wallet asset
+  assetId?: string | null;
 }
 
 export interface TithePayment {
@@ -36,6 +40,8 @@ export interface TithePayment {
   amount: number;
   date: string;
   given: boolean;
+  // Optional asset this tithe was paid from
+  assetId?: string | null;
 }
 
 export interface SubscriptionEntry {
@@ -55,6 +61,27 @@ export interface SubscriptionEntry {
     amount: number;
     start: string;
     end?: string | null;
+  }>;
+  // Optional asset association
+  assetId?: string | null;
+}
+
+export interface LiquidAsset {
+  id: string;
+  name: string;
+  type: 'Cash' | 'Checking' | 'Savings' | 'Credit Card' | 'Other';
+  startingAmount: number;
+  currentAmount: number;
+  enactDate?: string; // when the account becomes active
+  // Credit card specific fields
+  creditLimit?: number | null;
+  paymentDueDay?: number | null; // day of month
+  // simple transaction history
+  transactions?: Array<{
+    id: string;
+    date: string;
+    amount: number; // positive for inflow to this asset, negative for outflow (payments)
+    memo?: string;
   }>;
 }
 
@@ -81,6 +108,7 @@ interface FinanceState {
   tithes: TithePayment[];
   savings: SavingsAccount[];
   debts: DebtEntry[];
+  assets: LiquidAsset[];
   subscriptions: SubscriptionEntry[];
   
   // Actions
@@ -105,6 +133,11 @@ interface FinanceState {
   addDebt: (debt: Omit<DebtEntry, 'id'>) => void;
   updateDebt: (id: string, updates: Partial<DebtEntry>) => void;
   removeDebt: (id: string) => void;
+  // Assets
+  addAsset: (asset: Omit<LiquidAsset, 'id' | 'currentAmount' | 'transactions'>) => void;
+  updateAsset: (id: string, updates: Partial<LiquidAsset>) => void;
+  removeAsset: (id: string) => void;
+  addAssetTransaction: (assetId: string, tx: { date: string; amount: number; memo?: string }) => void;
   // Subscriptions
   addSubscription: (entry: Omit<SubscriptionEntry, 'id'>) => void;
   removeSubscription: (id: string) => void;
@@ -219,6 +252,44 @@ export const useFinanceStore = create<FinanceState>()(
       removeDebt: (id) =>
         set((state) => ({
           debts: state.debts.filter((d) => d.id !== id),
+        })),
+
+      // Assets (wallet accounts)
+      assets: [],
+
+      addAsset: (asset) =>
+        set((state) => ({
+          assets: [
+            ...state.assets,
+            {
+              ...asset,
+              id: crypto.randomUUID(),
+              currentAmount: asset.startingAmount ?? 0,
+              transactions: asset.startingAmount
+                ? [{ id: crypto.randomUUID(), date: asset.enactDate ?? new Date().toISOString(), amount: asset.startingAmount, memo: 'Starting amount' }]
+                : [],
+            },
+          ],
+        })),
+
+      updateAsset: (id, updates) =>
+        set((state) => ({
+          assets: state.assets.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+        })),
+
+      removeAsset: (id) =>
+        set((state) => ({
+          assets: state.assets.filter((a) => a.id !== id),
+        })),
+
+      addAssetTransaction: (assetId, tx) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            const newTx = { id: crypto.randomUUID(), date: tx.date, amount: tx.amount, memo: tx.memo };
+            const newCurrent = (a.currentAmount ?? 0) + tx.amount;
+            return { ...a, transactions: [...(a.transactions || []), newTx], currentAmount: newCurrent };
+          }),
         })),
 
       addSubscription: (entry) =>

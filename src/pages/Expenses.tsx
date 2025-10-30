@@ -24,11 +24,12 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export default function Expenses() {
-  const { expenses, addExpense, removeExpense } = useFinanceStore();
+  const { expenses, addExpense, removeExpense, assets } = useFinanceStore();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Groceries");
   const [type, setType] = useState<"need" | "want">("need");
+  const [assetId, setAssetId] = useState<string | null>(null);
 
   const handleAddExpense = () => {
     if (!name.trim() || !amount || parseFloat(amount) <= 0) {
@@ -42,6 +43,7 @@ export default function Expenses() {
       category,
       type,
       date: new Date().toISOString(),
+      assetId: assetId ?? undefined,
     });
 
     toast.success("Expense added successfully");
@@ -171,6 +173,21 @@ export default function Expenses() {
                   <SelectItem value="need">Need</SelectItem>
                   <SelectItem value="want">Want</SelectItem>
                 </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Wallet</Label>
+              <Select value={assetId ?? '__none'} onValueChange={(v) => setAssetId(v === '__none' ? null : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account (optional)" />
+                </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">None</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
             </div>
           </div>

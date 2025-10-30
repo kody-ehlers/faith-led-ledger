@@ -103,7 +103,7 @@ export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date
 const toDateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
-const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
+export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   if (!entry.changes || entry.changes.length === 0) return entry.amount;
   const target = toDateOnly(date).getTime();
   // Ensure changes are processed in ascending start order

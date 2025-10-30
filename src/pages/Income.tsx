@@ -29,7 +29,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function Income() {
-  const { income, addIncome, removeIncome, updateIncome, suspendIncome, resumeIncome } = useFinanceStore();
+  const { income, addIncome, removeIncome, updateIncome, suspendIncome, resumeIncome, assets } = useFinanceStore();
 
   type Frequency = "Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time";
 
@@ -39,6 +39,7 @@ export default function Income() {
   const [preTax, setPreTax] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
+  const [assetId, setAssetId] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [showOneTimeList, setShowOneTimeList] = useState(false);
 
@@ -58,6 +59,7 @@ export default function Income() {
       frequency,
       preTax,
       date: date.toISOString(),
+      assetId: assetId ?? undefined,
       notes: notes.trim()
     });
 
@@ -710,6 +712,22 @@ export default function Income() {
                 onChange={(e) => setNotes(e.target.value.slice(0, 200))}
                 placeholder="Add notes (max 200 chars)"
               />
+            </div>
+
+            {/* Wallet */}
+            <div className="space-y-2 md:col-span-2">
+              <Label>Wallet</Label>
+              <Select value={assetId ?? '__none'} onValueChange={(v) => setAssetId(v === '__none' ? null : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an account (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  {assets.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

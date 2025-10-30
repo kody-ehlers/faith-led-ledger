@@ -4,6 +4,7 @@ import { ReactNode, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import clsx from "clsx";
+import ErrorBoundary from './ErrorBoundary';
 
 interface LayoutProps {
   children: ReactNode;
@@ -59,7 +60,9 @@ export function Layout({ children }: LayoutProps) {
             </Button>
           </header>
 
-          <main className="flex-1 p-6 overflow-auto">{children}</main>
+          <ErrorBoundary>
+            <main className="flex-1 p-6 overflow-auto">{children}</main>
+          </ErrorBoundary>
         </div>
       </div>
     </SidebarProvider>

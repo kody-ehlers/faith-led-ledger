@@ -16,6 +16,7 @@ import Investments from "./pages/Investments";
 import Debt from "./pages/Debt";
 import Statistics from "./pages/Statistics";
 import Settings from "./pages/Settings";
+import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const AppRoutes = () => (
       <Route path="/" element={<Home />} />
       <Route path="/income" element={<Income />} />
       <Route path="/tithe" element={<Tithe />} />
+      <Route path="/wallet" element={<Wallet />} />
       <Route path="/expenses" element={<Expenses />} />
       <Route path="/subscriptions" element={<Subscriptions />} />
       <Route path="/bills" element={<Bills />} />
