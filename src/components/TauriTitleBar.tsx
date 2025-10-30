@@ -93,7 +93,7 @@ export function TauriTitleBar() {
     <>
       <div className="h-10 bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b border-border flex items-center justify-between px-4 select-none fixed top-0 left-0 right-0 z-50">
         <div data-tauri-drag-region className="flex items-center gap-3 flex-1 h-full">
-          <img src="/logo.svg" alt="Ehlers Finances" className="h-6 w-6 object-contain pointer-events-none" />
+          <img src="/auburn-tigers-2.svg" alt="Ehlers Finances" className="h-6 w-6 object-contain pointer-events-none" />
           <span className="text-sm font-semibold text-foreground pointer-events-none">Ehlers Finances</span>
         </div>
 
