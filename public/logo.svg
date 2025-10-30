@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Wallet outline -->
+  <path d="M40 60 L160 60 L160 140 L40 140 Z" fill="#2563eb" stroke="#1e40af" stroke-width="4"/>
+
+  <!-- Wallet flap -->
+  <path d="M40 60 L100 40 L160 60" fill="#3b82f6" stroke="#1e40af" stroke-width="4"/>
+
+  <!-- Dollar sign -->
+  <path d="M100 80 L100 75 M90 85 C90 80 95 75 100 75 C105 75 110 80 110 85 C110 90 105 92 100 92 M100 92 C95 92 90 97 90 102 C90 107 95 112 100 112 C105 112 110 107 110 102 M100 112 L100 117" stroke="#ffffff" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- Decorative card slot -->
+  <rect x="130" y="90" width="20" height="30" rx="3" fill="#1e40af"/>
+</svg>
