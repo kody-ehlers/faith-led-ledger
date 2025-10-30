@@ -51,7 +51,6 @@ export default function Wallet() {
     toast.success('Wallet item added');
     setName('');
     setStartingAmount('');
-    setCreditLimit('');
     setPaymentDueDay('');
   };
 
@@ -131,13 +130,6 @@ export default function Wallet() {
             {type === 'Credit Card' && (
               <>
                 <div className="space-y-2">
-                  <Label>Credit Limit</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" value={creditLimit === '' ? '' : creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
-                  </div>
-                </div>
-                <div className="space-y-2">
                   <Label>Payment Due Date (1-28)</Label>
                   <Input className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" min={1} max={28} value={paymentDueDay === '' ? '' : paymentDueDay} onChange={(e) => setPaymentDueDay(e.target.value)} />
                 </div>
@@ -172,9 +164,6 @@ export default function Wallet() {
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-2">Enacted: {a.enactDate ? parseDateSafe(a.enactDate).toLocaleDateString() : '—'}</div>
-              {a.type === 'Credit Card' && (
-                <div className="text-sm text-muted-foreground mb-2">Limit: {a.creditLimit ? formatCurrency(a.creditLimit) : '—'} • Due day: {a.paymentDueDay ?? '—'}</div>
-              )}
 
               {/* Only show transactions for Credit Card accounts */}
               {a.type === 'Credit Card' && (
@@ -201,11 +190,6 @@ export default function Wallet() {
                 {!a.closed && (
                   <Button variant="outline" onClick={() => { updateAsset(a.id, { closed: true }); toast.success('Account closed — no further transactions allowed'); }}>Close Account</Button>
                 )}
-                {a.type === 'Credit Card' && (
-                  <Button variant="outline" onClick={() => { setAdjustTarget(a.id); setAdjustAmount(a.creditLimit?.toString() ?? ''); setAdjustDate(a.enactDate ?? new Date().toISOString().slice(0,10)); setAdjustOpen(true); }}>
-                    Adjust Limit
-                  </Button>
-                )}
                 <Button variant="ghost" className="text-destructive" onClick={() => { setRemoveTarget(a.id); setIsRemoveOpen(true); }}>Remove</Button>
               </div>
             </CardContent>
@@ -221,45 +205,6 @@ export default function Wallet() {
             <DialogFooter>
               <Button variant="ghost" onClick={() => setIsRemoveOpen(false)}>Cancel</Button>
               <Button className="bg-destructive text-white" onClick={() => { if (removeTarget) { removeAsset(removeTarget); toast.success('Account removed'); } setIsRemoveOpen(false); }}>Remove Account</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Adjust Credit Limit dialog */}
-        <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Adjust Credit Limit</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>New Limit</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Effective Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">{adjustDate ? format(new Date(adjustDate + 'T12:00:00'), 'PPP') : 'Pick a date'}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar mode="single" selected={parseDateSafe(adjustDate)} onSelect={(d) => { if (d) { setAdjustDate(d.toISOString().slice(0,10)); } }} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setAdjustOpen(false)}>Cancel</Button>
-              <Button onClick={() => {
-                if (!adjustTarget) return;
-                const parsed = Number(adjustAmount);
-                if (Number.isNaN(parsed)) { toast.error('Enter a valid amount'); return; }
-                updateAssetCreditLimit(adjustTarget, parsed, adjustDate);
-                toast.success('Credit limit adjusted');
-                setAdjustOpen(false);
-              }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
