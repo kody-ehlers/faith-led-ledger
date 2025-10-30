@@ -5,6 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 import ErrorBoundary from './ErrorBoundary';
+import { TauriTitleBar } from './TauriTitleBar';
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,9 +22,12 @@ export function Layout({ children }: LayoutProps) {
     setIsSidebarCollapsed((prev) => !prev);
   };
 
+  const isTauri = typeof window !== "undefined" && (window as any).__TAURI__;
+
   return (
     <SidebarProvider defaultOpen={!isSidebarCollapsed}>
-      <div className="min-h-screen flex w-full">
+      <TauriTitleBar />
+      <div className={clsx("min-h-screen flex w-full", isTauri && "pt-10")}>
         {/* --- Sidebar --- */}
         <div
           className={clsx(
@@ -38,7 +42,10 @@ export function Layout({ children }: LayoutProps) {
 
         {/* --- Main Content --- */}
         <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-10">
+          <header className={clsx(
+            "h-16 border-b border-border bg-card flex items-center justify-between px-6 z-10",
+            isTauri ? "relative" : "sticky top-0"
+          )}>
             <div className="flex items-center gap-4">
               {/* Sidebar toggle */}
               <SidebarTrigger onClick={handleSidebarToggle} />

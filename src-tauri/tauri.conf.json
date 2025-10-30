@@ -12,11 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "Finance Tracker",
-        "width": 800,
-        "height": 600,
+        "title": "Ehlers Finances",
+        "width": 1200,
+        "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false
       }
     ],
     "security": {
