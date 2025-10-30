@@ -7,40 +7,63 @@ export function TauriTitleBar() {
   const [zoomLevel, setZoomLevel] = useState(100);
 
   useEffect(() => {
-    // Check if running in Tauri
-    if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      const { appWindow } = (window as any).__TAURI__.window;
-      
-      appWindow.isMaximized().then(setIsMaximized);
-      
-      const unlisten = appWindow.onResized(() => {
-        appWindow.isMaximized().then(setIsMaximized);
-      });
+    // Check if running in Tauri v2
+    const checkTauri = async () => {
+      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const appWindow = getCurrentWindow();
+          
+          const maximized = await appWindow.isMaximized();
+          setIsMaximized(maximized);
+          
+          const unlisten = await appWindow.onResized(async () => {
+            const maximized = await appWindow.isMaximized();
+            setIsMaximized(maximized);
+          });
 
-      return () => {
-        unlisten.then((fn: any) => fn());
-      };
-    }
+          return () => {
+            unlisten();
+          };
+        } catch (error) {
+          console.error('Tauri API error:', error);
+        }
+      }
+    };
+
+    checkTauri();
   }, []);
 
   const handleMinimize = async () => {
-    if ((window as any).__TAURI__) {
-      const { appWindow } = (window as any).__TAURI__.window;
-      await appWindow.minimize();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().minimize();
+      } catch (error) {
+        console.error('Minimize error:', error);
+      }
     }
   };
 
   const handleMaximize = async () => {
-    if ((window as any).__TAURI__) {
-      const { appWindow } = (window as any).__TAURI__.window;
-      await appWindow.toggleMaximize();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().toggleMaximize();
+      } catch (error) {
+        console.error('Maximize error:', error);
+      }
     }
   };
 
   const handleClose = async () => {
-    if ((window as any).__TAURI__) {
-      const { appWindow } = (window as any).__TAURI__.window;
-      await appWindow.close();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().close();
+      } catch (error) {
+        console.error('Close error:', error);
+      }
     }
   };
 
@@ -61,8 +84,8 @@ export function TauriTitleBar() {
     document.body.style.zoom = "100%";
   };
 
-  // Only render in Tauri environment
-  if (typeof window === "undefined" || !(window as any).__TAURI__) {
+  // Only render in Tauri environment (Tauri v2 detection)
+  if (typeof window === "undefined" || !(window as any).__TAURI_INTERNALS__) {
     return null;
   }
 

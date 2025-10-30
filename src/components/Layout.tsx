@@ -22,7 +22,7 @@ export function Layout({ children }: LayoutProps) {
     setIsSidebarCollapsed((prev) => !prev);
   };
 
-  const isTauri = typeof window !== "undefined" && (window as any).__TAURI__;
+  const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__;
 
   return (
     <SidebarProvider defaultOpen={!isSidebarCollapsed}>
