@@ -32,7 +32,7 @@ export function Layout({ children }: LayoutProps) {
         {/* --- Sidebar --- */}
         <div
           className={clsx(
-            "flex flex-col border-r border-border bg-card transition-all duration-300 sticky top-0 h-screen",
+            "flex flex-col border-r border-border bg-card transition-all duration-300 fixed top-10 left-0 h-screen z-40",
             isSidebarCollapsed ? "w-16 items-center" : "w-64"
           )}
         >
@@ -42,12 +42,16 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         {/* --- Main Content --- */}
-        <div className="flex-1 flex flex-col">
-          <header
-            className={clsx(
-              "h-16 border-b border-border bg-card flex items-center justify-between px-6 z-10",
-              isTauri ? "relative" : "sticky top-0"
-            )}
+        <div
+          className={clsx(
+            "flex-1 flex flex-col transition-all duration-300",
+            isSidebarCollapsed ? "ml-16" : "ml-64"
+          )}
+        >
+          <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 z-10 fixed top-10 right-0 left-0"
+            style={{
+              marginLeft: isSidebarCollapsed ? "4rem" : "16rem"
+            }}
           >
             <div className="flex items-center gap-4">
               {/* Sidebar toggle */}
@@ -71,7 +75,9 @@ export function Layout({ children }: LayoutProps) {
           </header>
 
           <ErrorBoundary>
-            <main className="flex-1 p-6 overflow-auto">{children}</main>
+            <main data-main-content className="flex-1 p-6 overflow-auto mt-16">
+              {children}
+            </main>
           </ErrorBoundary>
         </div>
       </div>
