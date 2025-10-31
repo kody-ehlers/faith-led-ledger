@@ -123,6 +123,7 @@ interface FinanceState {
   debts: DebtEntry[];
   assets: LiquidAsset[];
   subscriptions: SubscriptionEntry[];
+  appName: string;
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -180,6 +181,9 @@ interface FinanceState {
     comment?: string | null
   ) => void;
   renewSubscription: (id: string) => void;
+  
+  // Settings
+  updateAppName: (name: string) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -191,6 +195,7 @@ export const useFinanceStore = create<FinanceState>()(
       savings: [],
       debts: [],
       subscriptions: [],
+      appName: "My Finances",
 
       addIncome: (entry) =>
         set((state) => ({
@@ -544,6 +549,11 @@ export const useFinanceStore = create<FinanceState>()(
                 }
               : s
           ),
+        })),
+      
+      updateAppName: (name) =>
+        set(() => ({
+          appName: name,
         })),
     }),
     {

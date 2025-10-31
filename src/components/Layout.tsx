@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 import ErrorBoundary from "./ErrorBoundary";
 import { TauriTitleBar } from "./TauriTitleBar";
+import { useFinanceStore } from "@/store/financeStore";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const appName = useFinanceStore((state) => state.appName);
 
   const toggleTheme = () => {
     document.documentElement.classList.toggle("dark");
@@ -58,7 +60,7 @@ export function Layout({ children }: LayoutProps) {
               <SidebarTrigger onClick={handleSidebarToggle} />
               {!isSidebarCollapsed && (
                 <h1 className="text-xl font-bold text-foreground">
-                  Ehlers Finances
+                  {appName}
                 </h1>
               )}
             </div>

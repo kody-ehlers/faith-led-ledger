@@ -6,8 +6,22 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useFinanceStore } from "@/store/financeStore";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function Settings() {
+  const appName = useFinanceStore((state) => state.appName);
+  const updateAppName = useFinanceStore((state) => state.updateAppName);
+  const [localAppName, setLocalAppName] = useState(appName);
+
+  const handleSave = () => {
+    updateAppName(localAppName);
+    toast.success("App name updated successfully");
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center gap-3">
@@ -31,16 +45,20 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>Manage app settings</CardDescription>
+          <CardTitle>App Name</CardTitle>
+          <CardDescription>Customize your app's display name</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            First cut: add theme, currency, and sync settings here.
-          </p>
-          <div className="mt-4">
-            <Button variant="outline">Open settings (coming soon)</Button>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="appName">Application Name</Label>
+            <Input
+              id="appName"
+              value={localAppName}
+              onChange={(e) => setLocalAppName(e.target.value)}
+              placeholder="My Finances"
+            />
           </div>
+          <Button onClick={handleSave}>Save Changes</Button>
         </CardContent>
       </Card>
     </div>
