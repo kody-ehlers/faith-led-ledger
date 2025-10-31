@@ -93,10 +93,12 @@ export function TauriTitleBar() {
   const handleZoomIn = () => {
     const newZoom = Math.min(zoomLevel + 10, 200);
     setZoomLevel(newZoom);
-    const mainContent = document.querySelector('[data-main-content]') as HTMLElement;
+    const mainContent = document.querySelector(
+      "[data-main-content]"
+    ) as HTMLElement;
     if (mainContent) {
       mainContent.style.transform = `scale(${newZoom / 100})`;
-      mainContent.style.transformOrigin = 'top left';
+      mainContent.style.transformOrigin = "top left";
       mainContent.style.width = `${10000 / newZoom}%`;
     }
   };
@@ -104,20 +106,24 @@ export function TauriTitleBar() {
   const handleZoomOut = () => {
     const newZoom = Math.max(zoomLevel - 10, 50);
     setZoomLevel(newZoom);
-    const mainContent = document.querySelector('[data-main-content]') as HTMLElement;
+    const mainContent = document.querySelector(
+      "[data-main-content]"
+    ) as HTMLElement;
     if (mainContent) {
       mainContent.style.transform = `scale(${newZoom / 100})`;
-      mainContent.style.transformOrigin = 'top left';
+      mainContent.style.transformOrigin = "top left";
       mainContent.style.width = `${10000 / newZoom}%`;
     }
   };
 
   const handleResetZoom = () => {
     setZoomLevel(100);
-    const mainContent = document.querySelector('[data-main-content]') as HTMLElement;
+    const mainContent = document.querySelector(
+      "[data-main-content]"
+    ) as HTMLElement;
     if (mainContent) {
-      mainContent.style.transform = 'scale(1)';
-      mainContent.style.width = '100%';
+      mainContent.style.transform = "scale(1)";
+      mainContent.style.width = "100%";
     }
   };
 
@@ -136,12 +142,9 @@ export function TauriTitleBar() {
         >
           <img
             src="/auburn_logo.png"
-            alt="Ehlers Finances"
+            alt="Coincierge"
             className="h-6 w-6 object-contain pointer-events-none"
           />
-          <span className="text-sm font-semibold text-foreground pointer-events-none">
-            Ehlers Finances
-          </span>
         </div>
 
         <div className="flex items-center gap-1">
