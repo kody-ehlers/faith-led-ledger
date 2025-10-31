@@ -7,7 +7,7 @@ import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import Income from "./pages/Income";
 import Tithe from "./pages/Tithe";
-import Subscriptions from "./pages/Subscriptions"
+import Subscriptions from "./pages/Subscriptions";
 import Expenses from "./pages/Expenses";
 import Placeholder from "./pages/Placeholder";
 import Bills from "./pages/Bills";

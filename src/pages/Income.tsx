@@ -1,12 +1,36 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculateMonthlyIncome, formatCurrency, getEntryIncomeForMonth } from "@/utils/calculations";
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  calculateMonthlyIncome,
+  formatCurrency,
+  getEntryIncomeForMonth,
+} from "@/utils/calculations";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Plus,
@@ -22,16 +46,40 @@ import {
 } from "lucide-react";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function Income() {
-  const { income, addIncome, removeIncome, updateIncome, suspendIncome, resumeIncome, assets } = useFinanceStore();
+  const {
+    income,
+    addIncome,
+    removeIncome,
+    updateIncome,
+    suspendIncome,
+    resumeIncome,
+    assets,
+  } = useFinanceStore();
 
-  type Frequency = "Monthly" | "Weekly" | "Biweekly" | "Quarterly" | "Yearly" | "One-time";
+  type Frequency =
+    | "Monthly"
+    | "Weekly"
+    | "Biweekly"
+    | "Quarterly"
+    | "Yearly"
+    | "One-time";
 
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
@@ -43,7 +91,9 @@ export default function Income() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [showOneTimeList, setShowOneTimeList] = useState(false);
 
-  const [editingIncome, setEditingIncome] = useState<typeof income[0] | null>(null);
+  const [editingIncome, setEditingIncome] = useState<(typeof income)[0] | null>(
+    null
+  );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
@@ -60,7 +110,7 @@ export default function Income() {
       preTax,
       date: date.toISOString(),
       assetId: assetId ?? undefined,
-      notes: notes.trim()
+      notes: notes.trim(),
     });
 
     toast.success("Income added successfully");
@@ -77,7 +127,7 @@ export default function Income() {
     toast.success("Income source removed");
   };
 
-  const handleEditIncome = (entry: typeof income[0]) => {
+  const handleEditIncome = (entry: (typeof income)[0]) => {
     setEditingIncome(entry);
     setIsEditModalOpen(true);
   };
@@ -87,12 +137,22 @@ export default function Income() {
     if (!original) return;
 
     // Truncate changes that start on/after the new date, and add a new change starting at the edited date
-  const newDate = new Date(editingIncome.date);
-  // normalize to date-only at noon to avoid timezone shifts when converting to ISO
-  const newDateStart = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate(), 12, 0, 0, 0);
+    const newDate = new Date(editingIncome.date);
+    // normalize to date-only at noon to avoid timezone shifts when converting to ISO
+    const newDateStart = new Date(
+      newDate.getFullYear(),
+      newDate.getMonth(),
+      newDate.getDate(),
+      12,
+      0,
+      0,
+      0
+    );
 
     // copy changes deeply so we don't mutate store objects in-place
-    const prevChanges = original.changes ? original.changes.map((c) => ({ ...c })) : [];
+    const prevChanges = original.changes
+      ? original.changes.map((c) => ({ ...c }))
+      : [];
     const kept = prevChanges.filter((ch) => new Date(ch.start) < newDateStart);
 
     // If there is a kept last change, close it the day before the new date
@@ -103,11 +163,19 @@ export default function Income() {
       }
     }
 
-  // Add new change representing edited amount starting at edited date (stored at noon to avoid tz shifts)
-  kept.push({ amount: editingIncome.amount, start: newDateStart.toISOString(), end: null });
+    // Add new change representing edited amount starting at edited date (stored at noon to avoid tz shifts)
+    kept.push({
+      amount: editingIncome.amount,
+      start: newDateStart.toISOString(),
+      end: null,
+    });
 
-    updateIncome(editingIncome.id, { ...editingIncome, changes: kept, amount: editingIncome.amount });
-    toast.success('Income updated; subsequent history truncated');
+    updateIncome(editingIncome.id, {
+      ...editingIncome,
+      changes: kept,
+      amount: editingIncome.amount,
+    });
+    toast.success("Income updated; subsequent history truncated");
     setEditConfirmOpen(false);
     setIsEditModalOpen(false);
     setEditingIncome(null);
@@ -129,7 +197,6 @@ export default function Income() {
     setIsEditModalOpen(false);
     setEditingIncome(null);
   };
-  
 
   const monthlyTotal = calculateMonthlyIncome(income);
   const annualProjection = monthlyTotal * 12;
@@ -144,14 +211,27 @@ export default function Income() {
     const incomeBreakdown: { source: string; amount: number }[] = [];
 
     const monthlyAmount = income.reduce((sum, inc) => {
-      const contributionAmount = getEntryIncomeForMonth(inc, date, /*includePreTax*/ true);
+      const contributionAmount = getEntryIncomeForMonth(
+        inc,
+        date,
+        /*includePreTax*/ true
+      );
       if (contributionAmount > 0) {
-        incomeBreakdown.push({ source: inc.source, amount: contributionAmount });
+        incomeBreakdown.push({
+          source: inc.source,
+          amount: contributionAmount,
+        });
       }
       return sum + contributionAmount;
     }, 0);
 
-    return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, breakdown: incomeBreakdown };
+    return {
+      month: monthName,
+      year,
+      income: monthlyAmount,
+      label: `${monthName} ${year}`,
+      breakdown: incomeBreakdown,
+    };
   });
 
   const recurringIncomes = income.filter((i) => i.frequency !== "One-time");
@@ -160,8 +240,11 @@ export default function Income() {
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const IncomeCard = ({ entry }: { entry: typeof income[0] }) => {
-    const isPast = entry.frequency === "One-time" ? new Date(entry.date) <= new Date() : false;
+  const IncomeCard = ({ entry }: { entry: (typeof income)[0] }) => {
+    const isPast =
+      entry.frequency === "One-time"
+        ? new Date(entry.date) <= new Date()
+        : false;
 
     const now = new Date();
     const isCurrentlySuspended = () => {
@@ -181,15 +264,19 @@ export default function Income() {
     const [suspendStart, setSuspendStart] = useState<Date>(new Date());
     const [suspendEnd, setSuspendEnd] = useState<Date | null>(null);
     const [suspendIndefinite, setSuspendIndefinite] = useState<boolean>(true);
-  const [suspendComment, setSuspendComment] = useState<string>(entry.suspendedNote ?? "");
+    const [suspendComment, setSuspendComment] = useState<string>(
+      entry.suspendedNote ?? ""
+    );
     // Settings dialog state (collapses multiple per-card icons into one)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // Adjust pay dialog state
-  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
-  const [adjustAmount, setAdjustAmount] = useState<string>(entry.amount.toString());
-  const [adjustDate, setAdjustDate] = useState<Date>(new Date());
-  // History dialog state
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    // Adjust pay dialog state
+    const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+    const [adjustAmount, setAdjustAmount] = useState<string>(
+      entry.amount.toString()
+    );
+    const [adjustDate, setAdjustDate] = useState<Date>(new Date());
+    // History dialog state
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     const suspendedNow = isCurrentlySuspended();
     const cardClass = cn(
@@ -204,9 +291,17 @@ export default function Income() {
           <div className="flex-1 flex flex-col justify-center">
             {suspendedNow && (
               <div className="mb-1 text-yellow-700 font-semibold text-sm">
-                {entry.suspendedIndefinitely ? 'Suspended — Indefinitely' : `Suspended until ${entry.suspendedTo ? format(new Date(entry.suspendedTo), 'PPP') : ''}`}
+                {entry.suspendedIndefinitely
+                  ? "Suspended — Indefinitely"
+                  : `Suspended until ${
+                      entry.suspendedTo
+                        ? format(new Date(entry.suspendedTo), "PPP")
+                        : ""
+                    }`}
                 {entry.suspendedNote && (
-                  <span className="ml-2 text-sm text-muted-foreground italic">({entry.suspendedNote})</span>
+                  <span className="ml-2 text-sm text-muted-foreground italic">
+                    ({entry.suspendedNote})
+                  </span>
                 )}
               </div>
             )}
@@ -216,13 +311,20 @@ export default function Income() {
               {entry.frequency !== "One-time" && <span>•</span>}
               <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
               {entry.frequency === "One-time" && <span>•</span>}
-              {entry.frequency === "One-time" && <span>{format(new Date(entry.date), "PPP")}</span>}
+              {entry.frequency === "One-time" && (
+                <span>{format(new Date(entry.date), "PPP")}</span>
+              )}
             </div>
           </div>
 
           {/* Right: Amount + Notes + Edit/Delete */}
           <div className="flex items-center gap-2">
-            <span className={cn("font-semibold w-24 text-right", isPast ? "text-green-700" : "text-foreground")}>
+            <span
+              className={cn(
+                "font-semibold w-24 text-right",
+                isPast ? "text-green-700" : "text-foreground"
+              )}
+            >
               {formatCurrency(entry.amount)}
             </span>
             <div className="w-10 flex justify-center">
@@ -281,7 +383,11 @@ export default function Income() {
                 <Label>Start Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline">{suspendStart ? format(suspendStart, 'PPP') : 'Pick a date'}</Button>
+                    <Button variant="outline">
+                      {suspendStart
+                        ? format(suspendStart, "PPP")
+                        : "Pick a date"}
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent side="bottom" className="w-auto p-0">
                     <Calendar
@@ -298,7 +404,9 @@ export default function Income() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" disabled={suspendIndefinite}>
-                        {suspendEnd ? format(suspendEnd, 'PPP') : 'Pick an end date'}
+                        {suspendEnd
+                          ? format(suspendEnd, "PPP")
+                          : "Pick an end date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent side="bottom" className="w-auto p-0">
@@ -310,15 +418,26 @@ export default function Income() {
                     </PopoverContent>
                   </Popover>
                   <div className="flex items-center space-x-2">
-                    <Switch checked={suspendIndefinite} onCheckedChange={setSuspendIndefinite} />
-                    <span className="text-sm text-muted-foreground">Indefinite</span>
+                    <Switch
+                      checked={suspendIndefinite}
+                      onCheckedChange={setSuspendIndefinite}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      Indefinite
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Comment (optional)</Label>
-                <Input value={suspendComment} onChange={(e) => setSuspendComment(e.target.value.slice(0, 200))} placeholder="Why is this suspended?" />
+                <Input
+                  value={suspendComment}
+                  onChange={(e) =>
+                    setSuspendComment(e.target.value.slice(0, 200))
+                  }
+                  placeholder="Why is this suspended?"
+                />
               </div>
             </div>
 
@@ -329,11 +448,15 @@ export default function Income() {
                   suspendIncome(
                     entry.id,
                     suspendStart.toISOString(),
-                    suspendIndefinite ? null : suspendEnd ? suspendEnd.toISOString() : null,
+                    suspendIndefinite
+                      ? null
+                      : suspendEnd
+                      ? suspendEnd.toISOString()
+                      : null,
                     suspendIndefinite,
                     suspendComment || undefined
                   );
-                  toast.success('Income suspended');
+                  toast.success("Income suspended");
                   setIsSuspendOpen(false);
                 }}
               >
@@ -343,7 +466,7 @@ export default function Income() {
           </DialogContent>
         </Dialog>
 
-  {/* Adjust pay dialog (per-card) */}
+        {/* Adjust pay dialog (per-card) */}
         <Dialog open={isAdjustOpen} onOpenChange={setIsAdjustOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -354,8 +477,15 @@ export default function Income() {
               <div className="space-y-2">
                 <Label>New Amount</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input className="pl-6" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} inputMode="decimal" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    className="pl-6"
+                    value={adjustAmount}
+                    onChange={(e) => setAdjustAmount(e.target.value)}
+                    inputMode="decimal"
+                  />
                 </div>
               </div>
 
@@ -363,13 +493,22 @@ export default function Income() {
                 <Label>Effective Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline">{format(adjustDate, 'PPP')}</Button>
+                    <Button variant="outline">
+                      {format(adjustDate, "PPP")}
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar mode="single" selected={adjustDate} onSelect={(d) => d && setAdjustDate(d)} />
+                    <Calendar
+                      mode="single"
+                      selected={adjustDate}
+                      onSelect={(d) => d && setAdjustDate(d)}
+                    />
                   </PopoverContent>
                 </Popover>
-                <p className="text-sm text-muted-foreground">If the date is in the future, the current income will stop the day before and a new income will start on the effective date.</p>
+                <p className="text-sm text-muted-foreground">
+                  If the date is in the future, the current income will stop the
+                  day before and a new income will start on the effective date.
+                </p>
               </div>
             </div>
 
@@ -378,21 +517,33 @@ export default function Income() {
                 onClick={() => {
                   const parsed = parseFloat(adjustAmount);
                   if (isNaN(parsed) || parsed <= 0) {
-                    toast.error('Please enter a valid amount');
+                    toast.error("Please enter a valid amount");
                     return;
                   }
 
                   const eff = adjustDate;
                   // create date-at-noon to avoid timezone shifts when converting to ISO
-                  const effStart = new Date(eff.getFullYear(), eff.getMonth(), eff.getDate(), 12, 0, 0, 0);
+                  const effStart = new Date(
+                    eff.getFullYear(),
+                    eff.getMonth(),
+                    eff.getDate(),
+                    12,
+                    0,
+                    0,
+                    0
+                  );
                   const todayStart = new Date();
                   todayStart.setHours(12, 0, 0, 0);
 
                   // deep copy existing changes to avoid mutating store objects
-                  const prevChanges = entry.changes ? entry.changes.map((c) => ({ ...c })) : [];
+                  const prevChanges = entry.changes
+                    ? entry.changes.map((c) => ({ ...c }))
+                    : [];
 
                   // Keep only changes that start before the effective date (truncate future changes)
-                  const kept = prevChanges.filter((ch) => new Date(ch.start) < effStart);
+                  const kept = prevChanges.filter(
+                    (ch) => new Date(ch.start) < effStart
+                  );
 
                   // Close the last kept change the day before effStart
                   if (kept.length > 0) {
@@ -403,15 +554,19 @@ export default function Income() {
                   }
 
                   // Insert the new change starting at effStart
-                  kept.push({ amount: parsed, start: effStart.toISOString(), end: null });
+                  kept.push({
+                    amount: parsed,
+                    start: effStart.toISOString(),
+                    end: null,
+                  });
 
                   // If effective date is today or earlier, apply immediately (update current amount)
                   if (effStart.getTime() <= todayStart.getTime()) {
                     updateIncome(entry.id, { amount: parsed, changes: kept });
-                    toast.success('Income updated');
+                    toast.success("Income updated");
                   } else {
                     updateIncome(entry.id, { changes: kept });
-                    toast.success('Income change scheduled');
+                    toast.success("Income change scheduled");
                   }
 
                   setIsAdjustOpen(false);
@@ -434,14 +589,22 @@ export default function Income() {
                 entry.changes.map((ch, idx) => (
                   <div key={idx} className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium">{format(new Date(ch.start), 'PPP')}</p>
-                      <p className="text-sm text-muted-foreground">{ch.end ? format(new Date(ch.end), 'PPP') : 'to now'}</p>
+                      <p className="font-medium">
+                        {format(new Date(ch.start), "PPP")}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {ch.end ? format(new Date(ch.end), "PPP") : "to now"}
+                      </p>
                     </div>
-                    <div className="font-semibold">{formatCurrency(ch.amount)}</div>
+                    <div className="font-semibold">
+                      {formatCurrency(ch.amount)}
+                    </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No history available</p>
+                <p className="text-sm text-muted-foreground">
+                  No history available
+                </p>
               )}
             </div>
             <DialogFooter>
@@ -456,7 +619,9 @@ export default function Income() {
               <DialogTitle>Settings</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Quick actions for this income</p>
+              <p className="text-sm text-muted-foreground">
+                Quick actions for this income
+              </p>
               <div className="grid gap-2">
                 <Button
                   variant="outline"
@@ -490,7 +655,18 @@ export default function Income() {
                         setIsHistoryOpen(true);
                       }}
                     >
-                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      <svg
+                        className="mr-2 h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
                       View History
                     </Button>
 
@@ -499,7 +675,7 @@ export default function Income() {
                       onClick={() => {
                         if (isCurrentlySuspended()) {
                           resumeIncome(entry.id);
-                          toast.success('Income resumed');
+                          toast.success("Income resumed");
                           setIsSettingsOpen(false);
                         } else {
                           setSuspendStart(new Date());
@@ -510,7 +686,9 @@ export default function Income() {
                         }
                       }}
                     >
-                      {isCurrentlySuspended() ? 'Resume Income' : 'Suspend Income'}
+                      {isCurrentlySuspended()
+                        ? "Resume Income"
+                        : "Suspend Income"}
                     </Button>
                   </>
                 )}
@@ -538,7 +716,9 @@ export default function Income() {
         <div>
           <h2 className="text-3xl font-bold text-foreground">Income</h2>
 
-          <p className="text-muted-foreground">Track and manage your income sources</p>
+          <p className="text-muted-foreground">
+            Track and manage your income sources
+          </p>
         </div>
       </div>
 
@@ -549,9 +729,23 @@ export default function Income() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyIncomeData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }} barSize={40} barCategoryGap="10%" barGap={6}>
+            <BarChart
+              data={monthlyIncomeData}
+              margin={{ top: 20, right: 30, left: 0, bottom: 30 }}
+              barSize={40}
+              barCategoryGap="10%"
+              barGap={6}
+            >
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} interval={0} />
+              <XAxis
+                dataKey="label"
+                className="text-muted-foreground"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                tick={{ fontSize: 12 }}
+                interval={0}
+              />
               <YAxis className="text-muted-foreground" />
               <Tooltip
                 content={({ active, payload }) => {
@@ -560,16 +754,32 @@ export default function Income() {
                     return (
                       <div className="bg-background border border-border rounded-md p-3 shadow-lg">
                         <p className="font-semibold mb-2">{data.label}</p>
-                        <p className="text-success font-bold mb-2">Total: {formatCurrency(data.income)}</p>
+                        <p className="text-success font-bold mb-2">
+                          Total: {formatCurrency(data.income)}
+                        </p>
                         {data.breakdown && data.breakdown.length > 0 && (
                           <div className="space-y-1 border-t border-border pt-2">
-                            <p className="text-xs text-muted-foreground font-medium mb-1">Sources:</p>
-                            {data.breakdown.map((item: { source: string; amount: number }, idx: number) => (
-                              <div key={idx} className="text-sm flex justify-between gap-4">
-                                <span className="text-muted-foreground">{item.source}</span>
-                                <span className="font-medium">{formatCurrency(item.amount)}</span>
-                              </div>
-                            ))}
+                            <p className="text-xs text-muted-foreground font-medium mb-1">
+                              Sources:
+                            </p>
+                            {data.breakdown.map(
+                              (
+                                item: { source: string; amount: number },
+                                idx: number
+                              ) => (
+                                <div
+                                  key={idx}
+                                  className="text-sm flex justify-between gap-4"
+                                >
+                                  <span className="text-muted-foreground">
+                                    {item.source}
+                                  </span>
+                                  <span className="font-medium">
+                                    {formatCurrency(item.amount)}
+                                  </span>
+                                </div>
+                              )
+                            )}
                           </div>
                         )}
                       </div>
@@ -578,7 +788,11 @@ export default function Income() {
                   return null;
                 }}
               />
-              <Bar dataKey="income" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+              <Bar
+                dataKey="income"
+                fill="hsl(var(--success))"
+                radius={[6, 6, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -592,7 +806,9 @@ export default function Income() {
             <CardDescription>Average monthly income</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-success">{formatCurrency(monthlyTotal)}</p>
+            <p className="text-3xl font-bold text-success">
+              {formatCurrency(monthlyTotal)}
+            </p>
           </CardContent>
         </Card>
 
@@ -602,7 +818,9 @@ export default function Income() {
             <CardDescription>Estimated yearly income</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-primary">{formatCurrency(annualProjection)}</p>
+            <p className="text-3xl font-bold text-primary">
+              {formatCurrency(annualProjection)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -630,7 +848,9 @@ export default function Income() {
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
                 <Input
                   id="amount"
                   type="number"
@@ -647,7 +867,10 @@ export default function Income() {
             {/* Frequency */}
             <div className="space-y-2">
               <Label htmlFor="frequency">Frequency</Label>
-              <Select value={frequency} onValueChange={(value: Frequency) => setFrequency(value)}>
+              <Select
+                value={frequency}
+                onValueChange={(value: Frequency) => setFrequency(value)}
+              >
                 <SelectTrigger id="frequency">
                   <SelectValue />
                 </SelectTrigger>
@@ -666,7 +889,11 @@ export default function Income() {
             <div className="space-y-2">
               <Label htmlFor="preTax">Pre-Tax Income?</Label>
               <div className="flex items-center space-x-2 h-10">
-                <Switch id="preTax" checked={preTax} onCheckedChange={setPreTax} />
+                <Switch
+                  id="preTax"
+                  checked={preTax}
+                  onCheckedChange={setPreTax}
+                />
                 <span className="text-sm text-muted-foreground">
                   {preTax ? "Yes (before taxes)" : "No (after taxes)"}
                 </span>
@@ -675,7 +902,9 @@ export default function Income() {
 
             {/* Date */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="date">{frequency === "One-time" ? "Date" : "Start Date"}</Label>
+              <Label htmlFor="date">
+                {frequency === "One-time" ? "Date" : "Start Date"}
+              </Label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -683,10 +912,15 @@ export default function Income() {
                     className={cn("w-full justify-start text-left font-normal")}
                     onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" /> {date ? format(date, "PPP") : "Pick a date"}
+                    <CalendarIcon className="mr-2 h-4 w-4" />{" "}
+                    {date ? format(date, "PPP") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" side="bottom">
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="start"
+                  side="bottom"
+                >
                   <Calendar
                     mode="single"
                     selected={date}
@@ -717,21 +951,29 @@ export default function Income() {
             {/* Wallet */}
             <div className="space-y-2 md:col-span-2">
               <Label>Wallet</Label>
-              <Select value={assetId ?? '__none'} onValueChange={(v) => setAssetId(v === '__none' ? null : v)}>
+              <Select
+                value={assetId ?? "__none"}
+                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select an account (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">None</SelectItem>
                   {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} • {a.type}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <Button onClick={handleAddIncome} className="w-full bg-success hover:bg-success/90">
+          <Button
+            onClick={handleAddIncome}
+            className="w-full bg-success hover:bg-success/90"
+          >
             <Plus className="h-4 w-4 mr-2" /> Add Income
           </Button>
         </CardContent>
@@ -745,9 +987,13 @@ export default function Income() {
         </CardHeader>
         <CardContent className="space-y-3">
           {recurringIncomes.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No recurring income recorded.</p>
+            <p className="text-center text-muted-foreground py-8">
+              No recurring income recorded.
+            </p>
           ) : (
-            recurringIncomes.map((entry) => <IncomeCard key={entry.id} entry={entry} />)
+            recurringIncomes.map((entry) => (
+              <IncomeCard key={entry.id} entry={entry} />
+            ))
           )}
         </CardContent>
       </Card>
@@ -755,8 +1001,13 @@ export default function Income() {
       {/* One-Time Income Toggle */}
       {sortedOneTime.length > 0 && (
         <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setShowOneTimeList(!showOneTimeList)}>
-            {showOneTimeList ? "Hide One-Time Incomes" : "View One-Time Incomes"}
+          <Button
+            variant="outline"
+            onClick={() => setShowOneTimeList(!showOneTimeList)}
+          >
+            {showOneTimeList
+              ? "Hide One-Time Incomes"
+              : "View One-Time Incomes"}
           </Button>
         </div>
       )}
@@ -783,15 +1034,24 @@ export default function Income() {
                 <Label>Source</Label>
                 <Input
                   value={editingIncome.source}
-                  onChange={(e) => setEditingIncome({ ...editingIncome, source: e.target.value })}
+                  onChange={(e) =>
+                    setEditingIncome({
+                      ...editingIncome,
+                      source: e.target.value,
+                    })
+                  }
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Amount</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <div className="pl-6 py-2 text-foreground font-medium">{formatCurrency(editingIncome.amount)}</div>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
+                  <div className="pl-6 py-2 text-foreground font-medium">
+                    {formatCurrency(editingIncome.amount)}
+                  </div>
                 </div>
               </div>
 
@@ -799,7 +1059,9 @@ export default function Income() {
                 <Label>Frequency</Label>
                 <Select
                   value={editingIncome.frequency}
-                  onValueChange={(value: Frequency) => setEditingIncome({ ...editingIncome, frequency: value })}
+                  onValueChange={(value: Frequency) =>
+                    setEditingIncome({ ...editingIncome, frequency: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -819,20 +1081,31 @@ export default function Income() {
                 <Label>Pre-Tax Income?</Label>
                 <Switch
                   checked={editingIncome.preTax}
-                  onCheckedChange={(val) => setEditingIncome({ ...editingIncome, preTax: val })}
+                  onCheckedChange={(val) =>
+                    setEditingIncome({ ...editingIncome, preTax: val })
+                  }
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Start Date</Label>
-                <div className="py-2 text-foreground">{editingIncome.date ? format(new Date(editingIncome.date), 'PPP') : '-'}</div>
+                <div className="py-2 text-foreground">
+                  {editingIncome.date
+                    ? format(new Date(editingIncome.date), "PPP")
+                    : "-"}
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Notes</Label>
                 <Input
                   value={editingIncome.notes}
-                  onChange={(e) => setEditingIncome({ ...editingIncome, notes: e.target.value.slice(0, 200) })}
+                  onChange={(e) =>
+                    setEditingIncome({
+                      ...editingIncome,
+                      notes: e.target.value.slice(0, 200),
+                    })
+                  }
                 />
               </div>
             </div>
@@ -851,11 +1124,15 @@ export default function Income() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Changing the amount or start date will remove any subsequent scheduled changes (they will be truncated). Do you want to proceed?
+              Changing the amount or start date will remove any subsequent
+              scheduled changes (they will be truncated). Do you want to
+              proceed?
             </p>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditConfirmOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setEditConfirmOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={applyEditAndTruncateHistory}>Confirm</Button>
           </DialogFooter>
         </DialogContent>

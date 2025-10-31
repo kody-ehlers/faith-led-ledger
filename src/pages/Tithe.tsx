@@ -1,47 +1,90 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculatePostTaxIncomeForMonth, calculatePostTaxIncomeReceivedSoFar, calculateTitheAmount, formatCurrency, getEntryIncomeForMonth } from "@/utils/calculations";
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  calculatePostTaxIncomeForMonth,
+  calculatePostTaxIncomeReceivedSoFar,
+  calculateTitheAmount,
+  formatCurrency,
+  getEntryIncomeForMonth,
+} from "@/utils/calculations";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Heart, CheckCircle2, Circle, SquarePen, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import {
+  Heart,
+  CheckCircle2,
+  Circle,
+  SquarePen,
+  Trash2,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 
 export default function Tithe() {
-  const { income, tithes, addTithe, markTitheGiven, updateTithe, removeTithe } = useFinanceStore();
+  const { income, tithes, addTithe, markTitheGiven, updateTithe, removeTithe } =
+    useFinanceStore();
   const postTaxIncome = calculatePostTaxIncomeForMonth(income);
   const postTaxReceivedSoFar = calculatePostTaxIncomeReceivedSoFar(income);
   const recommendedTithe = calculateTitheAmount(postTaxReceivedSoFar);
-  
+
   const now = new Date();
   const currentMonth = now.toISOString().slice(0, 7);
   // Only consider tithe payments that have occurred up to now in the current month
-  const monthlyTithes = tithes.filter(t => t.date.startsWith(currentMonth) && new Date(t.date) <= now);
+  const monthlyTithes = tithes.filter(
+    (t) => t.date.startsWith(currentMonth) && new Date(t.date) <= now
+  );
   const totalTithed = monthlyTithes.reduce((sum, t) => sum + t.amount, 0);
   const remaining = Math.max(0, recommendedTithe - totalTithed);
-  const percentageGiven = recommendedTithe > 0 ? (totalTithed / recommendedTithe) * 100 : 0;
+  const percentageGiven =
+    recommendedTithe > 0 ? (totalTithed / recommendedTithe) * 100 : 0;
 
   const [fullDialogOpen, setFullDialogOpen] = useState(false);
   const [fullDate, setFullDate] = useState<Date>(new Date());
   const [partialDialogOpen, setPartialDialogOpen] = useState(false);
-  const [partialAmount, setPartialAmount] = useState<string>('');
+  const [partialAmount, setPartialAmount] = useState<string>("");
   const [partialDate, setPartialDate] = useState<Date>(new Date());
 
   // Editing existing tithe
-  const [editingTithe, setEditingTithe] = useState<typeof tithes[0] | null>(null);
+  const [editingTithe, setEditingTithe] = useState<(typeof tithes)[0] | null>(
+    null
+  );
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleMarkAsTithed = () => setFullDialogOpen(true);
 
   const handlePartialTithe = () => {
-    setPartialAmount('');
+    setPartialAmount("");
     setPartialDate(new Date());
     setPartialDialogOpen(true);
   };
@@ -53,29 +96,33 @@ export default function Tithe() {
       return;
     }
     addTithe({ amount: remaining, date: fullDate.toISOString(), given: true });
-    toast.success('Tithe marked as given. Thank you!');
+    toast.success("Tithe marked as given. Thank you!");
     setFullDialogOpen(false);
   };
 
   const savePartialTithe = () => {
     const parsed = parseFloat(partialAmount);
     if (isNaN(parsed) || parsed <= 0) {
-      toast.error('Please enter a valid amount');
+      toast.error("Please enter a valid amount");
       return;
     }
     addTithe({ amount: parsed, date: partialDate.toISOString(), given: true });
-    toast.success('Tithe recorded. Thank you!');
+    toast.success("Tithe recorded. Thank you!");
     setPartialDialogOpen(false);
   };
 
   const handleEditSave = () => {
     if (!editingTithe) return;
     if (!editingTithe.amount || editingTithe.amount <= 0) {
-      toast.error('Invalid amount');
+      toast.error("Invalid amount");
       return;
     }
-    updateTithe(editingTithe.id, { amount: editingTithe.amount, date: editingTithe.date, given: editingTithe.given });
-    toast.success('Tithe updated');
+    updateTithe(editingTithe.id, {
+      amount: editingTithe.amount,
+      date: editingTithe.date,
+      given: editingTithe.given,
+    });
+    toast.success("Tithe updated");
     setEditDialogOpen(false);
     setEditingTithe(null);
   };
@@ -91,7 +138,7 @@ export default function Tithe() {
   const confirmDeleteTithe = () => {
     if (!deletingTitheId) return;
     removeTithe(deletingTitheId);
-    toast.success('Tithe record removed');
+    toast.success("Tithe record removed");
     setDeleteDialogOpen(false);
     setDeletingTitheId(null);
   };
@@ -104,7 +151,9 @@ export default function Tithe() {
         </div>
         <div>
           <h2 className="text-3xl font-bold text-foreground">Tithe</h2>
-          <p className="text-muted-foreground">Honor God with the first fruits</p>
+          <p className="text-muted-foreground">
+            Honor God with the first fruits
+          </p>
         </div>
       </div>
 
@@ -113,10 +162,13 @@ export default function Tithe() {
         <CardContent className="p-6">
           <div className="space-y-4">
             <p className="text-lg italic text-foreground">
-              "Bring all the tithes into the storehouse so there will be enough food in my Temple. 
-              If you do, I will pour out a blessing so great you won't have enough room to take it in!"
+              "Bring all the tithes into the storehouse so there will be enough
+              food in my Temple. If you do, I will pour out a blessing so great
+              you won't have enough room to take it in!"
             </p>
-            <p className="text-sm text-muted-foreground font-medium">Malachi 3:10 (NLT)</p>
+            <p className="text-sm text-muted-foreground font-medium">
+              Malachi 3:10 (NLT)
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -125,58 +177,116 @@ export default function Tithe() {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Tithe Over the Past Year</CardTitle>
-          <CardDescription className="text-muted-foreground">Tithe shown as a portion of monthly income (10%)</CardDescription>
+          <CardDescription className="text-muted-foreground">
+            Tithe shown as a portion of monthly income (10%)
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {/* Build last 12 months using income change history so chart matches other views */}
           {(() => {
             const now = new Date();
             const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
-              const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-              const monthName = date.toLocaleString("default", { month: "short" });
+              const date = new Date(
+                now.getFullYear(),
+                now.getMonth() - (11 - i),
+                1
+              );
+              const monthName = date.toLocaleString("default", {
+                month: "short",
+              });
               const year = date.getFullYear();
-              const monthKey = `${year}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+              const monthKey = `${year}-${String(date.getMonth() + 1).padStart(
+                2,
+                "0"
+              )}`; // YYYY-MM
 
               const monthlyAmount = income.reduce((sum, inc) => {
-                return sum + getEntryIncomeForMonth(inc, date, /*includePreTax*/ false);
+                return (
+                  sum +
+                  getEntryIncomeForMonth(inc, date, /*includePreTax*/ false)
+                );
               }, 0);
 
-              return { month: monthName, year, income: monthlyAmount, label: `${monthName} ${year}`, monthKey };
+              return {
+                month: monthName,
+                year,
+                income: monthlyAmount,
+                label: `${monthName} ${year}`,
+                monthKey,
+              };
             });
 
-            const chartData = monthlyIncomeData.map(d => {
+            const chartData = monthlyIncomeData.map((d) => {
               const target = d.income * 0.1;
               // Sum tithe payments recorded in that month
               const paid = tithes
-                .filter(t => t.date.startsWith(d.monthKey))
+                .filter((t) => t.date.startsWith(d.monthKey))
                 .reduce((s, t) => s + t.amount, 0);
 
               const paidCapped = Math.min(paid, target);
               const remainingToTarget = Math.max(0, target - paidCapped);
               const overpaid = Math.max(0, paid - target);
 
-              return { ...d, target, paid, paidCapped, remainingToTarget, overpaid };
+              return {
+                ...d,
+                target,
+                paid,
+                paidCapped,
+                remainingToTarget,
+                overpaid,
+              };
             });
 
             return (
-        <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 30 }} barSize={40} barCategoryGap="10%" barGap={6}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="label" className="text-muted-foreground" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12 }} interval={0} />
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 0, bottom: 30 }}
+                  barSize={40}
+                  barCategoryGap="10%"
+                  barGap={6}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-muted"
+                  />
+                  <XAxis
+                    dataKey="label"
+                    className="text-muted-foreground"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    tick={{ fontSize: 12 }}
+                    interval={0}
+                  />
                   <YAxis className="text-muted-foreground" />
                   <Tooltip
                     formatter={(value: number) => formatCurrency(Number(value))}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        const percent = data.target > 0 ? (Math.min(data.paid, data.target) / data.target) * 100 : 0;
+                        const percent =
+                          data.target > 0
+                            ? (Math.min(data.paid, data.target) / data.target) *
+                              100
+                            : 0;
                         return (
                           <div className="bg-background border border-border rounded-md p-3 shadow-lg">
                             <p className="font-semibold mb-2">{data.label}</p>
-                            <p className="text-accent font-bold mb-1">Paid toward tithe: {formatCurrency(data.paid)}</p>
-                            <p className="text-sm text-muted-foreground mb-1">Target: {formatCurrency(data.target)}</p>
-                            <p className="font-medium">Progress: {percent.toFixed(1)}%</p>
-                            {data.overpaid > 0 && <p className="text-sm text-success">Overpaid: {formatCurrency(data.overpaid)}</p>}
+                            <p className="text-accent font-bold mb-1">
+                              Paid toward tithe: {formatCurrency(data.paid)}
+                            </p>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Target: {formatCurrency(data.target)}
+                            </p>
+                            <p className="font-medium">
+                              Progress: {percent.toFixed(1)}%
+                            </p>
+                            {data.overpaid > 0 && (
+                              <p className="text-sm text-success">
+                                Overpaid: {formatCurrency(data.overpaid)}
+                              </p>
+                            )}
                           </div>
                         );
                       }
@@ -184,11 +294,18 @@ export default function Tithe() {
                     }}
                   />
                   {/* paidCapped + remainingToTarget stack to represent the target bar and progress */}
-                    <Bar dataKey="paidCapped" stackId="a" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="remainingToTarget" stackId="a" fill="rgba(59,130,246,0.12)" radius={[6, 6, 0, 0]} />
-                    {/* show any overpayment as an extra bar extending beyond the target */}
-                    <Bar dataKey="overpaid" stackId="b" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
-                
+                  <Bar
+                    dataKey="paidCapped"
+                    stackId="a"
+                    fill="hsl(var(--accent))"
+                    radius={[6, 6, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="remainingToTarget"
+                    stackId="a"
+                    fill="rgba(59,130,246,0.12)"
+                    radius={[6, 6, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             );
@@ -204,7 +321,9 @@ export default function Tithe() {
             <CardDescription>Received this month</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(postTaxReceivedSoFar)}</p>
+            <p className="text-2xl font-bold text-primary">
+              {formatCurrency(postTaxReceivedSoFar)}
+            </p>
           </CardContent>
         </Card>
 
@@ -214,7 +333,9 @@ export default function Tithe() {
             <CardDescription>10% of post-tax income</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-accent">{formatCurrency(recommendedTithe)}</p>
+            <p className="text-2xl font-bold text-accent">
+              {formatCurrency(recommendedTithe)}
+            </p>
           </CardContent>
         </Card>
 
@@ -224,7 +345,9 @@ export default function Tithe() {
             <CardDescription>To reach full tithe</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-success">{formatCurrency(remaining)}</p>
+            <p className="text-2xl font-bold text-success">
+              {formatCurrency(remaining)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -238,7 +361,9 @@ export default function Tithe() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Given: {formatCurrency(totalTithed)}</span>
+              <span className="text-muted-foreground">
+                Given: {formatCurrency(totalTithed)}
+              </span>
               <span className="font-medium text-foreground">
                 {percentageGiven.toFixed(1)}%
               </span>
@@ -274,16 +399,21 @@ export default function Tithe() {
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              This will record a tithe of <strong>{formatCurrency(remaining)}</strong> for this month.
+              This will record a tithe of{" "}
+              <strong>{formatCurrency(remaining)}</strong> for this month.
             </p>
             <div className="space-y-2">
               <Label>Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline">{format(fullDate, 'PPP')}</Button>
+                  <Button variant="outline">{format(fullDate, "PPP")}</Button>
                 </PopoverTrigger>
                 <PopoverContent side="bottom" className="w-auto p-0">
-                  <Calendar mode="single" selected={fullDate} onSelect={(d) => d && setFullDate(d)} />
+                  <Calendar
+                    mode="single"
+                    selected={fullDate}
+                    onSelect={(d) => d && setFullDate(d)}
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -304,7 +434,9 @@ export default function Tithe() {
             <div className="space-y-2">
               <Label>Amount</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
                 <Input
                   className="pl-6"
                   value={partialAmount}
@@ -317,10 +449,16 @@ export default function Tithe() {
               <Label>Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline">{format(partialDate, 'PPP')}</Button>
+                  <Button variant="outline">
+                    {format(partialDate, "PPP")}
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent side="bottom" className="w-auto p-0">
-                  <Calendar mode="single" selected={partialDate} onSelect={(d) => d && setPartialDate(d)} />
+                  <Calendar
+                    mode="single"
+                    selected={partialDate}
+                    onSelect={(d) => d && setPartialDate(d)}
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -342,13 +480,20 @@ export default function Tithe() {
               <div className="space-y-2">
                 <Label>Amount</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
                   <Input
                     className="pl-6"
                     type="text"
                     inputMode="decimal"
                     value={editingTithe.amount}
-                    onChange={(e) => setEditingTithe({ ...editingTithe, amount: parseFloat(e.target.value) })}
+                    onChange={(e) =>
+                      setEditingTithe({
+                        ...editingTithe,
+                        amount: parseFloat(e.target.value),
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -357,13 +502,27 @@ export default function Tithe() {
                 <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline">{editingTithe.date ? format(new Date(editingTithe.date), 'PPP') : 'Pick a date'}</Button>
+                    <Button variant="outline">
+                      {editingTithe.date
+                        ? format(new Date(editingTithe.date), "PPP")
+                        : "Pick a date"}
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent side="bottom" className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={editingTithe.date ? new Date(editingTithe.date) : new Date()}
-                      onSelect={(d) => d && setEditingTithe({ ...editingTithe, date: d.toISOString() })}
+                      selected={
+                        editingTithe.date
+                          ? new Date(editingTithe.date)
+                          : new Date()
+                      }
+                      onSelect={(d) =>
+                        d &&
+                        setEditingTithe({
+                          ...editingTithe,
+                          date: d.toISOString(),
+                        })
+                      }
                     />
                   </PopoverContent>
                 </Popover>
@@ -383,13 +542,25 @@ export default function Tithe() {
             <DialogTitle>Delete Tithe</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>Are you sure you want to delete this tithe record? This action cannot be undone.</p>
+            <p>
+              Are you sure you want to delete this tithe record? This action
+              cannot be undone.
+            </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeletingTitheId(null); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeletingTitheId(null);
+              }}
+            >
               Cancel
             </Button>
-            <Button className="ml-2 text-destructive bg-destructive/5 hover:bg-destructive/10" onClick={confirmDeleteTithe}>
+            <Button
+              className="ml-2 text-destructive bg-destructive/5 hover:bg-destructive/10"
+              onClick={confirmDeleteTithe}
+            >
               Delete
             </Button>
           </DialogFooter>
@@ -405,7 +576,8 @@ export default function Tithe() {
         <CardContent>
           {tithes.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No tithe payments recorded yet. Start by marking your first tithe above.
+              No tithe payments recorded yet. Start by marking your first tithe
+              above.
             </p>
           ) : (
             <div className="space-y-3">
@@ -425,8 +597,12 @@ export default function Tithe() {
                         <Circle className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
-                        <p className="font-semibold text-foreground">{formatCurrency(tithe.amount)}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(tithe.date).toLocaleDateString()}</p>
+                        <p className="font-semibold text-foreground">
+                          {formatCurrency(tithe.amount)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(tithe.date).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
 

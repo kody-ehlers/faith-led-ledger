@@ -9,14 +9,17 @@ export function TauriTitleBar() {
   useEffect(() => {
     // Check if running in Tauri v2
     const checkTauri = async () => {
-      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+      if (
+        typeof window !== "undefined" &&
+        (window as any).__TAURI_INTERNALS__
+      ) {
         try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
           const appWindow = getCurrentWindow();
-          
+
           const maximized = await appWindow.isMaximized();
           setIsMaximized(maximized);
-          
+
           const unlisten = await appWindow.onResized(async () => {
             const maximized = await appWindow.isMaximized();
             setIsMaximized(maximized);
@@ -26,7 +29,7 @@ export function TauriTitleBar() {
             unlisten();
           };
         } catch (error) {
-          console.error('Tauri API error:', error);
+          console.error("Tauri API error:", error);
         }
       }
     };
@@ -37,10 +40,10 @@ export function TauriTitleBar() {
   const handleMinimize = async () => {
     if ((window as any).__TAURI_INTERNALS__) {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
         await getCurrentWindow().minimize();
       } catch (error) {
-        console.error('Minimize error:', error);
+        console.error("Minimize error:", error);
       }
     }
   };
@@ -48,10 +51,10 @@ export function TauriTitleBar() {
   const handleMaximize = async () => {
     if ((window as any).__TAURI_INTERNALS__) {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
         await getCurrentWindow().toggleMaximize();
       } catch (error) {
-        console.error('Maximize error:', error);
+        console.error("Maximize error:", error);
       }
     }
   };
@@ -59,10 +62,10 @@ export function TauriTitleBar() {
   const handleClose = async () => {
     if ((window as any).__TAURI_INTERNALS__) {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
         await getCurrentWindow().close();
       } catch (error) {
-        console.error('Close error:', error);
+        console.error("Close error:", error);
       }
     }
   };
@@ -92,9 +95,18 @@ export function TauriTitleBar() {
   return (
     <>
       <div className="h-10 bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b border-border flex items-center justify-between px-4 select-none fixed top-0 left-0 right-0 z-50">
-        <div data-tauri-drag-region className="flex items-center gap-3 flex-1 h-full">
-          <img src="/auburn_logo.png" alt="Ehlers Finances" className="h-6 w-6 object-contain pointer-events-none" />
-          <span className="text-sm font-semibold text-foreground pointer-events-none">Ehlers Finances</span>
+        <div
+          data-tauri-drag-region
+          className="flex items-center gap-3 flex-1 h-full"
+        >
+          <img
+            src="/auburn_logo.png"
+            alt="Ehlers Finances"
+            className="h-6 w-6 object-contain pointer-events-none"
+          />
+          <span className="text-sm font-semibold text-foreground pointer-events-none">
+            Ehlers Finances
+          </span>
         </div>
 
         <div className="flex items-center gap-1">

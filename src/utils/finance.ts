@@ -1,4 +1,10 @@
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO } from "date-fns";
+import {
+  startOfWeek,
+  endOfWeek,
+  subWeeks,
+  isWithinInterval,
+  parseISO,
+} from "date-fns";
 
 export interface WeeklyIncome {
   weekStart: Date;

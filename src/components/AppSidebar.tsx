@@ -28,8 +28,8 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Subscriptions", url: "/subscriptions", icon: CreditCard },
     { title: "Bills", url: "/bills", icon: FileText },
     { title: "Expenses", url: "/expenses", icon: ShoppingCart },
-  { title: "Savings", url: "/savings", icon: PiggyBank },
-  { title: "Wallet", url: "/wallet", icon: Wallet },
+    { title: "Savings", url: "/savings", icon: PiggyBank },
+    { title: "Wallet", url: "/wallet", icon: Wallet },
     { title: "Investments", url: "/investments", icon: TrendingUp },
     { title: "Debt", url: "/debt", icon: Landmark },
     { title: "Statistics", url: "/statistics", icon: BarChart3 },
@@ -82,9 +82,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
               }}
             >
               {/* Triangle pointer */}
-              <div
-                className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-card"
-              />
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-card" />
               {item.title}
             </div>
           )}

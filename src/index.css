@@ -55,11 +55,11 @@ All colors MUST be HSL.
     --gold-light: 43 95% 65%;
     --navy: 215 60% 25%;
     --sage: 142 35% 55%;
-    
+
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    
+
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 

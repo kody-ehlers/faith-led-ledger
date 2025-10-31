@@ -3,7 +3,7 @@
 /* Main calendar popup */
 .react-datepicker {
   background-color: #001f3f; /* navy */
-  color: #ffffff;            /* white text */
+  color: #ffffff; /* white text */
   border: 1px solid #001f3f;
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -53,14 +53,14 @@
 /* Selected day */
 .react-datepicker__day--selected {
   background-color: #ffdc57; /* yellow for selected */
-  color: #001f3f;             /* navy text */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  color: #001f3f; /* navy text */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Today */
 .react-datepicker__day--today {
   background-color: #e2e2e2; /* yellow background for today */
-  color: #001f3f;             /* navy text for contrast */
+  color: #001f3f; /* navy text for contrast */
   font-weight: 600;
 }
 

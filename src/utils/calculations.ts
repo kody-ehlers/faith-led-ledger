@@ -1,4 +1,9 @@
-import { IncomeEntry, ExpenseEntry, SavingsAccount, DebtEntry } from '@/store/financeStore';
+import {
+  IncomeEntry,
+  ExpenseEntry,
+  SavingsAccount,
+  DebtEntry,
+} from "@/store/financeStore";
 import {
   startOfMonth,
   endOfMonth,
@@ -8,7 +13,7 @@ import {
   isBefore,
   isAfter,
   isEqual,
-} from 'date-fns';
+} from "date-fns";
 
 export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
   // Calculate the total income for the current month by enumerating occurrences
@@ -25,13 +30,21 @@ export const calculatePostTaxIncome = (income: IncomeEntry[]): number => {
 
 // Public wrapper to calculate income for an arbitrary month. includePreTax controls
 // whether pre-tax incomes are counted (default true).
-export const calculateIncomeForMonthPublic = (income: IncomeEntry[], targetDate = new Date(), includePreTax = true): number => {
+export const calculateIncomeForMonthPublic = (
+  income: IncomeEntry[],
+  targetDate = new Date(),
+  includePreTax = true
+): number => {
   return calculateIncomeForMonth(income, targetDate, includePreTax);
 };
 
 // Calculate how much a single income entry contributes in the given month (respects
 // suspensions and change history). Returns 0 for preTax entries when includePreTax is false.
-export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date(), includePreTax = true): number => {
+export const getEntryIncomeForMonth = (
+  entry: IncomeEntry,
+  targetDate = new Date(),
+  includePreTax = true
+): number => {
   if (!includePreTax && entry.preTax) return 0;
 
   const monthStart = startOfMonth(targetDate);
@@ -50,9 +63,12 @@ export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date
   };
 
   // One-time
-  if (entry.frequency === 'One-time') {
+  if (entry.frequency === "One-time") {
     const d = new Date(entry.date);
-    if (d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth()) {
+    if (
+      d.getFullYear() === monthStart.getFullYear() &&
+      d.getMonth() === monthStart.getMonth()
+    ) {
       if (!isDateSuspended(d)) return getAmountForDate(entry, d);
     }
     return 0;
@@ -63,15 +79,15 @@ export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date
   let occurrence = new Date(entry.date);
   const advanceOnce = (date: Date) => {
     switch (entry.frequency) {
-      case 'Weekly':
+      case "Weekly":
         return addDays(date, 7);
-      case 'Biweekly':
+      case "Biweekly":
         return addDays(date, 14);
-      case 'Monthly':
+      case "Monthly":
         return addMonths(date, 1);
-      case 'Quarterly':
+      case "Quarterly":
         return addMonths(date, 3);
-      case 'Yearly':
+      case "Yearly":
         return addYears(date, 1);
       default:
         return addMonths(date, 1);
@@ -88,8 +104,14 @@ export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date
   }
 
   guard = 0;
-  while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
-    if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(occurrence)) {
+  while (
+    (isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) &&
+    guard < 1000
+  ) {
+    if (
+      (isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) &&
+      !isDateSuspended(occurrence)
+    ) {
       total += getAmountForDate(entry, occurrence);
     }
     occurrence = advanceOnce(occurrence);
@@ -100,14 +122,17 @@ export const getEntryIncomeForMonth = (entry: IncomeEntry, targetDate = new Date
 };
 
 // Helper: normalize a date to date-only (local) for comparisons
-const toDateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const toDateOnly = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
 export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   if (!entry.changes || entry.changes.length === 0) return entry.amount;
   const target = toDateOnly(date).getTime();
   // Ensure changes are processed in ascending start order
-  const changes = [...entry.changes].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const changes = [...entry.changes].sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+  );
   for (const ch of changes) {
     const start = toDateOnly(new Date(ch.start)).getTime();
     const end = ch.end ? toDateOnly(new Date(ch.end)).getTime() : null;
@@ -120,7 +145,11 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
 };
 
 // Enumerate occurrences in the month and sum amounts; respects suspensions and changes
-const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includePreTax: boolean) => {
+const calculateIncomeForMonth = (
+  income: IncomeEntry[],
+  targetDate: Date,
+  includePreTax: boolean
+) => {
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
 
@@ -143,9 +172,12 @@ const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includ
 
     const start = new Date(entry.date);
 
-    if (entry.frequency === 'One-time') {
+    if (entry.frequency === "One-time") {
       const d = start;
-      if (d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth()) {
+      if (
+        d.getFullYear() === monthStart.getFullYear() &&
+        d.getMonth() === monthStart.getMonth()
+      ) {
         if (!isDateSuspended(entry, d)) total += getAmountForDate(entry, d);
       }
       continue;
@@ -154,15 +186,15 @@ const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includ
     let occurrence = new Date(start);
     const advanceOnce = (date: Date) => {
       switch (entry.frequency) {
-        case 'Weekly':
+        case "Weekly":
           return addDays(date, 7);
-        case 'Biweekly':
+        case "Biweekly":
           return addDays(date, 14);
-        case 'Monthly':
+        case "Monthly":
           return addMonths(date, 1);
-        case 'Quarterly':
+        case "Quarterly":
           return addMonths(date, 3);
-        case 'Yearly':
+        case "Yearly":
           return addYears(date, 1);
         default:
           return addMonths(date, 1);
@@ -179,8 +211,14 @@ const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includ
     }
 
     guard = 0;
-    while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
-      if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(entry, occurrence)) {
+    while (
+      (isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) &&
+      guard < 1000
+    ) {
+      if (
+        (isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) &&
+        !isDateSuspended(entry, occurrence)
+      ) {
         total += getAmountForDate(entry, occurrence);
       }
       occurrence = advanceOnce(occurrence);
@@ -191,7 +229,10 @@ const calculateIncomeForMonth = (income: IncomeEntry[], targetDate: Date, includ
   return total;
 };
 
-export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate = new Date()): number => {
+export const calculatePostTaxIncomeForMonth = (
+  income: IncomeEntry[],
+  targetDate = new Date()
+): number => {
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
 
@@ -214,7 +255,7 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
 
     const start = new Date(entry.date);
 
-    if (entry.frequency === 'One-time') {
+    if (entry.frequency === "One-time") {
       const d = start;
       if (
         d.getFullYear() === monthStart.getFullYear() &&
@@ -231,15 +272,15 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
     // Fast-forward to the first occurrence on/after monthStart
     const advanceOnce = (date: Date) => {
       switch (entry.frequency) {
-        case 'Weekly':
+        case "Weekly":
           return addDays(date, 7);
-        case 'Biweekly':
+        case "Biweekly":
           return addDays(date, 14);
-        case 'Monthly':
+        case "Monthly":
           return addMonths(date, 1);
-        case 'Quarterly':
+        case "Quarterly":
           return addMonths(date, 3);
-        case 'Yearly':
+        case "Yearly":
           return addYears(date, 1);
         default:
           return addMonths(date, 1);
@@ -259,9 +300,15 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
 
     // Now iterate occurrences within the month
     guard = 0;
-    while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
+    while (
+      (isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) &&
+      guard < 1000
+    ) {
       // If occurrence is within monthStart..monthEnd and not suspended on that date, count it
-      if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && !isDateSuspended(entry, occurrence)) {
+      if (
+        (isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) &&
+        !isDateSuspended(entry, occurrence)
+      ) {
         total += getAmountForDate(entry, occurrence);
       }
       occurrence = advanceOnce(occurrence);
@@ -272,7 +319,10 @@ export const calculatePostTaxIncomeForMonth = (income: IncomeEntry[], targetDate
   return total;
 };
 
-export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfDate = new Date()): number => {
+export const calculatePostTaxIncomeReceivedSoFar = (
+  income: IncomeEntry[],
+  asOfDate = new Date()
+): number => {
   // Sum post-tax income occurrences for the month of `asOfDate` where occurrence date <= asOfDate
   const monthStart = startOfMonth(asOfDate);
   const monthEnd = endOfMonth(asOfDate);
@@ -296,7 +346,7 @@ export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfD
 
     const start = new Date(entry.date);
 
-    if (entry.frequency === 'One-time') {
+    if (entry.frequency === "One-time") {
       const d = start;
       if (
         d.getFullYear() === monthStart.getFullYear() &&
@@ -312,15 +362,15 @@ export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfD
     let occurrence = new Date(start);
     const advanceOnce = (date: Date) => {
       switch (entry.frequency) {
-        case 'Weekly':
+        case "Weekly":
           return addDays(date, 7);
-        case 'Biweekly':
+        case "Biweekly":
           return addDays(date, 14);
-        case 'Monthly':
+        case "Monthly":
           return addMonths(date, 1);
-        case 'Quarterly':
+        case "Quarterly":
           return addMonths(date, 3);
-        case 'Yearly':
+        case "Yearly":
           return addYears(date, 1);
         default:
           return addMonths(date, 1);
@@ -337,9 +387,16 @@ export const calculatePostTaxIncomeReceivedSoFar = (income: IncomeEntry[], asOfD
     }
 
     guard = 0;
-    while ((isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) && guard < 1000) {
+    while (
+      (isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) &&
+      guard < 1000
+    ) {
       // only include occurrences on or before asOfDate
-      if ((isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) && (isBefore(occurrence, asOfDate) || isEqual(occurrence, asOfDate)) && !isDateSuspended(entry, occurrence)) {
+      if (
+        (isAfter(occurrence, monthStart) || isEqual(occurrence, monthStart)) &&
+        (isBefore(occurrence, asOfDate) || isEqual(occurrence, asOfDate)) &&
+        !isDateSuspended(entry, occurrence)
+      ) {
         total += getAmountForDate(entry, occurrence);
       }
       occurrence = advanceOnce(occurrence);
@@ -358,11 +415,14 @@ export const calculateMonthlyExpenses = (expenses: ExpenseEntry[]): number => {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
-  
+
   return expenses
-    .filter(expense => {
+    .filter((expense) => {
       const expenseDate = new Date(expense.date);
-      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+      return (
+        expenseDate.getMonth() === currentMonth &&
+        expenseDate.getFullYear() === currentYear
+      );
     })
     .reduce((total, expense) => total + expense.amount, 0);
 };
@@ -377,13 +437,15 @@ export const calculateNetWorth = (
 };
 
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount);
 };
 
-export const calculateCategoryTotals = (expenses: ExpenseEntry[]): Record<string, number> => {
+export const calculateCategoryTotals = (
+  expenses: ExpenseEntry[]
+): Record<string, number> => {
   return expenses.reduce((acc, expense) => {
     acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
     return acc;

@@ -1,11 +1,27 @@
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import { calculateMonthlyExpenses, calculateCategoryTotals, formatCurrency } from "@/utils/calculations";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  calculateMonthlyExpenses,
+  calculateCategoryTotals,
+  formatCurrency,
+} from "@/utils/calculations";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,16 +75,26 @@ export default function Expenses() {
   };
 
   const monthlyTotal = calculateMonthlyExpenses(expenses);
-  const categoryTotals = calculateCategoryTotals(expenses.filter(e => 
-    new Date(e.date).getMonth() === new Date().getMonth()
-  ));
+  const categoryTotals = calculateCategoryTotals(
+    expenses.filter(
+      (e) => new Date(e.date).getMonth() === new Date().getMonth()
+    )
+  );
 
   const needsTotal = expenses
-    .filter(e => e.type === "need" && new Date(e.date).getMonth() === new Date().getMonth())
+    .filter(
+      (e) =>
+        e.type === "need" &&
+        new Date(e.date).getMonth() === new Date().getMonth()
+    )
     .reduce((sum, e) => sum + e.amount, 0);
 
   const wantsTotal = expenses
-    .filter(e => e.type === "want" && new Date(e.date).getMonth() === new Date().getMonth())
+    .filter(
+      (e) =>
+        e.type === "want" &&
+        new Date(e.date).getMonth() === new Date().getMonth()
+    )
     .reduce((sum, e) => sum + e.amount, 0);
 
   return (
@@ -91,7 +117,9 @@ export default function Expenses() {
             <CardDescription>Total expenses this month</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-destructive">{formatCurrency(monthlyTotal)}</p>
+            <p className="text-3xl font-bold text-destructive">
+              {formatCurrency(monthlyTotal)}
+            </p>
           </CardContent>
         </Card>
 
@@ -101,7 +129,9 @@ export default function Expenses() {
             <CardDescription>Essential expenses</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(needsTotal)}</p>
+            <p className="text-2xl font-bold text-primary">
+              {formatCurrency(needsTotal)}
+            </p>
           </CardContent>
         </Card>
 
@@ -111,7 +141,9 @@ export default function Expenses() {
             <CardDescription>Discretionary spending</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-accent">{formatCurrency(wantsTotal)}</p>
+            <p className="text-2xl font-bold text-accent">
+              {formatCurrency(wantsTotal)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -165,7 +197,10 @@ export default function Expenses() {
 
             <div className="space-y-2">
               <Label htmlFor="expenseType">Type</Label>
-              <Select value={type} onValueChange={(value: "need" | "want") => setType(value)}>
+              <Select
+                value={type}
+                onValueChange={(value: "need" | "want") => setType(value)}
+              >
                 <SelectTrigger id="expenseType">
                   <SelectValue />
                 </SelectTrigger>
@@ -178,21 +213,29 @@ export default function Expenses() {
 
             <div className="space-y-2">
               <Label>Wallet</Label>
-              <Select value={assetId ?? '__none'} onValueChange={(v) => setAssetId(v === '__none' ? null : v)}>
+              <Select
+                value={assetId ?? "__none"}
+                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select account (optional)" />
                 </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">None</SelectItem>
-                    {assets.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
-                    ))}
-                  </SelectContent>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  {assets.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} • {a.type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
           </div>
 
-          <Button onClick={handleAddExpense} className="w-full bg-destructive hover:bg-destructive/90">
+          <Button
+            onClick={handleAddExpense}
+            className="w-full bg-destructive hover:bg-destructive/90"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Expense
           </Button>
@@ -211,9 +254,14 @@ export default function Expenses() {
               {Object.entries(categoryTotals)
                 .sort(([, a], [, b]) => b - a)
                 .map(([cat, total]) => (
-                  <div key={cat} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div
+                    key={cat}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border"
+                  >
                     <span className="font-medium text-foreground">{cat}</span>
-                    <span className="text-lg font-bold text-destructive">{formatCurrency(total)}</span>
+                    <span className="text-lg font-bold text-destructive">
+                      {formatCurrency(total)}
+                    </span>
                   </div>
                 ))}
             </div>
@@ -230,7 +278,8 @@ export default function Expenses() {
         <CardContent>
           {expenses.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No expenses recorded yet. Start tracking by adding your first expense above.
+              No expenses recorded yet. Start tracking by adding your first
+              expense above.
             </p>
           ) : (
             <div className="space-y-3">
@@ -245,12 +294,16 @@ export default function Expenses() {
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-foreground">{expense.name}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          expense.type === "need" 
-                            ? "bg-primary/10 text-primary" 
-                            : "bg-accent/10 text-accent"
-                        }`}>
+                        <h4 className="font-semibold text-foreground">
+                          {expense.name}
+                        </h4>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            expense.type === "need"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-accent/10 text-accent"
+                          }`}
+                        >
                           {expense.type}
                         </span>
                       </div>
@@ -259,7 +312,9 @@ export default function Expenses() {
                         <span>•</span>
                         <span>{expense.category}</span>
                         <span>•</span>
-                        <span>{new Date(expense.date).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(expense.date).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                     <Button
