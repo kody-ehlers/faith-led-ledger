@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, SquarePen } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Frequency = "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
 
@@ -51,6 +53,8 @@ export default function Subscriptions() {
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
+  const [variablePrice, setVariablePrice] = useState(false);
+  const [autopay, setAutopay] = useState(false);
 
   // Editing
   const [editing, setEditing] = useState<SubscriptionEntry | null>(null);
@@ -58,17 +62,25 @@ export default function Subscriptions() {
 
   const handleAdd = () => {
     const parsed = parseFloat(amount);
-    if (!name.trim() || isNaN(parsed) || parsed <= 0) {
-      toast.error("Please provide name and valid amount");
+    if (!variablePrice && (!amount.trim() || isNaN(parsed) || parsed <= 0)) {
+      toast.error("Please provide valid price");
+      return;
+    }
+    if (!name.trim()) {
+      toast.error("Please provide a name");
       return;
     }
 
     addSubscription({
       name: name.trim(),
-      amount: parsed,
+      amount: variablePrice ? 0 : parsed,
       frequency,
       date: date.toISOString(),
       notes: notes.trim(),
+      variablePrice,
+      autopay,
+      monthlyPrices: {},
+      paidMonths: [],
     });
     toast.success("Subscription added");
     setName("");
@@ -76,6 +88,8 @@ export default function Subscriptions() {
     setFrequency("Monthly");
     setDate(new Date());
     setNotes("");
+    setVariablePrice(false);
+    setAutopay(false);
   };
 
   const handleRemove = (id: string) => {
@@ -98,6 +112,7 @@ export default function Subscriptions() {
     const [cancelNote, setCancelNote] = useState<string>(
       entry.cancelledNote ?? ""
     );
+    const [isMonthlyPricesOpen, setIsMonthlyPricesOpen] = useState(false);
 
     const isCancelledNow = () => {
       if (!entry.cancelledFrom) return false;
@@ -111,37 +126,71 @@ export default function Subscriptions() {
 
     const cancelledNow = isCancelledNow();
 
+    // Check if current month is paid
+    const currentMonth = format(new Date(), "yyyy-MM");
+    const isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
+
+    const togglePaidThisMonth = () => {
+      const updated = isPaidThisMonth
+        ? (entry.paidMonths || []).filter((m) => m !== currentMonth)
+        : [...(entry.paidMonths || []), currentMonth];
+      updateSubscription(entry.id, { paidMonths: updated });
+      toast.success(isPaidThisMonth ? "Marked as unpaid" : "Marked as paid");
+    };
+
+    // Card background based on payment status
+    const cardBg = entry.autopay
+      ? "bg-card"
+      : isPaidThisMonth
+      ? "bg-green-500/10 border-green-500/30"
+      : "bg-red-500/10 border-red-500/30";
+
     return (
       <div
-        className={
-          "flex items-center justify-between p-4 rounded-lg border border-border bg-card"
-        }
+        className={`flex items-center justify-between p-4 rounded-lg border ${cardBg}`}
       >
-        <div>
-          {cancelledNow && (
-            <div className="mb-1 text-yellow-700 font-semibold text-sm">
-              Cancelled{" "}
-              {entry.cancelledIndefinitely
-                ? "— Indefinitely"
-                : `until ${
-                    entry.cancelledTo
-                      ? format(new Date(entry.cancelledTo), "PPP")
-                      : ""
-                  }`}
-              {entry.cancelledNote && (
-                <span className="ml-2 text-sm text-muted-foreground italic">
-                  ({entry.cancelledNote})
-                </span>
-              )}
-            </div>
+        <div className="flex items-center gap-3">
+          {!entry.autopay && (
+            <Checkbox
+              checked={isPaidThisMonth}
+              onCheckedChange={togglePaidThisMonth}
+            />
           )}
-          <p className="font-semibold">{entry.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {entry.frequency} • {format(new Date(entry.date), "PPP")}
-          </p>
+          <div>
+            {cancelledNow && (
+              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+                Cancelled{" "}
+                {entry.cancelledIndefinitely
+                  ? "— Indefinitely"
+                  : `until ${
+                      entry.cancelledTo
+                        ? format(new Date(entry.cancelledTo), "PPP")
+                        : ""
+                    }`}
+                {entry.cancelledNote && (
+                  <span className="ml-2 text-sm text-muted-foreground italic">
+                    ({entry.cancelledNote})
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="font-semibold">{entry.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {entry.frequency} • {format(new Date(entry.date), "PPP")}
+              {entry.autopay && (
+                <span className="ml-2 text-xs text-primary">(Autopay)</span>
+              )}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="font-semibold">${entry.amount.toFixed(2)}</div>
+          <div className="font-semibold">
+            {entry.variablePrice ? (
+              <span className="text-muted-foreground">Variable</span>
+            ) : (
+              `$${entry.amount.toFixed(2)}`
+            )}
+          </div>
 
           <Button
             variant="ghost"
@@ -191,17 +240,31 @@ export default function Subscriptions() {
                   <SquarePen className="mr-2 h-4 w-4" /> Edit
                 </Button>
 
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    setAdjustAmount(entry.amount.toString());
-                    setAdjustDate(new Date());
-                    setIsAdjustOpen(true);
-                  }}
-                >
-                  <SquarePen className="mr-2 h-4 w-4" /> Adjust Amount
-                </Button>
+                {!entry.variablePrice && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setAdjustAmount(entry.amount.toString());
+                      setAdjustDate(new Date());
+                      setIsAdjustOpen(true);
+                    }}
+                  >
+                    <SquarePen className="mr-2 h-4 w-4" /> Adjust Price
+                  </Button>
+                )}
+
+                {entry.variablePrice && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsMonthlyPricesOpen(true);
+                    }}
+                  >
+                    <SquarePen className="mr-2 h-4 w-4" /> Set Monthly Prices
+                  </Button>
+                )}
 
                 <Button
                   variant="outline"
@@ -259,15 +322,69 @@ export default function Subscriptions() {
           </DialogContent>
         </Dialog>
 
+        {/* Monthly Prices dialog */}
+        <Dialog
+          open={isMonthlyPricesOpen}
+          onOpenChange={setIsMonthlyPricesOpen}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Set Monthly Prices</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {Array.from({ length: 12 }, (_, i) => {
+                const month = new Date(
+                  new Date().getFullYear(),
+                  i,
+                  1
+                ).toISOString().slice(0, 7);
+                const monthName = format(new Date(month), "MMMM yyyy");
+                const currentPrice = entry.monthlyPrices?.[month] ?? "";
+
+                return (
+                  <div key={month} className="space-y-2">
+                    <Label>{monthName}</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        className="pl-6"
+                        value={currentPrice}
+                        onChange={(e) => {
+                          const newPrices = {
+                            ...entry.monthlyPrices,
+                            [month]: parseFloat(e.target.value) || 0,
+                          };
+                          updateSubscription(entry.id, {
+                            monthlyPrices: newPrices,
+                          });
+                        }}
+                        inputMode="decimal"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsMonthlyPricesOpen(false)}>
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Adjust dialog */}
         <Dialog open={isAdjustOpen} onOpenChange={setIsAdjustOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Adjust Subscription Amount</DialogTitle>
+              <DialogTitle>Adjust Subscription Price</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>New Amount</Label>
+                <Label>New Price</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     $
@@ -298,8 +415,8 @@ export default function Subscriptions() {
                   </PopoverContent>
                 </Popover>
                 <p className="text-sm text-muted-foreground">
-                  If the date is in the future, the current amount will stop the
-                  day before and a new amount will start on the effective date.
+                  If the date is in the future, the current price will stop the
+                  day before and a new price will start on the effective date.
                 </p>
               </div>
             </div>
@@ -308,7 +425,7 @@ export default function Subscriptions() {
                 onClick={() => {
                   const parsed = parseFloat(adjustAmount);
                   if (isNaN(parsed) || parsed <= 0) {
-                    toast.error("Please enter a valid amount");
+                    toast.error("Please enter a valid price");
                     return;
                   }
                   const eff = adjustDate;
@@ -344,10 +461,10 @@ export default function Subscriptions() {
                       amount: parsed,
                       changes: kept,
                     });
-                    toast.success("Subscription amount updated");
+                    toast.success("Subscription price updated");
                   } else {
                     updateSubscription(entry.id, { changes: kept });
-                    toast.success("Subscription amount scheduled");
+                    toast.success("Subscription price scheduled");
                   }
                   setIsAdjustOpen(false);
                 }}
@@ -362,7 +479,7 @@ export default function Subscriptions() {
         <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Amount History</DialogTitle>
+              <DialogTitle>Price History</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               {entry.changes && entry.changes.length > 0 ? (
@@ -436,10 +553,11 @@ export default function Subscriptions() {
                     </PopoverContent>
                   </Popover>
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={cancelIndefinite}
-                      onChange={(e) => setCancelIndefinite(e.target.checked)}
+                      onCheckedChange={(checked) =>
+                        setCancelIndefinite(!!checked)
+                      }
                     />
                     <span className="text-sm text-muted-foreground">
                       Indefinite
@@ -527,7 +645,7 @@ export default function Subscriptions() {
             </div>
 
             <div className="space-y-2">
-              <Label>Amount</Label>
+              <Label>Price</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   $
@@ -537,6 +655,7 @@ export default function Subscriptions() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
+                  disabled={variablePrice}
                 />
               </div>
             </div>
@@ -589,6 +708,17 @@ export default function Subscriptions() {
                 placeholder="optional notes"
               />
             </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={variablePrice}
+                onCheckedChange={setVariablePrice}
+              />
+              <Label>Variable Price</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch checked={autopay} onCheckedChange={setAutopay} />
+              <Label>Autopay Enabled</Label>
+            </div>
           </div>
 
           <Button className="w-full" onClick={handleAdd}>
@@ -611,7 +741,7 @@ export default function Subscriptions() {
         </CardContent>
       </Card>
 
-      {/* Edit dialog (simplified for name/notes) */}
+      {/* Edit dialog */}
       {editing && (
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="sm:max-w-md">
@@ -630,23 +760,54 @@ export default function Subscriptions() {
               </div>
 
               <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select
+                  value={editing.frequency}
+                  onValueChange={(val) =>
+                    setEditing({
+                      ...editing,
+                      frequency: val as Frequency,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Biweekly">Biweekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Notes</Label>
                 <Input
-                  value={editing.notes}
+                  value={editing.notes || ""}
                   onChange={(e) =>
                     setEditing({ ...editing, notes: e.target.value })
                   }
                 />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editing.autopay ?? false}
+                  onCheckedChange={(checked) =>
+                    setEditing({ ...editing, autopay: checked })
+                  }
+                />
+                <Label>Autopay Enabled</Label>
               </div>
             </div>
             <DialogFooter>
               <Button
                 onClick={() => {
                   if (editing) {
-                    updateSubscription(editing.id, {
-                      name: editing.name,
-                      notes: editing.notes,
-                    });
+                    updateSubscription(editing.id, editing);
                     toast.success("Subscription updated");
                     setIsEditOpen(false);
                     setEditing(null);

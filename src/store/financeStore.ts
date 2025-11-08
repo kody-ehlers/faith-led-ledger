@@ -70,6 +70,40 @@ export interface SubscriptionEntry {
   }>;
   // Optional asset association
   assetId?: string | null;
+  // Variable pricing
+  variablePrice?: boolean;
+  monthlyPrices?: { [month: string]: number }; // YYYY-MM -> amount
+  // Autopay and payment tracking
+  autopay?: boolean;
+  paidMonths?: string[]; // Array of YYYY-MM strings
+}
+
+export interface BillEntry {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
+  date: string; // start date ISO
+  notes?: string;
+  // cancellation fields
+  cancelledFrom?: string | null;
+  cancelledTo?: string | null;
+  cancelledIndefinitely?: boolean;
+  cancelledNote?: string | null;
+  // change history
+  changes?: Array<{
+    amount: number;
+    start: string;
+    end?: string | null;
+  }>;
+  // Optional asset association
+  assetId?: string | null;
+  // Variable pricing
+  variablePrice?: boolean;
+  monthlyPrices?: { [month: string]: number }; // YYYY-MM -> amount
+  // Autopay and payment tracking
+  autopay?: boolean;
+  paidMonths?: string[]; // Array of YYYY-MM strings
 }
 
 export interface LiquidAsset {
@@ -123,6 +157,7 @@ interface FinanceState {
   debts: DebtEntry[];
   assets: LiquidAsset[];
   subscriptions: SubscriptionEntry[];
+  bills: BillEntry[];
   appName: string;
 
   // Actions
@@ -182,6 +217,19 @@ interface FinanceState {
   ) => void;
   renewSubscription: (id: string) => void;
   
+  // Bills
+  addBill: (entry: Omit<BillEntry, "id">) => void;
+  removeBill: (id: string) => void;
+  updateBill: (id: string, updates: Partial<BillEntry>) => void;
+  cancelBill: (
+    id: string,
+    from: string,
+    to?: string | null,
+    indefinite?: boolean,
+    comment?: string | null
+  ) => void;
+  renewBill: (id: string) => void;
+  
   // Settings
   updateAppName: (name: string) => void;
 }
@@ -195,6 +243,7 @@ export const useFinanceStore = create<FinanceState>()(
       savings: [],
       debts: [],
       subscriptions: [],
+      bills: [],
       appName: "My Finances",
 
       addIncome: (entry) =>
@@ -548,6 +597,66 @@ export const useFinanceStore = create<FinanceState>()(
                   cancelledNote: undefined,
                 }
               : s
+          ),
+        })),
+
+      addBill: (entry) =>
+        set((state) => ({
+          bills: [
+            ...state.bills,
+            {
+              ...entry,
+              id: crypto.randomUUID(),
+              changes: [{ amount: entry.amount, start: entry.date, end: null }],
+            },
+          ],
+        })),
+
+      removeBill: (id) =>
+        set((state) => ({
+          bills: state.bills.filter((b) => b.id !== id),
+        })),
+
+      updateBill: (id, updates) =>
+        set((state) => ({
+          bills: state.bills.map((b) =>
+            b.id === id ? { ...b, ...updates } : b
+          ),
+        })),
+
+      cancelBill: (
+        id,
+        from,
+        to = null,
+        indefinite = false,
+        comment = undefined
+      ) =>
+        set((state) => ({
+          bills: state.bills.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  cancelledFrom: from,
+                  cancelledTo: to,
+                  cancelledIndefinitely: indefinite,
+                  cancelledNote: comment,
+                }
+              : b
+          ),
+        })),
+
+      renewBill: (id) =>
+        set((state) => ({
+          bills: state.bills.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  cancelledFrom: undefined,
+                  cancelledTo: undefined,
+                  cancelledIndefinitely: false,
+                  cancelledNote: undefined,
+                }
+              : b
           ),
         })),
       
