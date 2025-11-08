@@ -73,7 +73,7 @@ export default function Home() {
   const postTaxIncome = calculatePostTaxIncome(income);
   const monthlyExpenses = calculateMonthlyExpenses(expenses);
   const titheAmount = calculateTitheAmount(postTaxIncome);
-  const netWorth = calculateNetWorth(savings, debts);
+  const netWorth = calculateNetWorth(assets, debts);
   const totalSavings = savings.reduce((sum, acc) => sum + acc.currentAmount, 0);
 
   const categoryData = Object.entries(calculateCategoryTotals(expenses))
@@ -144,7 +144,8 @@ export default function Home() {
       const contributionAmount = getEntryIncomeForMonth(
         inc,
         date,
-        /*includePreTax*/ true
+        /*includePreTax*/ true,
+        new Date()
       );
       if (contributionAmount > 0) {
         incomeBreakdown.push({

@@ -1,7 +1,7 @@
 import {
   IncomeEntry,
   ExpenseEntry,
-  SavingsAccount,
+  SavingsAccount, LiquidAsset,
   DebtEntry,
 } from "@/store/financeStore";
 import {
@@ -43,7 +43,8 @@ export const calculateIncomeForMonthPublic = (
 export const getEntryIncomeForMonth = (
   entry: IncomeEntry,
   targetDate = new Date(),
-  includePreTax = true
+  includePreTax = true,
+  asOfDate = new Date()
 ): number => {
   if (!includePreTax && entry.preTax) return 0;
 
@@ -428,10 +429,10 @@ export const calculateMonthlyExpenses = (expenses: ExpenseEntry[]): number => {
 };
 
 export const calculateNetWorth = (
-  savings: SavingsAccount[],
+  assets: LiquidAsset[],
   debts: DebtEntry[]
 ): number => {
-  const totalAssets = savings.reduce((sum, acc) => sum + acc.currentAmount, 0);
+  const totalAssets = assets.reduce((sum, acc) => sum + acc.currentAmount, 0);
   const totalDebts = debts.reduce((sum, debt) => sum + debt.balance, 0);
   return totalAssets - totalDebts;
 };

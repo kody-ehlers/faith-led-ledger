@@ -1,3 +1,4 @@
+import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
 import { useState } from "react";
 import { useFinanceStore, SubscriptionEntry } from "@/store/financeStore";
 import {
@@ -176,7 +177,7 @@ export default function Subscriptions() {
             )}
             <p className="font-semibold">{entry.name}</p>
             <p className="text-sm text-muted-foreground">
-              {entry.frequency} • {format(new Date(entry.date), "PPP")}
+              {entry.frequency} • {entry.frequency === 'Monthly' ? formatMonthlyLabel(entry.date) : format(new Date(entry.date), 'PPP')}
               {entry.autopay && (
                 <span className="ml-2 text-xs text-primary">(Autopay)</span>
               )}
@@ -687,7 +688,7 @@ export default function Subscriptions() {
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
                   >
-                    {format(date, "PPP")}
+                    {format(date, 'PPP')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent side="bottom" className="w-auto p-0">

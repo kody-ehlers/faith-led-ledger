@@ -28,7 +28,6 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Subscriptions", url: "/subscriptions", icon: CreditCard },
     { title: "Bills", url: "/bills", icon: FileText },
     { title: "Expenses", url: "/expenses", icon: ShoppingCart },
-    { title: "Savings", url: "/savings", icon: PiggyBank },
     { title: "Wallet", url: "/wallet", icon: Wallet },
     { title: "Investments", url: "/investments", icon: TrendingUp },
     { title: "Debt", url: "/debt", icon: Landmark },

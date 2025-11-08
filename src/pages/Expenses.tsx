@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -168,14 +169,9 @@ export default function Expenses() {
 
             <div className="space-y-2">
               <Label htmlFor="expenseAmount">Amount</Label>
-              <Input
-                id="expenseAmount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min="0"
-                step="0.01"
+              <CurrencyInput
+                value={ expenseAmount === "" ? null : Number(expenseAmount) }
+                onChange={(v) => setExpenseAmount(v === null ? "" : String(v)) }
               />
             </div>
 

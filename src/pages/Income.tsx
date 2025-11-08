@@ -1,3 +1,4 @@
+import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -851,16 +853,10 @@ export default function Income() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   $
                 </span>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
+                <CurrencyInput
+                value={ amount === "" ? null : Number(amount) }
+                onChange={(v) => setAmount(v === null ? "" : String(v)) }
+              />
               </div>
             </div>
 

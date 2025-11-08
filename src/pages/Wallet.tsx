@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -155,11 +156,9 @@ export default function Wallet() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     $
                   </span>
-                  <Input
-                    className="pl-6 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    type="number"
-                    value={startingAmount}
-                    onChange={(e) => setStartingAmount(e.target.value)}
+                  <CurrencyInput
+                    value={ startingAmount === "" ? null : Number(startingAmount) }
+                    onChange={(v) => setStartingAmount(v === null ? "" : String(v))}
                   />
                 </div>
               </div>
