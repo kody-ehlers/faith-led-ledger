@@ -115,6 +115,8 @@ export default function Subscriptions() {
     );
     const [isMonthlyPricesOpen, setIsMonthlyPricesOpen] = useState(false);
     const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+    const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
+    const [tempPrice, setTempPrice] = useState<string>("");
 
     const isCancelledNow = () => {
       if (!entry.cancelledFrom) return false;
@@ -358,51 +360,137 @@ export default function Subscriptions() {
         {/* Monthly Prices dialog */}
         <Dialog
           open={isMonthlyPricesOpen}
-          onOpenChange={setIsMonthlyPricesOpen}
+          onOpenChange={(open) => {
+            if (!open && tempPrice) {
+              // Save on close
+              const month = new Date(
+                new Date().getFullYear(),
+                currentMonthIndex,
+                1
+              ).toISOString().slice(0, 7);
+              const newPrices = {
+                ...entry.monthlyPrices,
+                [month]: parseFloat(tempPrice) || 0,
+              };
+              updateSubscription(entry.id, { monthlyPrices: newPrices });
+              setTempPrice("");
+            }
+            setIsMonthlyPricesOpen(open);
+          }}
         >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Set Monthly Prices</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {Array.from({ length: 12 }, (_, i) => {
-                const month = new Date(
-                  new Date().getFullYear(),
-                  i,
-                  1
-                ).toISOString().slice(0, 7);
-                const monthName = format(new Date(month), "MMMM yyyy");
-                const currentPrice = entry.monthlyPrices?.[month] ?? "";
+            {(() => {
+              const month = new Date(
+                new Date().getFullYear(),
+                currentMonthIndex,
+                1
+              ).toISOString().slice(0, 7);
+              const monthName = format(
+                new Date(new Date().getFullYear(), currentMonthIndex, 1),
+                "MMMM yyyy"
+              );
+              const savedPrice = entry.monthlyPrices?.[month] ?? 0;
+              const displayPrice = tempPrice !== "" ? tempPrice : savedPrice.toString();
 
-                return (
-                  <div key={month} className="space-y-2">
-                    <Label>{monthName}</Label>
+              const saveCurrentPrice = () => {
+                if (tempPrice) {
+                  const newPrices = {
+                    ...entry.monthlyPrices,
+                    [month]: parseFloat(tempPrice) || 0,
+                  };
+                  updateSubscription(entry.id, { monthlyPrices: newPrices });
+                  setTempPrice("");
+                }
+              };
+
+              const goToMonth = (newIndex: number) => {
+                saveCurrentPrice();
+                setCurrentMonthIndex(newIndex);
+              };
+
+              return (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => goToMonth((currentMonthIndex - 1 + 12) % 12)}
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M15 18l-6-6 6-6" />
+                      </svg>
+                    </Button>
+                    <h3 className="text-lg font-semibold">{monthName}</h3>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => goToMonth((currentMonthIndex + 1) % 12)}
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="monthPrice">Price for {monthName}</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                         $
                       </span>
                       <Input
+                        id="monthPrice"
                         className="pl-6"
-                        value={currentPrice}
-                        onChange={(e) => {
-                          const newPrices = {
-                            ...entry.monthlyPrices,
-                            [month]: parseFloat(e.target.value) || 0,
-                          };
-                          updateSubscription(entry.id, {
-                            monthlyPrices: newPrices,
-                          });
-                        }}
+                        value={displayPrice}
+                        onChange={(e) => setTempPrice(e.target.value)}
+                        onBlur={saveCurrentPrice}
                         inputMode="decimal"
                         placeholder="0.00"
+                        autoFocus
                       />
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  <div className="text-sm text-muted-foreground">
+                    Saved price: ${savedPrice.toFixed(2)}
+                  </div>
+                </div>
+              );
+            })()}
             <DialogFooter>
-              <Button onClick={() => setIsMonthlyPricesOpen(false)}>
+              <Button
+                onClick={() => {
+                  if (tempPrice) {
+                    const month = new Date(
+                      new Date().getFullYear(),
+                      currentMonthIndex,
+                      1
+                    ).toISOString().slice(0, 7);
+                    const newPrices = {
+                      ...entry.monthlyPrices,
+                      [month]: parseFloat(tempPrice) || 0,
+                    };
+                    updateSubscription(entry.id, { monthlyPrices: newPrices });
+                    setTempPrice("");
+                  }
+                  setIsMonthlyPricesOpen(false);
+                }}
+              >
                 Done
               </Button>
             </DialogFooter>
