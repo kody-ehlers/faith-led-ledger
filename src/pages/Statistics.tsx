@@ -69,9 +69,6 @@ export default function Statistics() {
   if (totalSubs > 0) expensesByCategory["Subscriptions"] = totalSubs;
   if (totalBills > 0) expensesByCategory["Bills"] = totalBills;
 
-  // Calculate savings
-  const totalSavings = savings.reduce((sum, s) => sum + s.currentAmount, 0);
-
   const expenseData = Object.entries(expensesByCategory).map(([name, value]) => ({
     name,
     value,
@@ -79,10 +76,30 @@ export default function Statistics() {
 
   const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
 
-  // Overall data including savings
+  // Calculate income for the period (using monthly income for simplicity)
+  const { income: incomeEntries } = useFinanceStore.getState();
+  const totalIncome = incomeEntries.reduce((sum, inc) => {
+    if (inc.frequency === "One-time") {
+      const incomeDate = new Date(inc.date);
+      if (incomeDate >= start && incomeDate <= end) {
+        return sum + inc.amount;
+      }
+    } else {
+      // For recurring income, calculate based on period
+      const monthsInPeriod = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+      const monthlyAmount = inc.amount;
+      return sum + (monthlyAmount * monthsInPeriod);
+    }
+    return sum;
+  }, 0);
+
+  // Calculate net savings (income - expenses)
+  const netSavings = Math.max(0, totalIncome - totalExpenses);
+
+  // Overall data including net savings
   const overallData = [
     { name: "Expenses", value: totalExpenses },
-    { name: "Savings", value: totalSavings },
+    { name: "Savings", value: netSavings },
   ];
 
   return (

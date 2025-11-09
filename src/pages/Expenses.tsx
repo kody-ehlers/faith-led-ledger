@@ -170,8 +170,8 @@ export default function Expenses() {
             <div className="space-y-2">
               <Label htmlFor="expenseAmount">Amount</Label>
               <CurrencyInput
-                value={ expenseAmount === "" ? null : Number(expenseAmount) }
-                onChange={(v) => setExpenseAmount(v === null ? "" : String(v)) }
+                value={amount === "" ? null : Number(amount)}
+                onChange={(v) => setAmount(v === null ? "" : String(v))}
               />
             </div>
 

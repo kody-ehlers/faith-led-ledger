@@ -114,6 +114,7 @@ export default function Bills() {
       entry.cancelledNote ?? ""
     );
     const [isMonthlyPricesOpen, setIsMonthlyPricesOpen] = useState(false);
+    const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
 
     const isCancelledNow = () => {
       if (!entry.cancelledFrom) return false;
@@ -152,10 +153,15 @@ export default function Bills() {
       >
         <div className="flex items-center gap-3">
           {!entry.autopay && (
-            <Checkbox
-              checked={isPaidThisMonth}
-              onCheckedChange={togglePaidThisMonth}
-            />
+            <div className="flex flex-col items-center gap-1">
+              <Checkbox
+                checked={isPaidThisMonth}
+                onCheckedChange={togglePaidThisMonth}
+              />
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(), "MMM")}
+              </span>
+            </div>
           )}
           <div>
             {cancelledNow && (
@@ -267,6 +273,32 @@ export default function Bills() {
                   </Button>
                 )}
 
+                {!entry.autopay && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsPaymentHistoryOpen(true);
+                    }}
+                  >
+                    <svg
+                      className="mr-2 h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Payment History
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -369,6 +401,55 @@ export default function Bills() {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsMonthlyPricesOpen(false)}>
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment History dialog */}
+        <Dialog
+          open={isPaymentHistoryOpen}
+          onOpenChange={setIsPaymentHistoryOpen}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Payment History</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {Array.from({ length: 12 }, (_, i) => {
+                const month = new Date(
+                  new Date().getFullYear(),
+                  new Date().getMonth() - i,
+                  1
+                );
+                const monthKey = format(month, "yyyy-MM");
+                const monthName = format(month, "MMMM yyyy");
+                const isPaid = entry.paidMonths?.includes(monthKey) ?? false;
+
+                return (
+                  <div
+                    key={monthKey}
+                    className="flex items-center justify-between p-3 rounded-lg border"
+                  >
+                    <span className="font-medium">{monthName}</span>
+                    <Checkbox
+                      checked={isPaid}
+                      onCheckedChange={(checked) => {
+                        const updated = checked
+                          ? [...(entry.paidMonths || []), monthKey]
+                          : (entry.paidMonths || []).filter(
+                              (m) => m !== monthKey
+                            );
+                        updateBill(entry.id, { paidMonths: updated });
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsPaymentHistoryOpen(false)}>
                 Done
               </Button>
             </DialogFooter>

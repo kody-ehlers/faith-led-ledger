@@ -32,19 +32,15 @@ export function CurrencyInput({
   }
 
   return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      <span className="select-none">$</span>
-      <input
-        id={id}
-        name={name}
-        aria-label={ariaLabel}
-        inputMode="decimal"
-        value={display}
-        placeholder={placeholder}
-        onChange={(e) => onChange(parseInput(e.target.value))}
-        className="min-w-0 w-full bg-white border border-gray-200 rounded px-2 py-1 focus:outline-none"
-        // using text input prevents browser spinner arrows
-      />
-    </div>
+    <input
+      id={id}
+      name={name}
+      aria-label={ariaLabel}
+      inputMode="decimal"
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => onChange(parseInput(e.target.value))}
+      className={`min-w-0 w-full bg-background border border-input rounded-md px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
+    />
   );
 }

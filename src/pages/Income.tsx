@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import {
   calculateMonthlyIncome,
+  calculatePostTaxIncomeForMonth,
+  calculatePostTaxIncomeReceivedSoFar,
   formatCurrency,
   getEntryIncomeForMonth,
 } from "@/utils/calculations";
@@ -804,28 +806,69 @@ export default function Income() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="shadow-md border-success/20">
           <CardHeader>
-            <CardTitle>Monthly Total</CardTitle>
-            <CardDescription>Average monthly income</CardDescription>
+            <CardTitle>Income Received</CardTitle>
+            <CardDescription>To date this month</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-success">
-              {formatCurrency(monthlyTotal)}
+              {formatCurrency(calculatePostTaxIncomeReceivedSoFar(income))}
             </p>
           </CardContent>
         </Card>
 
         <Card className="shadow-md border-primary/20">
           <CardHeader>
-            <CardTitle>Annual Projection</CardTitle>
-            <CardDescription>Estimated yearly income</CardDescription>
+            <CardTitle>Expected Monthly</CardTitle>
+            <CardDescription>Projected for full month</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-primary">
-              {formatCurrency(annualProjection)}
+              {formatCurrency(calculatePostTaxIncomeForMonth(income))}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Income Progress Card */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Monthly Income Progress</CardTitle>
+          <CardDescription>Income received vs. projected</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const received = calculatePostTaxIncomeReceivedSoFar(income);
+            const projected = calculatePostTaxIncomeForMonth(income);
+            const receivedPercent = projected > 0 ? (received / projected) * 100 : 0;
+            const remaining = Math.max(0, projected - received);
+            
+            return (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Received: {formatCurrency(received)}
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {receivedPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-6 bg-muted rounded-full overflow-hidden relative">
+                    <div 
+                      className="h-full bg-success transition-all duration-300"
+                      style={{ width: `${Math.min(receivedPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                    <span>Remaining: {formatCurrency(remaining)}</span>
+                    <span>Total: {formatCurrency(projected)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Add Income Form */}
       <Card className="shadow-md">
@@ -854,9 +897,11 @@ export default function Income() {
                   $
                 </span>
                 <CurrencyInput
-                value={ amount === "" ? null : Number(amount) }
-                onChange={(v) => setAmount(v === null ? "" : String(v)) }
-              />
+                  id="amount"
+                  className="pl-6"
+                  value={amount === "" ? null : Number(amount)}
+                  onChange={(v) => setAmount(v === null ? "" : String(v))}
+                />
               </div>
             </div>
 
