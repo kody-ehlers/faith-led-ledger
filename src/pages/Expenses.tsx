@@ -23,40 +23,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Plus, Trash2, ShoppingCart, Settings } from "lucide-react";
 import { toast } from "sonner";
 
-const EXPENSE_CATEGORIES = [
-  "Groceries",
-  "Dining",
-  "Shopping",
-  "Fuel",
-  "Transportation",
-  "Entertainment",
-  "Healthcare",
-  "Personal Care",
-  "Education",
-  "Gifts",
-  "Other",
-];
-
 export default function Expenses() {
-  const { expenses, addExpense, removeExpense, assets } = useFinanceStore();
+  const { 
+    expenses, 
+    addExpense, 
+    removeExpense, 
+    assets,
+    expenseCategories,
+    addExpenseCategory,
+    removeExpenseCategory,
+  } = useFinanceStore();
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Groceries");
+  const [amount, setAmount] = useState<number | null>(null);
+  const [category, setCategory] = useState(expenseCategories[0] || "Other");
   const [type, setType] = useState<"need" | "want">("need");
   const [assetId, setAssetId] = useState<string | null>(null);
+  
+  // Category management
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
 
   const handleAddExpense = () => {
-    if (!name.trim() || !amount || parseFloat(amount) <= 0) {
+    if (!name.trim() || amount === null || amount <= 0) {
       toast.error("Please fill in all fields with valid values");
       return;
     }
 
     addExpense({
       name: name.trim(),
-      amount: parseFloat(amount),
+      amount: amount,
       category,
       type,
       date: new Date().toISOString(),
@@ -65,9 +70,33 @@ export default function Expenses() {
 
     toast.success("Expense added successfully");
     setName("");
-    setAmount("");
-    setCategory("Groceries");
+    setAmount(null);
+    setCategory(expenseCategories[0] || "Other");
     setType("need");
+  };
+
+  const handleAddCategory = () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    if (expenseCategories.includes(trimmed)) {
+      toast.error("Category already exists");
+      return;
+    }
+    addExpenseCategory(trimmed);
+    toast.success(`Category "${trimmed}" added`);
+    setNewCategory("");
+  };
+
+  const handleRemoveCategory = (cat: string) => {
+    removeExpenseCategory(cat);
+    toast.success(`Category "${cat}" removed`);
+    // If we just removed the currently selected category, reset
+    if (category === cat) {
+      setCategory(expenseCategories.filter(c => c !== cat)[0] || "Other");
+    }
   };
 
   const handleRemoveExpense = (id: string) => {
@@ -170,19 +199,29 @@ export default function Expenses() {
             <div className="space-y-2">
               <Label htmlFor="expenseAmount">Amount</Label>
               <CurrencyInput
-                value={amount === "" ? null : Number(amount)}
-                onChange={(v) => setAmount(v === null ? "" : String(v))}
+                value={amount}
+                onChange={(v) => setAmount(v)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expenseCategory">Category</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="expenseCategory">Category</Label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setIsCategoryDialogOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger id="expenseCategory">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {EXPENSE_CATEGORIES.map((cat) => (
+                  {expenseCategories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
@@ -327,6 +366,59 @@ export default function Expenses() {
           )}
         </CardContent>
       </Card>
+
+      {/* Category Management Dialog */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Expense Categories</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Add New Category</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="e.g., Subscriptions"
+                  onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                />
+                <Button onClick={handleAddCategory}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Existing Categories</Label>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {expenseCategories.map((cat) => (
+                  <div
+                    key={cat}
+                    className="flex items-center justify-between p-2 rounded-lg border border-border"
+                  >
+                    <span className="text-sm">{cat}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleRemoveCategory(cat)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Removing a category won't delete existing expenses in that category.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsCategoryDialogOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

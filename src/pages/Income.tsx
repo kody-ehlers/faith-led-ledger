@@ -86,9 +86,8 @@ export default function Income() {
     | "One-time";
 
   const [source, setSource] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("One-time");
-  const [preTax, setPreTax] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
@@ -102,16 +101,16 @@ export default function Income() {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
   const handleAddIncome = () => {
-    if (!source.trim() || !amount || parseFloat(amount) <= 0 || !date) {
+    if (!source.trim() || amount === null || amount <= 0 || !date) {
       toast.error("Please fill in all fields with valid values");
       return;
     }
 
     addIncome({
       source: source.trim(),
-      amount: parseFloat(amount),
+      amount: amount,
       frequency,
-      preTax,
+      preTax: false, // Always after-tax now
       date: date.toISOString(),
       assetId: assetId ?? undefined,
       notes: notes.trim(),
@@ -119,9 +118,8 @@ export default function Income() {
 
     toast.success("Income added successfully");
     setSource("");
-    setAmount("");
+    setAmount(null);
     setFrequency("One-time");
-    setPreTax(false);
     setDate(new Date());
     setNotes("");
   };
@@ -891,18 +889,12 @@ export default function Income() {
 
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  $
-                </span>
-                <CurrencyInput
-                  id="amount"
-                  className="pl-6"
-                  value={amount === "" ? null : Number(amount)}
-                  onChange={(v) => setAmount(v === null ? "" : String(v))}
-                />
-              </div>
+              <Label htmlFor="amount">Amount (After Taxes)</Label>
+              <CurrencyInput
+                id="amount"
+                value={amount}
+                onChange={(v) => setAmount(v)}
+              />
             </div>
 
             {/* Frequency */}
@@ -924,21 +916,6 @@ export default function Income() {
                   <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Pre-Tax */}
-            <div className="space-y-2">
-              <Label htmlFor="preTax">Pre-Tax Income?</Label>
-              <div className="flex items-center space-x-2 h-10">
-                <Switch
-                  id="preTax"
-                  checked={preTax}
-                  onCheckedChange={setPreTax}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {preTax ? "Yes (before taxes)" : "No (after taxes)"}
-                </span>
-              </div>
             </div>
 
             {/* Date */}
@@ -1086,13 +1063,8 @@ export default function Income() {
 
               <div className="space-y-2">
                 <Label>Amount</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <div className="pl-6 py-2 text-foreground font-medium">
-                    {formatCurrency(editingIncome.amount)}
-                  </div>
+                <div className="py-2 text-foreground font-medium">
+                  {formatCurrency(editingIncome.amount)}
                 </div>
               </div>
 
@@ -1116,16 +1088,6 @@ export default function Income() {
                     <SelectItem value="Yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Pre-Tax Income?</Label>
-                <Switch
-                  checked={editingIncome.preTax}
-                  onCheckedChange={(val) =>
-                    setEditingIncome({ ...editingIncome, preTax: val })
-                  }
-                />
               </div>
 
               <div className="space-y-2">

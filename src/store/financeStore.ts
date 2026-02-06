@@ -159,6 +159,7 @@ interface FinanceState {
   subscriptions: SubscriptionEntry[];
   bills: BillEntry[];
   appName: string;
+  expenseCategories: string[]; // Custom expense categories
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -230,6 +231,10 @@ interface FinanceState {
   ) => void;
   renewBill: (id: string) => void;
   
+  // Expense Categories
+  addExpenseCategory: (category: string) => void;
+  removeExpenseCategory: (category: string) => void;
+  
   // Settings
   updateAppName: (name: string) => void;
 }
@@ -245,6 +250,19 @@ export const useFinanceStore = create<FinanceState>()(
       subscriptions: [],
       bills: [],
       appName: "My Finances",
+      expenseCategories: [
+        "Groceries",
+        "Dining",
+        "Shopping",
+        "Fuel",
+        "Transportation",
+        "Entertainment",
+        "Healthcare",
+        "Personal Care",
+        "Education",
+        "Gifts",
+        "Other",
+      ],
 
       addIncome: (entry) =>
         set((state) => ({
@@ -663,6 +681,18 @@ export const useFinanceStore = create<FinanceState>()(
       updateAppName: (name) =>
         set(() => ({
           appName: name,
+        })),
+
+      addExpenseCategory: (category) =>
+        set((state) => ({
+          expenseCategories: state.expenseCategories.includes(category)
+            ? state.expenseCategories
+            : [...state.expenseCategories, category],
+        })),
+
+      removeExpenseCategory: (category) =>
+        set((state) => ({
+          expenseCategories: state.expenseCategories.filter((c) => c !== category),
         })),
     }),
     {
