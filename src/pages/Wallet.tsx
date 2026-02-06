@@ -152,15 +152,10 @@ export default function Wallet() {
             {type !== undefined && (
               <div className="space-y-2">
                 <Label>Starting Balance</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <CurrencyInput
-                    value={ startingAmount === "" ? null : Number(startingAmount) }
-                    onChange={(v) => setStartingAmount(v === null ? "" : String(v))}
-                  />
-                </div>
+                <CurrencyInput
+                  value={startingAmount === "" ? null : Number(startingAmount)}
+                  onChange={(v) => setStartingAmount(v === null ? "" : String(v))}
+                />
               </div>
             )}
 

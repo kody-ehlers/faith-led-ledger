@@ -47,6 +47,7 @@ export default function Bills() {
     updateBill,
     cancelBill,
     renewBill,
+    assets,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -56,6 +57,7 @@ export default function Bills() {
   const [notes, setNotes] = useState("");
   const [variablePrice, setVariablePrice] = useState(false);
   const [autopay, setAutopay] = useState(false);
+  const [assetId, setAssetId] = useState<string | null>(null);
 
   // Editing
   const [editing, setEditing] = useState<BillEntry | null>(null);
@@ -82,6 +84,7 @@ export default function Bills() {
       autopay,
       monthlyPrices: {},
       paidMonths: [],
+      assetId: assetId ?? undefined,
     });
     toast.success("Bill added");
     setName("");
@@ -91,6 +94,7 @@ export default function Bills() {
     setNotes("");
     setVariablePrice(false);
     setAutopay(false);
+    setAssetId(null);
   };
 
   const handleRemove = (id: string) => {
@@ -959,6 +963,26 @@ export default function Bills() {
             <div className="flex items-center space-x-2">
               <Switch checked={autopay} onCheckedChange={setAutopay} />
               <Label>Autopay Enabled</Label>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label>Wallet</Label>
+              <Select
+                value={assetId ?? "__none"}
+                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  {assets.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} • {a.type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="mt-4">
