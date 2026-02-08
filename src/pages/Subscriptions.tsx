@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -51,7 +52,7 @@ export default function Subscriptions() {
   } = useFinanceStore();
 
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
@@ -64,8 +65,7 @@ export default function Subscriptions() {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const handleAdd = () => {
-    const parsed = parseFloat(amount);
-    if (!variablePrice && (!amount.trim() || isNaN(parsed) || parsed <= 0)) {
+    if (!variablePrice && (amount === null || amount <= 0)) {
       toast.error("Please provide valid price");
       return;
     }
@@ -76,7 +76,7 @@ export default function Subscriptions() {
 
     addSubscription({
       name: name.trim(),
-      amount: variablePrice ? 0 : parsed,
+      amount: variablePrice ? 0 : (amount ?? 0),
       frequency,
       date: date.toISOString(),
       notes: notes.trim(),
@@ -88,7 +88,7 @@ export default function Subscriptions() {
     });
     toast.success("Subscription added");
     setName("");
-    setAmount("");
+    setAmount(null);
     setFrequency("Monthly");
     setDate(new Date());
     setNotes("");
@@ -137,6 +137,7 @@ export default function Subscriptions() {
     // Check if current month is paid
     const currentMonth = format(new Date(), "yyyy-MM");
     const isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
+    const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
 
     const togglePaidThisMonth = () => {
       const updated = isPaidThisMonth
@@ -146,10 +147,9 @@ export default function Subscriptions() {
       toast.success(isPaidThisMonth ? "Marked as unpaid" : "Marked as paid");
     };
 
-    // Card background based on payment status
-    const cardBg = entry.autopay
-      ? "bg-card"
-      : isPaidThisMonth
+    // Card background based on payment status - green for paid OR autopay
+    const isPaidOrAutopay = entry.autopay || isPaidThisMonth;
+    const cardBg = isPaidOrAutopay
       ? "bg-green-500/10 border-green-500/30"
       : "bg-red-500/10 border-red-500/30";
 
@@ -199,7 +199,11 @@ export default function Subscriptions() {
         <div className="flex items-center gap-2">
           <div className="font-semibold">
             {entry.variablePrice ? (
-              <span className="text-muted-foreground">Variable</span>
+              currentMonthPrice !== null ? (
+                <span>${currentMonthPrice.toFixed(2)}</span>
+              ) : (
+                <span className="text-muted-foreground">Variable</span>
+              )
             ) : (
               `$${entry.amount.toFixed(2)}`
             )}
@@ -453,21 +457,12 @@ export default function Subscriptions() {
 
                   <div className="space-y-2">
                     <Label htmlFor="monthPrice">Price for {monthName}</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        id="monthPrice"
-                        className="pl-6"
-                        value={displayPrice}
-                        onChange={(e) => setTempPrice(e.target.value)}
-                        onBlur={saveCurrentPrice}
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        autoFocus
-                      />
-                    </div>
+                    <CurrencyInput
+                      id="monthPrice"
+                      value={tempPrice !== "" ? parseFloat(tempPrice) : savedPrice}
+                      onChange={(v) => setTempPrice(v !== null ? v.toString() : "")}
+                      placeholder="0.00"
+                    />
                   </div>
 
                   <div className="text-sm text-muted-foreground">
@@ -559,17 +554,11 @@ export default function Subscriptions() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>New Price</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    className="pl-6"
-                    value={adjustAmount}
-                    onChange={(e) => setAdjustAmount(e.target.value)}
-                    inputMode="decimal"
-                  />
-                </div>
+                <CurrencyInput
+                  value={parseFloat(adjustAmount) || null}
+                  onChange={(v) => setAdjustAmount(v !== null ? v.toString() : "")}
+                  placeholder="0.00"
+                />
               </div>
 
               <div className="space-y-2">
@@ -820,18 +809,11 @@ export default function Subscriptions() {
 
             <div className="space-y-2">
               <Label>Price</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  className="pl-6"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  inputMode="decimal"
-                  disabled={variablePrice}
-                />
-              </div>
+              <CurrencyInput
+                value={amount}
+                onChange={setAmount}
+                placeholder="0.00"
+              />
             </div>
 
             <div className="space-y-2">

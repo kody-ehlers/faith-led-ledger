@@ -87,9 +87,10 @@ export default function Expenses() {
       });
       toast.success("Expense added successfully");
     } else {
-      // Add expense for each day in range
+      // Add expense for each day in range, but store range info for display
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
       const amountPerDay = amount / days.length;
+      const rangeGroupId = crypto.randomUUID();
       
       for (const day of days) {
         addExpense({
@@ -99,9 +100,12 @@ export default function Expenses() {
           type,
           date: day.toISOString(),
           assetId: assetId ?? undefined,
+          dateRangeStart: dateRange.from.toISOString(),
+          dateRangeEnd: dateRange.to.toISOString(),
+          rangeGroupId,
         });
       }
-      toast.success(`Expense split across ${days.length} days`);
+      toast.success(`Expense added for ${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`);
     }
 
     setName("");
@@ -413,50 +417,92 @@ export default function Expenses() {
             </p>
           ) : (
             <div className="space-y-3">
-              {expenses
-                .slice()
-                .reverse()
-                .slice(0, 20)
-                .map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-foreground">
-                          {expense.name}
-                        </h4>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            expense.type === "need"
-                              ? "bg-primary/10 text-primary"
-                              : "bg-accent/10 text-accent"
-                          }`}
-                        >
-                          {expense.type}
-                        </span>
-                      </div>
-                      <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                        <span>{formatCurrency(expense.amount)}</span>
-                        <span>•</span>
-                        <span>{expense.category}</span>
-                        <span>•</span>
-                        <span>
-                          {new Date(expense.date).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveExpense(expense.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              {(() => {
+                // Group range expenses by rangeGroupId so we display them as one entry
+                const displayedRangeGroups = new Set<string>();
+                const expensesToShow: typeof expenses = [];
+                
+                const reversedExpenses = [...expenses].reverse();
+                
+                for (const expense of reversedExpenses) {
+                  if (expense.rangeGroupId) {
+                    if (!displayedRangeGroups.has(expense.rangeGroupId)) {
+                      displayedRangeGroups.add(expense.rangeGroupId);
+                      expensesToShow.push(expense);
+                    }
+                  } else {
+                    expensesToShow.push(expense);
+                  }
+                  if (expensesToShow.length >= 20) break;
+                }
+                
+                return expensesToShow.map((expense) => {
+                  // Calculate total amount if it's a range expense
+                  const isRangeExpense = expense.rangeGroupId && expense.dateRangeStart && expense.dateRangeEnd;
+                  let displayAmount = expense.amount;
+                  
+                  if (isRangeExpense) {
+                    displayAmount = expenses
+                      .filter(e => e.rangeGroupId === expense.rangeGroupId)
+                      .reduce((sum, e) => sum + e.amount, 0);
+                  }
+                  
+                  const handleRemoveGroup = () => {
+                    if (isRangeExpense) {
+                      // Remove all expenses in this range group
+                      const toRemove = expenses.filter(e => e.rangeGroupId === expense.rangeGroupId);
+                      toRemove.forEach(e => removeExpense(e.id));
+                      toast.success("Expense range removed");
+                    } else {
+                      handleRemoveExpense(expense.id);
+                    }
+                  };
+                  
+                  return (
+                    <div
+                      key={expense.rangeGroupId || expense.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-foreground">
+                            {expense.name}
+                          </h4>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              expense.type === "need"
+                                ? "bg-primary/10 text-primary"
+                                : "bg-accent/10 text-accent"
+                            }`}
+                          >
+                            {expense.type}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                          <span>{formatCurrency(displayAmount)}</span>
+                          <span>•</span>
+                          <span>{expense.category}</span>
+                          <span>•</span>
+                          <span>
+                            {isRangeExpense
+                              ? `${format(new Date(expense.dateRangeStart!), "MMM d")} - ${format(new Date(expense.dateRangeEnd!), "MMM d, yyyy")}`
+                              : new Date(expense.date).toLocaleDateString()
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleRemoveGroup}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
         </CardContent>

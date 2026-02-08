@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import {
   Popover,
   PopoverTrigger,
@@ -73,7 +74,7 @@ export default function Tithe() {
   const [fullDialogOpen, setFullDialogOpen] = useState(false);
   const [fullDate, setFullDate] = useState<Date>(new Date());
   const [partialDialogOpen, setPartialDialogOpen] = useState(false);
-  const [partialAmount, setPartialAmount] = useState<string>("");
+  const [partialAmount, setPartialAmount] = useState<number | null>(null);
   const [partialDate, setPartialDate] = useState<Date>(new Date());
 
   // Editing existing tithe
@@ -85,7 +86,7 @@ export default function Tithe() {
   const handleMarkAsTithed = () => setFullDialogOpen(true);
 
   const handlePartialTithe = () => {
-    setPartialAmount("");
+    setPartialAmount(null);
     setPartialDate(new Date());
     setPartialDialogOpen(true);
   };
@@ -102,12 +103,11 @@ export default function Tithe() {
   };
 
   const savePartialTithe = () => {
-    const parsed = parseFloat(partialAmount);
-    if (isNaN(parsed) || parsed <= 0) {
+    if (partialAmount === null || partialAmount <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    addTithe({ amount: parsed, date: partialDate.toISOString(), given: true });
+    addTithe({ amount: partialAmount, date: partialDate.toISOString(), given: true });
     toast.success("Tithe recorded. Thank you!");
     setPartialDialogOpen(false);
   };
@@ -434,16 +434,11 @@ export default function Tithe() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Amount</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  className="pl-6"
-                  value={partialAmount}
-                  onChange={(e) => setPartialAmount(e.target.value)}
-                />
-              </div>
+              <CurrencyInput
+                value={partialAmount}
+                onChange={setPartialAmount}
+                placeholder="0.00"
+              />
             </div>
 
             <div className="space-y-2">
@@ -480,23 +475,16 @@ export default function Tithe() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Amount</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    className="pl-6"
-                    type="text"
-                    inputMode="decimal"
-                    value={editingTithe.amount}
-                    onChange={(e) =>
-                      setEditingTithe({
-                        ...editingTithe,
-                        amount: parseFloat(e.target.value),
-                      })
-                    }
-                  />
-                </div>
+                <CurrencyInput
+                  value={editingTithe.amount}
+                  onChange={(v) =>
+                    setEditingTithe({
+                      ...editingTithe,
+                      amount: v ?? 0,
+                    })
+                  }
+                  placeholder="0.00"
+                />
               </div>
 
               <div className="space-y-2">
