@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
@@ -16,21 +17,23 @@ export default function Savings() {
   const { savings, addSavings, updateSavings, removeSavings } =
     useFinanceStore();
   const [name, setName] = useState("");
-  const [current, setCurrent] = useState("");
-  const [goal, setGoal] = useState("");
+  const [current, setCurrent] = useState<number | null>(null);
+  const [goal, setGoal] = useState<number | null>(null);
 
   const handleAdd = () => {
-    const cur = parseFloat(current || "0");
-    const gl = parseFloat(goal || "0");
     if (!name.trim()) {
       toast.error("Enter a name");
       return;
     }
-    addSavings({ name: name.trim(), currentAmount: cur, goalAmount: gl });
+    addSavings({ 
+      name: name.trim(), 
+      currentAmount: current ?? 0, 
+      goalAmount: goal ?? 0 
+    });
     toast.success("Savings account added");
     setName("");
-    setCurrent("");
-    setGoal("");
+    setCurrent(null);
+    setGoal(null);
   };
 
   return (
@@ -72,18 +75,18 @@ export default function Savings() {
             </div>
             <div className="space-y-2">
               <Label>Current Amount</Label>
-              <Input
+              <CurrencyInput
                 value={current}
-                onChange={(e) => setCurrent(e.target.value)}
-                inputMode="decimal"
+                onChange={setCurrent}
+                placeholder="0.00"
               />
             </div>
             <div className="space-y-2">
               <Label>Goal Amount</Label>
-              <Input
+              <CurrencyInput
                 value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                inputMode="decimal"
+                onChange={setGoal}
+                placeholder="0.00"
               />
             </div>
           </div>

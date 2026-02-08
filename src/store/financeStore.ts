@@ -39,6 +39,11 @@ export interface ExpenseEntry {
   type: "need" | "want";
   // Optional association to a wallet asset
   assetId?: string | null;
+  // For date range entries - stores the original range info for display purposes
+  dateRangeStart?: string | null;
+  dateRangeEnd?: string | null;
+  // Groups individual split entries from the same range together
+  rangeGroupId?: string | null;
 }
 
 export interface TithePayment {

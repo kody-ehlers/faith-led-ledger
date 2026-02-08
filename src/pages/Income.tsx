@@ -478,17 +478,11 @@ export default function Income() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>New Amount</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    className="pl-6"
-                    value={adjustAmount}
-                    onChange={(e) => setAdjustAmount(e.target.value)}
-                    inputMode="decimal"
-                  />
-                </div>
+                <CurrencyInput
+                  value={parseFloat(adjustAmount) || null}
+                  onChange={(v) => setAdjustAmount(v !== null ? v.toString() : "")}
+                  placeholder="0.00"
+                />
               </div>
 
               <div className="space-y-2">
