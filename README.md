@@ -1,5 +1,10 @@
 # Welcome to your Lovable project
 
+## TODO
+
+- [ ] Ability to switch which wallet item is used for income/bills/subscriptions/investments/debt... specifically nice for auto pay and income
+- [ ] Remove suggestions from some fields (e.g. Add Income: Source)
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/ba5a6a34-4206-46fb-9a41-ec1ab444cbab

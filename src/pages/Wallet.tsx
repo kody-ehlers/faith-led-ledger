@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useFinanceStore, type LiquidAsset } from "@/store/financeStore";
-import { formatCurrency } from "@/utils/calculations";
+import { formatCurrency, calculateWalletTransactions, calculateWalletBalance } from "@/utils/calculations";
 import { toast } from "sonner";
 import {
   Popover,
@@ -34,9 +34,11 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { History } from "lucide-react";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, income, expenses, bills, subscriptions, tithes } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
@@ -72,6 +74,9 @@ export default function Wallet() {
   const [adjustDate, setAdjustDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
+  // History modal state
+  const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleAdd = () => {
     if (!name.trim()) {
@@ -92,6 +97,11 @@ export default function Wallet() {
     setName("");
     setStartingAmount("");
     setPaymentDueDay("");
+  };
+
+  const openHistory = (assetId: string) => {
+    setHistoryAssetId(assetId);
+    setIsHistoryOpen(true);
   };
 
   return (
@@ -225,15 +235,13 @@ export default function Wallet() {
                     {a.closed ? " • Closed" : ""}
                   </small>
                 </span>
-                {/* Display balances: credit cards show negative only when balance < 0; zero or positive show without negative */}
+                {/* Display calculated balance from all transactions */}
                 {(() => {
-                  const raw = a.currentAmount ?? 0;
-                  // If credit card, keep stored sign (negative means owed). Only force negative when < 0.
-                  const display = raw;
-                  const cls = display < 0 ? "text-destructive" : "text-success";
+                  const calculatedBalance = calculateWalletBalance(a, income, expenses, bills, subscriptions, tithes);
+                  const cls = calculatedBalance < 0 ? "text-destructive" : "text-success";
                   return (
                     <span className={`font-semibold ${cls}`}>
-                      {formatCurrency(display)}
+                      {formatCurrency(calculatedBalance)}
                     </span>
                   );
                 })()}
@@ -246,6 +254,15 @@ export default function Wallet() {
                   ? parseDateSafe(a.enactDate).toLocaleDateString()
                   : "—"}
               </div>
+
+              {a.type === "Credit Card" && a.paymentDueDay && (
+                <div className="text-sm text-muted-foreground mb-2">
+                  Payment Due:{" "}
+                  <span className="font-medium text-foreground">
+                    Day {a.paymentDueDay} of each month
+                  </span>
+                </div>
+              )}
 
               {/* Only show transactions for Credit Card accounts */}
               {a.type === "Credit Card" && (
@@ -299,6 +316,15 @@ export default function Wallet() {
               )}
 
               <div className="mt-4 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openHistory(a.id)}
+                  className="flex items-center gap-2"
+                >
+                  <History className="h-4 w-4" />
+                  History
+                </Button>
                 {!a.closed && (
                   <Button
                     variant="outline"
@@ -352,6 +378,92 @@ export default function Wallet() {
               >
                 Remove Account
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Transaction History Modal */}
+        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Transaction History -{" "}
+                {assets.find((a) => a.id === historyAssetId)?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {historyAssetId && (() => {
+                const asset = assets.find((a) => a.id === historyAssetId);
+                if (!asset) return null;
+
+                const transactions = calculateWalletTransactions(
+                  historyAssetId,
+                  asset,
+                  income,
+                  expenses,
+                  bills,
+                  subscriptions,
+                  tithes
+                );
+
+                if (transactions.length === 0) {
+                  return (
+                    <div className="text-center text-muted-foreground py-8">
+                      No transactions recorded for this account.
+                    </div>
+                  );
+                }
+
+                return (
+                  <ScrollArea className="h-96 w-full border rounded-lg">
+                    <div className="p-4 space-y-3">
+                      {transactions.map((tx, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">
+                                {tx.description}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {new Date(tx.date + "T00:00:00").toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                }
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div
+                              className={`font-semibold flex items-center gap-1 ${tx.amount >= 0
+                                ? "text-success"
+                                : "text-destructive"
+                                }`}
+                            >
+                              <span>
+                                {tx.amount >= 0 ? "+" : ""}
+                                {formatCurrency(tx.amount)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Balance: {formatCurrency(tx.balance)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                );
+              })()}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsHistoryOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

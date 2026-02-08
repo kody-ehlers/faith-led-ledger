@@ -111,6 +111,33 @@ export interface BillEntry {
   paidMonths?: string[]; // Array of YYYY-MM strings
 }
 
+export interface InvestmentEntry {
+  id: string;
+  name: string;
+  contributionAmount: number; // amount contributed per period
+  frequency: "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
+  date: string; // start date ISO
+  notes?: string;
+  // Optional asset this investment is funded from
+  assetId?: string | null;
+  // Money earned (interest, capital gains, dividends, etc.)
+  moneyEarned: number; // cumulative earnings
+  // Earnings history to track when money was earned
+  earningsHistory?: Array<{
+    id: string;
+    date: string; // ISO date
+    amount: number; // positive for gains, negative for losses
+    description?: string; // e.g., "Interest earned", "Capital gain", "Dividend"
+  }>;
+  // Paused/resumed tracking
+  pausedFrom?: string | null;
+  pausedTo?: string | null;
+  pausedIndefinitely?: boolean;
+  pausedNote?: string | null;
+  // Contribution history
+  contributedMonths?: string[]; // Array of YYYY-MM strings tracking when contributions were made
+}
+
 export interface LiquidAsset {
   id: string;
   name: string;
@@ -163,6 +190,7 @@ interface FinanceState {
   assets: LiquidAsset[];
   subscriptions: SubscriptionEntry[];
   bills: BillEntry[];
+  investments: InvestmentEntry[];
   appName: string;
   expenseCategories: string[]; // Custom expense categories
 
@@ -236,6 +264,13 @@ interface FinanceState {
   ) => void;
   renewBill: (id: string) => void;
   
+  // Investments
+  addInvestment: (entry: Omit<InvestmentEntry, "id" | "moneyEarned" | "earningsHistory" | "contributedMonths">) => void;
+  removeInvestment: (id: string) => void;
+  updateInvestment: (id: string, updates: Partial<InvestmentEntry>) => void;
+  addEarnings: (investmentId: string, amount: number, description?: string) => void;
+  recordContribution: (investmentId: string, month: string) => void;
+  
   // Expense Categories
   addExpenseCategory: (category: string) => void;
   removeExpenseCategory: (category: string) => void;
@@ -254,6 +289,7 @@ export const useFinanceStore = create<FinanceState>()(
       debts: [],
       subscriptions: [],
       bills: [],
+      investments: [],
       appName: "My Finances",
       expenseCategories: [
         "Groceries",
@@ -680,6 +716,68 @@ export const useFinanceStore = create<FinanceState>()(
                   cancelledNote: undefined,
                 }
               : b
+          ),
+        })),
+
+      addInvestment: (entry) =>
+        set((state) => ({
+          investments: [
+            ...state.investments,
+            {
+              ...entry,
+              id: crypto.randomUUID(),
+              moneyEarned: 0,
+              earningsHistory: [],
+              contributedMonths: [],
+            },
+          ],
+        })),
+
+      removeInvestment: (id) =>
+        set((state) => ({
+          investments: state.investments.filter((inv) => inv.id !== id),
+        })),
+
+      updateInvestment: (id, updates) =>
+        set((state) => ({
+          investments: state.investments.map((inv) =>
+            inv.id === id ? { ...inv, ...updates } : inv
+          ),
+        })),
+
+      addEarnings: (investmentId, amount, description = "") =>
+        set((state) => ({
+          investments: state.investments.map((inv) =>
+            inv.id === investmentId
+              ? {
+                  ...inv,
+                  moneyEarned: (inv.moneyEarned || 0) + amount,
+                  earningsHistory: [
+                    ...(inv.earningsHistory || []),
+                    {
+                      id: crypto.randomUUID(),
+                      date: new Date().toISOString(),
+                      amount,
+                      description,
+                    },
+                  ],
+                }
+              : inv
+          ),
+        })),
+
+      recordContribution: (investmentId, month) =>
+        set((state) => ({
+          investments: state.investments.map((inv) =>
+            inv.id === investmentId
+              ? {
+                  ...inv,
+                  contributedMonths: [
+                    ...(inv.contributedMonths || []),
+                    month,
+                  ].filter((v, i, a) => a.indexOf(v) === i), // deduplicate
+                }
+              : inv
           ),
         })),
       

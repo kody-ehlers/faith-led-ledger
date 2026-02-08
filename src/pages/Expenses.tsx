@@ -41,10 +41,10 @@ import { toast } from "sonner";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 
 export default function Expenses() {
-  const { 
-    expenses, 
-    addExpense, 
-    removeExpense, 
+  const {
+    expenses,
+    addExpense,
+    removeExpense,
     assets,
     expenseCategories,
     addExpenseCategory,
@@ -55,7 +55,7 @@ export default function Expenses() {
   const [category, setCategory] = useState(expenseCategories[0] || "Other");
   const [type, setType] = useState<"need" | "want">("need");
   const [assetId, setAssetId] = useState<string | null>(null);
-  
+
   // Date selection mode
   const [dateMode, setDateMode] = useState<"single" | "range">("single");
   const [singleDate, setSingleDate] = useState<Date>(new Date());
@@ -64,7 +64,7 @@ export default function Expenses() {
     to: new Date(),
   });
   const [isDateOpen, setIsDateOpen] = useState(false);
-  
+
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
@@ -91,7 +91,7 @@ export default function Expenses() {
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
       const amountPerDay = amount / days.length;
       const rangeGroupId = crypto.randomUUID();
-      
+
       for (const day of days) {
         addExpense({
           name: name.trim(),
@@ -285,19 +285,31 @@ export default function Expenses() {
                       }}
                     />
                   ) : (
-                    <Calendar
-                      mode="range"
-                      selected={{ from: dateRange.from, to: dateRange.to }}
-                      onSelect={(range) => {
-                        if (range?.from && range?.to) {
-                          setDateRange({ from: range.from, to: range.to });
-                          setIsDateOpen(false);
-                        } else if (range?.from) {
-                          setDateRange({ from: range.from, to: range.from });
-                        }
-                      }}
-                      numberOfMonths={2}
-                    />
+                    <div className="space-y-2 p-2">
+                      <Calendar
+                        mode="range"
+                        selected={{ from: dateRange.from, to: dateRange.to }}
+                        onSelect={(range) => {
+                          if (range?.from) {
+                            setDateRange({
+                              from: range.from,
+                              to: range.to || range.from
+                            });
+                          }
+                        }}
+                        numberOfMonths={2}
+                      />
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsDateOpen(false)}
+                          className="flex-1"
+                        >
+                          Done
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </PopoverContent>
               </Popover>
@@ -421,9 +433,9 @@ export default function Expenses() {
                 // Group range expenses by rangeGroupId so we display them as one entry
                 const displayedRangeGroups = new Set<string>();
                 const expensesToShow: typeof expenses = [];
-                
+
                 const reversedExpenses = [...expenses].reverse();
-                
+
                 for (const expense of reversedExpenses) {
                   if (expense.rangeGroupId) {
                     if (!displayedRangeGroups.has(expense.rangeGroupId)) {
@@ -435,18 +447,18 @@ export default function Expenses() {
                   }
                   if (expensesToShow.length >= 20) break;
                 }
-                
+
                 return expensesToShow.map((expense) => {
                   // Calculate total amount if it's a range expense
                   const isRangeExpense = expense.rangeGroupId && expense.dateRangeStart && expense.dateRangeEnd;
                   let displayAmount = expense.amount;
-                  
+
                   if (isRangeExpense) {
                     displayAmount = expenses
                       .filter(e => e.rangeGroupId === expense.rangeGroupId)
                       .reduce((sum, e) => sum + e.amount, 0);
                   }
-                  
+
                   const handleRemoveGroup = () => {
                     if (isRangeExpense) {
                       // Remove all expenses in this range group
@@ -457,7 +469,7 @@ export default function Expenses() {
                       handleRemoveExpense(expense.id);
                     }
                   };
-                  
+
                   return (
                     <div
                       key={expense.rangeGroupId || expense.id}
@@ -469,11 +481,10 @@ export default function Expenses() {
                             {expense.name}
                           </h4>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              expense.type === "need"
+                            className={`text-xs px-2 py-0.5 rounded-full ${expense.type === "need"
                                 ? "bg-primary/10 text-primary"
                                 : "bg-accent/10 text-accent"
-                            }`}
+                              }`}
                           >
                             {expense.type}
                           </span>
