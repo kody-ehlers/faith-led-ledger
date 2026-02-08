@@ -6,6 +6,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
@@ -18,7 +19,7 @@ const STORAGE_KEY = "app.investments.v1";
 export default function Investments() {
   const [items, setItems] = useState<Investment[]>([]);
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -35,19 +36,18 @@ export default function Investments() {
   };
 
   const handleAdd = () => {
-    const amt = parseFloat(amount || "0");
     if (!name.trim()) {
       toast.error("Enter a name");
       return;
     }
     const next = [
       ...items,
-      { id: crypto.randomUUID(), name: name.trim(), currentAmount: amt },
+      { id: crypto.randomUUID(), name: name.trim(), currentAmount: amount ?? 0 },
     ];
     persist(next);
     toast.success("Investment added");
     setName("");
-    setAmount("");
+    setAmount(null);
   };
 
   const handleRemove = (id: string) => {
@@ -95,10 +95,9 @@ export default function Investments() {
             </div>
             <div className="space-y-2">
               <Label>Current Value</Label>
-              <Input
+              <CurrencyInput
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                inputMode="decimal"
+                onChange={(v) => setAmount(v)}
               />
             </div>
           </div>

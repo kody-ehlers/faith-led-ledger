@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
@@ -36,44 +37,42 @@ export default function Debt() {
     addAssetTransaction,
   } = useFinanceStore();
   const [name, setName] = useState("");
-  const [balance, setBalance] = useState("");
-  const [minPayment, setMinPayment] = useState("");
+  const [balance, setBalance] = useState<number | null>(null);
+  const [minPayment, setMinPayment] = useState<number | null>(null);
 
   const handleAdd = () => {
-    const bal = parseFloat(balance || "0");
-    const min = parseFloat(minPayment || "0");
     if (!name.trim()) {
       toast.error("Enter a name");
       return;
     }
     addDebt({
       name: name.trim(),
-      balance: bal,
+      balance: balance ?? 0,
       interestRate: 0,
-      minimumPayment: min,
+      minimumPayment: minPayment ?? 0,
       dueDate: new Date().toISOString(),
     });
     toast.success("Debt added");
     setName("");
-    setBalance("");
-    setMinPayment("");
+    setBalance(null);
+    setMinPayment(null);
   };
 
   // Payment dialog state
   const [payFor, setPayFor] = useState<string | null>(null);
-  const [payAmount, setPayAmount] = useState<string>("");
+  const [payAmount, setPayAmount] = useState<number | null>(null);
   const [payAsset, setPayAsset] = useState<string | null>(null);
 
-  const openPay = (debtId: string, balance: number) => {
+  const openPay = (debtId: string, debtBalance: number) => {
     setPayFor(debtId);
-    setPayAmount(balance.toFixed(2));
+    setPayAmount(debtBalance);
     setPayAsset(assets.find((a) => a.type !== "Credit Card")?.id ?? null);
   };
 
   const confirmPay = () => {
     if (!payFor) return;
-    const amt = Number(payAmount);
-    if (Number.isNaN(amt) || amt <= 0) {
+    const amt = payAmount ?? 0;
+    if (amt <= 0) {
       toast.error("Enter a valid amount");
       return;
     }
@@ -131,18 +130,16 @@ export default function Debt() {
             </div>
             <div className="space-y-2">
               <Label>Balance</Label>
-              <Input
+              <CurrencyInput
                 value={balance}
-                onChange={(e) => setBalance(e.target.value)}
-                inputMode="decimal"
+                onChange={(v) => setBalance(v)}
               />
             </div>
             <div className="space-y-2">
               <Label>Minimum Payment</Label>
-              <Input
+              <CurrencyInput
                 value={minPayment}
-                onChange={(e) => setMinPayment(e.target.value)}
-                inputMode="decimal"
+                onChange={(v) => setMinPayment(v)}
               />
             </div>
           </div>
@@ -245,9 +242,9 @@ export default function Debt() {
 
             <div className="space-y-2">
               <Label>Amount</Label>
-              <Input
+              <CurrencyInput
                 value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
+                onChange={(v) => setPayAmount(v)}
               />
             </div>
           </div>

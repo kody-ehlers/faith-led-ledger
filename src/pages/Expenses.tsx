@@ -30,8 +30,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, ShoppingCart, Settings } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { format, eachDayOfInterval, parseISO } from "date-fns";
 
 export default function Expenses() {
   const { 
@@ -49,6 +56,15 @@ export default function Expenses() {
   const [type, setType] = useState<"need" | "want">("need");
   const [assetId, setAssetId] = useState<string | null>(null);
   
+  // Date selection mode
+  const [dateMode, setDateMode] = useState<"single" | "range">("single");
+  const [singleDate, setSingleDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [isDateOpen, setIsDateOpen] = useState(false);
+  
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
@@ -59,16 +75,35 @@ export default function Expenses() {
       return;
     }
 
-    addExpense({
-      name: name.trim(),
-      amount: amount,
-      category,
-      type,
-      date: new Date().toISOString(),
-      assetId: assetId ?? undefined,
-    });
+    if (dateMode === "single") {
+      // Add single expense
+      addExpense({
+        name: name.trim(),
+        amount: amount,
+        category,
+        type,
+        date: singleDate.toISOString(),
+        assetId: assetId ?? undefined,
+      });
+      toast.success("Expense added successfully");
+    } else {
+      // Add expense for each day in range
+      const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+      const amountPerDay = amount / days.length;
+      
+      for (const day of days) {
+        addExpense({
+          name: name.trim(),
+          amount: amountPerDay,
+          category,
+          type,
+          date: day.toISOString(),
+          assetId: assetId ?? undefined,
+        });
+      }
+      toast.success(`Expense split across ${days.length} days`);
+    }
 
-    toast.success("Expense added successfully");
     setName("");
     setAmount(null);
     setCategory(expenseCategories[0] || "Other");
@@ -182,7 +217,7 @@ export default function Expenses() {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Add Expense</CardTitle>
-          <CardDescription>Record a new expense</CardDescription>
+          <CardDescription>Record a new expense or batch entry for a date range</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -197,11 +232,71 @@ export default function Expenses() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expenseAmount">Amount</Label>
+              <Label htmlFor="expenseAmount">
+                Amount {dateMode === "range" ? "(will be split across days)" : ""}
+              </Label>
               <CurrencyInput
                 value={amount}
                 onChange={(v) => setAmount(v)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date Mode</Label>
+              <Select value={dateMode} onValueChange={(v: "single" | "range") => setDateMode(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single Date</SelectItem>
+                  <SelectItem value="range">Date Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{dateMode === "single" ? "Date" : "Date Range"}</Label>
+              <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateMode === "single"
+                      ? format(singleDate, "PPP")
+                      : `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d, yyyy")}`}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  {dateMode === "single" ? (
+                    <Calendar
+                      mode="single"
+                      selected={singleDate}
+                      onSelect={(d) => {
+                        if (d) {
+                          setSingleDate(d);
+                          setIsDateOpen(false);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Calendar
+                      mode="range"
+                      selected={{ from: dateRange.from, to: dateRange.to }}
+                      onSelect={(range) => {
+                        if (range?.from && range?.to) {
+                          setDateRange({ from: range.from, to: range.to });
+                          setIsDateOpen(false);
+                        } else if (range?.from) {
+                          setDateRange({ from: range.from, to: range.from });
+                        }
+                      }}
+                      numberOfMonths={2}
+                    />
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
