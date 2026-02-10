@@ -38,7 +38,8 @@ import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 
-type Frequency = "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
+import type { RecurringFrequency } from "@/store/financeStore";
+type Frequency = RecurringFrequency;
 
 export default function Investments() {
   const {
@@ -287,9 +288,10 @@ export default function Investments() {
                       <SelectContent>
                         <SelectItem value="Weekly">Weekly</SelectItem>
                         <SelectItem value="Biweekly">Biweekly</SelectItem>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Quarterly">Quarterly</SelectItem>
-                        <SelectItem value="Yearly">Yearly</SelectItem>
+                         <SelectItem value="Monthly">Monthly</SelectItem>
+                         <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                         <SelectItem value="Quarterly">Quarterly</SelectItem>
+                         <SelectItem value="Yearly">Yearly</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -330,7 +332,7 @@ export default function Investments() {
                         <SelectValue placeholder="Select account" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__external">From External Account</SelectItem>
+                        <SelectItem value="__external">External Account</SelectItem>
                         {assets.map((a) => (
                           <SelectItem key={a.id} value={a.id}>
                             {a.name} • {a.type}
@@ -343,7 +345,7 @@ export default function Investments() {
               )}
             </div>
 
-            <Button onClick={handleAdd} className="w-full bg-emerald hover:bg-emerald/90">
+            <Button onClick={handleAdd} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
               Add Investment
             </Button>

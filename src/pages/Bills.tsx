@@ -38,7 +38,8 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 
-type Frequency = "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
+import type { RecurringFrequency } from "@/store/financeStore";
+type Frequency = RecurringFrequency;
 
 export default function Bills() {
   const {
@@ -134,21 +135,43 @@ export default function Bills() {
 
     const cancelledNow = isCancelledNow();
 
-    // Check if current month is paid
-    const currentMonth = format(new Date(), "yyyy-MM");
-    const isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
+    // Determine if this bill should be paid in the current iteration
+    const now = new Date();
+    const currentMonth = format(now, "yyyy-MM");
+    const currentYear = now.getFullYear().toString();
+    const startDate = new Date(entry.date);
+
+    let isPaidCurrentIteration = false;
+
+    if (entry.frequency === "Yearly") {
+      isPaidCurrentIteration = (entry.paidMonths || []).some((m) => m.startsWith(currentYear));
+    } else if (entry.frequency === "Quarterly") {
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const quarterMonths = [currentQuarter * 3, currentQuarter * 3 + 1, currentQuarter * 3 + 2].map(
+        (m) => format(new Date(now.getFullYear(), m, 1), "yyyy-MM")
+      );
+      isPaidCurrentIteration = (entry.paidMonths || []).some((m) => quarterMonths.includes(m));
+    } else if (entry.frequency === "Bimonthly") {
+      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+      const isPayMonth = monthsSinceStart % 2 === 0;
+      const checkMonth = isPayMonth ? currentMonth : format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
+      isPaidCurrentIteration = (entry.paidMonths || []).includes(checkMonth);
+    } else {
+      isPaidCurrentIteration = entry.paidMonths?.includes(currentMonth) ?? false;
+    }
+
     const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
 
     const togglePaidThisMonth = () => {
-      const updated = isPaidThisMonth
+      const updated = isPaidCurrentIteration
         ? (entry.paidMonths || []).filter((m) => m !== currentMonth)
         : [...(entry.paidMonths || []), currentMonth];
       updateBill(entry.id, { paidMonths: updated });
-      toast.success(isPaidThisMonth ? "Marked as unpaid" : "Marked as paid");
+      toast.success(isPaidCurrentIteration ? "Marked as unpaid" : "Marked as paid");
     };
 
     // Card background based on payment status - green for paid OR autopay
-    const isPaidOrAutopay = entry.autopay || isPaidThisMonth;
+    const isPaidOrAutopay = entry.autopay || isPaidCurrentIteration;
     const cardBg = isPaidOrAutopay
       ? "bg-green-500/10 border-green-500/30"
       : "bg-red-500/10 border-red-500/30";
@@ -161,7 +184,7 @@ export default function Bills() {
           {!entry.autopay && (
             <div className="flex flex-col items-center gap-1">
               <Checkbox
-                checked={isPaidThisMonth}
+                checked={isPaidCurrentIteration}
                 onCheckedChange={togglePaidThisMonth}
               />
               <span className="text-xs text-muted-foreground">
@@ -797,9 +820,10 @@ export default function Bills() {
                     <SelectContent>
                       <SelectItem value="Weekly">Weekly</SelectItem>
                       <SelectItem value="Biweekly">Biweekly</SelectItem>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Quarterly">Quarterly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
+                       <SelectItem value="Monthly">Monthly</SelectItem>
+                       <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                       <SelectItem value="Quarterly">Quarterly</SelectItem>
+                       <SelectItem value="Yearly">Yearly</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -822,6 +846,44 @@ export default function Bills() {
                     }
                   />
                   <Label>Autopay Enabled</Label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        {format(new Date(editing.date), "PPP")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="bottom" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(editing.date)}
+                        onSelect={(d) => d && setEditing({ ...editing, date: d.toISOString() })}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Wallet</Label>
+                  <Select
+                    value={editing.assetId ?? "__external"}
+                    onValueChange={(v) => setEditing({ ...editing, assetId: v === "__external" ? undefined : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__external">External Account</SelectItem>
+                      {assets.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} • {a.type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -900,9 +962,10 @@ export default function Bills() {
                 <SelectContent>
                   <SelectItem value="Weekly">Weekly</SelectItem>
                   <SelectItem value="Biweekly">Biweekly</SelectItem>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                  <SelectItem value="Yearly">Yearly</SelectItem>
+                   <SelectItem value="Monthly">Monthly</SelectItem>
+                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                   <SelectItem value="Quarterly">Quarterly</SelectItem>
+                   <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -956,7 +1019,7 @@ export default function Bills() {
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__external">From External Account</SelectItem>
+                  <SelectItem value="__external">External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}

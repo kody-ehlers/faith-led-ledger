@@ -89,6 +89,8 @@ export const getEntryIncomeForMonth = (
         return addDays(date, 14);
       case "Monthly":
         return addMonths(date, 1);
+      case "Bimonthly":
+        return addMonths(date, 2);
       case "Quarterly":
         return addMonths(date, 3);
       case "Yearly":
@@ -196,6 +198,8 @@ const calculateIncomeForMonth = (
           return addDays(date, 14);
         case "Monthly":
           return addMonths(date, 1);
+        case "Bimonthly":
+          return addMonths(date, 2);
         case "Quarterly":
           return addMonths(date, 3);
         case "Yearly":
@@ -282,6 +286,8 @@ export const calculatePostTaxIncomeForMonth = (
           return addDays(date, 14);
         case "Monthly":
           return addMonths(date, 1);
+        case "Bimonthly":
+          return addMonths(date, 2);
         case "Quarterly":
           return addMonths(date, 3);
         case "Yearly":
@@ -372,6 +378,8 @@ export const calculatePostTaxIncomeReceivedSoFar = (
           return addDays(date, 14);
         case "Monthly":
           return addMonths(date, 1);
+        case "Bimonthly":
+          return addMonths(date, 2);
         case "Quarterly":
           return addMonths(date, 3);
         case "Yearly":
@@ -517,6 +525,8 @@ export const calculateWalletTransactions = (
             return addDays(date, 14);
           case "Monthly":
             return addMonths(date, 1);
+          case "Bimonthly":
+            return addMonths(date, 2);
           case "Quarterly":
             return addMonths(date, 3);
           case "Yearly":
@@ -615,6 +625,8 @@ export const calculateWalletTransactions = (
             return addDays(date, 14);
           case "Monthly":
             return addMonths(date, 1);
+          case "Bimonthly":
+            return addMonths(date, 2);
           case "Quarterly":
             return addMonths(date, 3);
           case "Yearly":
