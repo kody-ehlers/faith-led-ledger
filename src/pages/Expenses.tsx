@@ -360,14 +360,14 @@ export default function Expenses() {
             <div className="space-y-2">
               <Label>Wallet</Label>
               <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+                value={assetId ?? "__external"}
+                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select account (optional)" />
+                  <SelectValue placeholder="Select account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
+                  <SelectItem value="__external">From External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}
@@ -482,8 +482,8 @@ export default function Expenses() {
                           </h4>
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ${expense.type === "need"
-                                ? "bg-primary/10 text-primary"
-                                : "bg-accent/10 text-accent"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-accent/10 text-accent"
                               }`}
                           >
                             {expense.type}

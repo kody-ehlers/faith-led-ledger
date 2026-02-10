@@ -32,10 +32,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, TrendingUp } from "lucide-react";
+import { Trash2, Plus, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 
 type Frequency = "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
 
@@ -48,15 +49,24 @@ export default function Investments() {
     assets,
   } = useFinanceStore();
 
+  // Add Investment form
   const [name, setName] = useState("");
-  const [contributionAmount, setContributionAmount] = useState<number | null>(
-    null
-  );
+  const [initialContribution, setInitialContribution] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [autoDeposit, setAutoDeposit] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  // Auto-deposit fields (shown conditionally)
+  const [contributionAmount, setContributionAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [date, setDate] = useState<Date>(new Date());
-  const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
   const [isDateOpen, setIsDateOpen] = useState(false);
+
+  // One-time contribution dialog
+  const [contributionTarget, setContributionTarget] = useState<string | null>(null);
+  const [contributionAmount2, setContributionAmount2] = useState<number | null>(null);
+  const [isContributionOpen, setIsContributionOpen] = useState(false);
 
   // Earnings tracking
   const [earningsTarget, setEarningsTarget] = useState<string | null>(null);
@@ -69,31 +79,55 @@ export default function Investments() {
       toast.error("Please provide a name");
       return;
     }
-    if (contributionAmount === null || contributionAmount <= 0) {
-      toast.error("Please provide a contribution amount");
+    if (initialContribution === null || initialContribution <= 0) {
+      toast.error("Please provide an initial contribution");
       return;
+    }
+    if (autoDeposit) {
+      if (contributionAmount === null || contributionAmount <= 0) {
+        toast.error("Please provide a contribution amount");
+        return;
+      }
     }
 
     addInvestment({
       name: name.trim(),
-      contributionAmount,
-      frequency,
-      date: date.toISOString(),
+      contributionAmount: autoDeposit ? (contributionAmount ?? 0) : 0,
+      frequency: autoDeposit ? frequency : "Monthly",
+      date: autoDeposit ? date.toISOString() : new Date().toISOString(),
       notes: notes.trim(),
-      assetId: assetId ?? undefined,
+      assetId: (autoDeposit ? assetId : null) ?? undefined,
     });
+
+    // If initial contribution, record it
+    const inv = investments.find(i => i.name === name.trim());
+    if (inv && initialContribution > 0) {
+      addEarnings(inv.id, -initialContribution, "Initial contribution");
+    }
+
     toast.success("Investment added");
     setName("");
+    setInitialContribution(null);
+    setNotes("");
+    setAutoDeposit(false);
     setContributionAmount(null);
     setFrequency("Monthly");
     setDate(new Date());
-    setNotes("");
     setAssetId(null);
+    setShowForm(false);
   };
 
-  const handleRemove = (id: string) => {
-    removeInvestment(id);
-    toast.success("Investment removed");
+  const handleAddContribution = () => {
+    if (!contributionTarget || contributionAmount2 === null || contributionAmount2 === 0) {
+      toast.error("Please provide amount");
+      return;
+    }
+
+    addEarnings(contributionTarget, -contributionAmount2, "One-time contribution");
+    toast.success("Contribution recorded");
+    setContributionTarget(null);
+    setContributionAmount2(null);
+    setIsContributionOpen(false);
   };
 
   const handleAddEarnings = () => {
@@ -108,6 +142,16 @@ export default function Investments() {
     setEarningsAmount(null);
     setEarningsDescription("");
     setIsEarningsOpen(false);
+  };
+
+  const handleRemove = (id: string) => {
+    removeInvestment(id);
+    toast.success("Investment removed");
+  };
+
+  const getWalletDisplay = (assetId: string | null | undefined) => {
+    if (!assetId) return "External Account";
+    return assets.find((a) => a.id === assetId)?.name || "Unknown";
   };
 
   const totalContributed = investments.reduce((sum, inv) => {
@@ -173,108 +217,138 @@ export default function Investments() {
         </Card>
       </div>
 
-      {/* Add Investment Form */}
+      {/* Add Investment Form - Simplified with collapsible auto-deposit */}
       <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Add Investment</CardTitle>
-          <CardDescription>Set up an automatic recurring investment</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Investment Name</Label>
-              <Input
-                placeholder="e.g., Roth IRA, Brokerage Account"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+        <CardHeader className="cursor-pointer" onClick={() => setShowForm(!showForm)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Add Investment</CardTitle>
+              <CardDescription>Create a new investment account</CardDescription>
             </div>
-
-            <div className="space-y-2">
-              <Label>Contribution Amount</Label>
-              <CurrencyInput
-                value={contributionAmount}
-                onChange={(v) => setContributionAmount(v)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Frequency</Label>
-              <Select value={frequency} onValueChange={(v: Frequency) => setFrequency(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Weekly">Weekly</SelectItem>
-                  <SelectItem value="Biweekly">Biweekly</SelectItem>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                  <SelectItem value="Yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    {format(date, "PPP")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => {
-                      if (d) {
-                        setDate(d);
-                        setIsDateOpen(false);
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Linked Wallet (optional)</Label>
-              <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} • {a.type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Input
-                placeholder="e.g., 401k, tax-advantaged"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+            {showForm ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
           </div>
+        </CardHeader>
+        {showForm && (
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Investment Name</Label>
+                <Input
+                  placeholder="e.g., Roth IRA, Brokerage Account"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
 
-          <Button onClick={handleAdd} className="w-full bg-emerald hover:bg-emerald/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Investment
-          </Button>
-        </CardContent>
+              <div className="space-y-2">
+                <Label>Initial Contribution</Label>
+                <CurrencyInput
+                  value={initialContribution}
+                  onChange={(v) => setInitialContribution(v)}
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-2">
+                <Label>Notes (optional)</Label>
+                <Input
+                  placeholder="e.g., 401k, tax-advantaged, etc."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                <Switch
+                  checked={autoDeposit}
+                  onCheckedChange={setAutoDeposit}
+                  id="auto-deposit"
+                />
+                <Label htmlFor="auto-deposit" className="cursor-pointer">
+                  Auto Deposit? (Set up automatic recurring contributions)
+                </Label>
+              </div>
+
+              {autoDeposit && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Contribution Amount</Label>
+                    <CurrencyInput
+                      value={contributionAmount}
+                      onChange={(v) => setContributionAmount(v)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Frequency</Label>
+                    <Select value={frequency} onValueChange={(v: Frequency) => setFrequency(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Biweekly">Biweekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Quarterly">Quarterly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          {format(date, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={(d) => {
+                            if (d) {
+                              setDate(d);
+                              setIsDateOpen(false);
+                            }
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="md:col-span-2 space-y-2">
+                    <Label>Fund From Wallet</Label>
+                    <Select
+                      value={assetId ?? "__external"}
+                      onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__external">From External Account</SelectItem>
+                        {assets.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} • {a.type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <Button onClick={handleAdd} className="w-full bg-emerald hover:bg-emerald/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Investment
+            </Button>
+          </CardContent>
+        )}
       </Card>
 
       {/* Investments List */}
@@ -283,7 +357,7 @@ export default function Investments() {
           <Card>
             <CardContent className="py-8">
               <p className="text-center text-muted-foreground">
-                No investments created yet. Add one to get started.
+                No investments created yet. Click the form above to add one.
               </p>
             </CardContent>
           </Card>
@@ -291,88 +365,84 @@ export default function Investments() {
           investments.map((inv) => (
             <Card key={inv.id} className="shadow-md">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{inv.name}</span>
-                  <span className="text-sm font-semibold flex items-center gap-2">
-                    <span
-                      className={`${(inv.moneyEarned || 0) >= 0
-                          ? "text-success"
-                          : "text-destructive"
-                        }`}
-                    >
-                      {formatCurrency((inv.moneyEarned || 0))}
-                    </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle>{inv.name}</CardTitle>
+                    {inv.notes && (
+                      <CardDescription>{inv.notes}</CardDescription>
+                    )}
+                  </div>
+                  <span
+                    className={`text-lg font-bold ${(inv.moneyEarned || 0) >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                      }`}
+                  >
+                    {formatCurrency((inv.moneyEarned || 0))}
                   </span>
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Contribution</div>
-                    <div className="font-semibold text-foreground">
-                      {formatCurrency(inv.contributionAmount)} / {frequency.toLowerCase()}
+                  {inv.contributionAmount > 0 ? (
+                    <div>
+                      <div className="text-xs text-muted-foreground">Auto Deposit</div>
+                      <div className="font-semibold text-foreground">
+                        {formatCurrency(inv.contributionAmount)} / {inv.frequency.toLowerCase()}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div>
+                      <div className="text-xs text-muted-foreground">Deposits</div>
+                      <div className="font-semibold text-foreground">Manual</div>
+                    </div>
+                  )}
                   <div>
-                    <div className="text-xs text-muted-foreground">Start Date</div>
+                    <div className="text-xs text-muted-foreground">Started</div>
                     <div className="font-semibold text-foreground">
                       {new Date(inv.date).toLocaleDateString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Contributions Made</div>
+                    <div className="text-xs text-muted-foreground">Funded From</div>
                     <div className="font-semibold text-foreground">
-                      {inv.contributedMonths?.length || 0}
+                      {getWalletDisplay(inv.assetId)}
                     </div>
                   </div>
                 </div>
 
-                {inv.notes && (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">Notes:</span> {inv.notes}
-                  </div>
-                )}
-
-                {inv.assetId && (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">Funded from:</span>{" "}
-                    {assets.find((a) => a.id === inv.assetId)?.name}
-                  </div>
-                )}
-
                 {/* Earnings History */}
                 {inv.earningsHistory && inv.earningsHistory.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
-                    <div className="text-sm font-semibold mb-2">Recent Earnings</div>
-                    <ScrollArea className="h-32 border rounded-lg p-2">
+                    <div className="text-sm font-semibold mb-2">Recent Activity</div>
+                    <ScrollArea className="h-40 border rounded-lg p-2">
                       <div className="space-y-2">
                         {inv.earningsHistory
                           .slice()
                           .reverse()
-                          .slice(0, 5)
                           .map((e) => (
                             <div
                               key={e.id}
-                              className="flex justify-between text-xs"
+                              className="flex justify-between items-start text-sm py-1 px-1"
                             >
-                              <div>
+                              <div className="flex-1">
                                 <div className="text-muted-foreground">
                                   {new Date(e.date).toLocaleDateString()}
                                 </div>
                                 {e.description && (
-                                  <div className="text-muted-foreground">
+                                  <div className="text-xs text-muted-foreground">
                                     {e.description}
                                   </div>
                                 )}
                               </div>
                               <div
-                                className={`font-semibold ${e.amount >= 0
+                                className={`font-semibold whitespace-nowrap ml-2 ${e.amount >= 0
                                     ? "text-success"
                                     : "text-destructive"
                                   }`}
                               >
                                 {e.amount >= 0 ? "+" : ""}
-                                {formatCurrency(e.amount)}
+                                {formatCurrency(Math.abs(e.amount))}
                               </div>
                             </div>
                           ))}
@@ -385,11 +455,23 @@ export default function Investments() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setEarningsTarget(inv.id)}
+                    onClick={() => {
+                      setContributionTarget(inv.id);
+                      setIsContributionOpen(true);
+                    }}
                     className="flex-1"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Record Earnings
+                    Contribute
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEarningsTarget(inv.id)}
+                    className="flex-1"
+                  >
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    Earnings
                   </Button>
                   <Button
                     size="sm"
@@ -406,7 +488,49 @@ export default function Investments() {
         )}
       </div>
 
-      {/* Add Earnings Dialog */}
+      {/* Contribution Dialog */}
+      <Dialog
+        open={isContributionOpen || contributionTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setContributionTarget(null);
+            setContributionAmount2(null);
+          }
+          setIsContributionOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Add Contribution - {investments.find((i) => i.id === contributionTarget)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <CurrencyInput
+                value={contributionAmount2}
+                onChange={(v) => setContributionAmount2(v)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setContributionTarget(null);
+                setContributionAmount2(null);
+                setIsContributionOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddContribution}>Add Contribution</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Earnings Dialog */}
       <Dialog
         open={isEarningsOpen || earningsTarget !== null}
         onOpenChange={(open) => {
@@ -426,7 +550,7 @@ export default function Investments() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Earnings Amount</Label>
+              <Label>Amount</Label>
               <CurrencyInput
                 value={earningsAmount}
                 onChange={(v) => setEarningsAmount(v)}
@@ -453,7 +577,7 @@ export default function Investments() {
             >
               Cancel
             </Button>
-            <Button onClick={handleAddEarnings}>Record</Button>
+            <Button onClick={handleAddEarnings}>Record Earnings</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

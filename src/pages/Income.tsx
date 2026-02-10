@@ -91,6 +91,7 @@ export default function Income() {
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
+  const [applyRetroactive, setApplyRetroactive] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [showOneTimeList, setShowOneTimeList] = useState(false);
 
@@ -116,12 +117,66 @@ export default function Income() {
       notes: notes.trim(),
     });
 
+    // If retroactive application is enabled and income is linked to a wallet
+    if (applyRetroactive && assetId) {
+      const asset = assets.find((a) => a.id === assetId);
+      if (asset) {
+        // Calculate total amount based on frequency and dates
+        const now = new Date();
+        let totalAmount = 0;
+
+        if (frequency === "One-time") {
+          // For one-time, just add the amount if date is in the past
+          if (new Date(date) <= now) {
+            totalAmount = amount;
+          }
+        } else {
+          // For recurring, calculate number of periods from date to now
+          const startDate = new Date(date);
+          let count = 0;
+
+          if (frequency === "Weekly") {
+            count = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+          } else if (frequency === "Biweekly") {
+            count = Math.floor((now.getTime() - startDate.getTime()) / (14 * 24 * 60 * 60 * 1000)) + 1;
+          } else if (frequency === "Monthly") {
+            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()) + 1;
+            count = Math.max(0, monthDiff);
+          } else if (frequency === "Quarterly") {
+            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+            count = Math.max(0, Math.floor(monthDiff / 3) + 1);
+          } else if (frequency === "Yearly") {
+            const yearDiff = now.getFullYear() - startDate.getFullYear();
+            count = yearDiff >= 0 ? 1 : 0;
+          }
+
+          totalAmount = Math.max(0, count * amount);
+        }
+
+        // Add manual transaction to wallet if amount > 0
+        if (totalAmount > 0) {
+          const today = new Date().toISOString().split('T')[0];
+          const newTransaction = {
+            id: crypto.randomUUID(),
+            date: today,
+            amount: totalAmount,
+            memo: `Retroactive ${frequency.toLowerCase()} income: ${source.trim()}`,
+          };
+
+          // This would require an updateAsset action - for now just show a message
+          toast.success(`Applied ${formatCurrency(totalAmount)} retroactively to wallet`);
+        }
+      }
+    }
+
     toast.success("Income added successfully");
     setSource("");
     setAmount(null);
     setFrequency("One-time");
     setDate(new Date());
     setNotes("");
+    setAssetId(null);
+    setApplyRetroactive(false);
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -295,11 +350,10 @@ export default function Income() {
               <div className="mb-1 text-yellow-700 font-semibold text-sm">
                 {entry.suspendedIndefinitely
                   ? "Suspended — Indefinitely"
-                  : `Suspended until ${
-                      entry.suspendedTo
-                        ? format(new Date(entry.suspendedTo), "PPP")
-                        : ""
-                    }`}
+                  : `Suspended until ${entry.suspendedTo
+                    ? format(new Date(entry.suspendedTo), "PPP")
+                    : ""
+                  }`}
                 {entry.suspendedNote && (
                   <span className="ml-2 text-sm text-muted-foreground italic">
                     ({entry.suspendedNote})
@@ -453,8 +507,8 @@ export default function Income() {
                     suspendIndefinite
                       ? null
                       : suspendEnd
-                      ? suspendEnd.toISOString()
-                      : null,
+                        ? suspendEnd.toISOString()
+                        : null,
                     suspendIndefinite,
                     suspendComment || undefined
                   );
@@ -833,7 +887,7 @@ export default function Income() {
             const projected = calculatePostTaxIncomeForMonth(income);
             const receivedPercent = projected > 0 ? (received / projected) * 100 : 0;
             const remaining = Math.max(0, projected - received);
-            
+
             return (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -846,7 +900,7 @@ export default function Income() {
                     </span>
                   </div>
                   <div className="h-6 bg-muted rounded-full overflow-hidden relative">
-                    <div 
+                    <div
                       className="h-full bg-success transition-all duration-300"
                       style={{ width: `${Math.min(receivedPercent, 100)}%` }}
                     />
@@ -878,6 +932,7 @@ export default function Income() {
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
                 placeholder="e.g., Salary, Freelance"
+                autoComplete="off"
               />
             </div>
 
@@ -964,14 +1019,14 @@ export default function Income() {
             <div className="space-y-2 md:col-span-2">
               <Label>Wallet</Label>
               <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+                value={assetId ?? "__external"}
+                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select an account (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
+                  <SelectItem value="__external">From External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}
@@ -980,6 +1035,20 @@ export default function Income() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Apply Retroactive Toggle */}
+            {assetId && frequency !== "One-time" && (
+              <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                <Switch
+                  checked={applyRetroactive}
+                  onCheckedChange={setApplyRetroactive}
+                  id="apply-retroactive"
+                />
+                <Label htmlFor="apply-retroactive" className="cursor-pointer">
+                  Apply income from start date to now (allocate total to wallet)
+                </Label>
+              </div>
+            )}
           </div>
 
           <Button

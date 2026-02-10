@@ -175,11 +175,10 @@ export default function Bills() {
                 Cancelled{" "}
                 {entry.cancelledIndefinitely
                   ? "— Indefinitely"
-                  : `until ${
-                      entry.cancelledTo
-                        ? format(new Date(entry.cancelledTo), "PPP")
-                        : ""
-                    }`}
+                  : `until ${entry.cancelledTo
+                    ? format(new Date(entry.cancelledTo), "PPP")
+                    : ""
+                  }`}
                 {entry.cancelledNote && (
                   <span className="ml-2 text-sm text-muted-foreground italic">
                     ({entry.cancelledNote})
@@ -528,8 +527,8 @@ export default function Bills() {
                         const updated = checked
                           ? [...(entry.paidMonths || []), monthKey]
                           : (entry.paidMonths || []).filter(
-                              (m) => m !== monthKey
-                            );
+                            (m) => m !== monthKey
+                          );
                         updateBill(entry.id, { paidMonths: updated });
                       }}
                     />
@@ -747,8 +746,8 @@ export default function Bills() {
                     cancelIndefinite
                       ? null
                       : cancelEnd
-                      ? cancelEnd.toISOString()
-                      : null,
+                        ? cancelEnd.toISOString()
+                        : null,
                     cancelIndefinite,
                     cancelNote || undefined
                   );
@@ -950,14 +949,14 @@ export default function Bills() {
             <div className="space-y-2 md:col-span-2">
               <Label>Wallet</Label>
               <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+                value={assetId ?? "__external"}
+                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select account (optional)" />
+                  <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
+                  <SelectItem value="__external">From External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}

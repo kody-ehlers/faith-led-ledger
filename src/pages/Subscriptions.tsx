@@ -134,24 +134,51 @@ export default function Subscriptions() {
 
     const cancelledNow = isCancelledNow();
 
-    // Check if current month is paid
-    const currentMonth = format(new Date(), "yyyy-MM");
-    const isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
+    // Check if current month/year is paid (depending on frequency)
+    const now = new Date();
+    const currentMonth = format(now, "yyyy-MM");
+    const currentYear = now.getFullYear().toString();
+
+    let isPaidThisMonth = false;
+    let checkLabel = "Month";
+
+    if (entry.frequency === "Yearly") {
+      // For yearly, check if any paid month is in the current year
+      isPaidThisMonth = (entry.paidMonths || []).some((m) => m.startsWith(currentYear));
+      checkLabel = "Year";
+    } else {
+      // For other frequencies, check if current month is paid
+      isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
+      checkLabel = "Month";
+    }
+
     const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
 
     const togglePaidThisMonth = () => {
-      const updated = isPaidThisMonth
-        ? (entry.paidMonths || []).filter((m) => m !== currentMonth)
-        : [...(entry.paidMonths || []), currentMonth];
+      let updated;
+      if (entry.frequency === "Yearly") {
+        // For yearly, toggle a month in current year (e.g., January of current year)
+        const monthToToggle = `${currentYear}-01`;
+        updated = isPaidThisMonth
+          ? (entry.paidMonths || []).filter((m) => !m.startsWith(currentYear))
+          : [...(entry.paidMonths || []), monthToToggle];
+      } else {
+        // For other frequencies, toggle the current month
+        updated = isPaidThisMonth
+          ? (entry.paidMonths || []).filter((m) => m !== currentMonth)
+          : [...(entry.paidMonths || []), currentMonth];
+      }
       updateSubscription(entry.id, { paidMonths: updated });
-      toast.success(isPaidThisMonth ? "Marked as unpaid" : "Marked as paid");
+      toast.success(isPaidThisMonth ? `Marked as unpaid` : `Marked as paid`);
     };
 
     // Card background based on payment status - green for paid OR autopay
     const isPaidOrAutopay = entry.autopay || isPaidThisMonth;
     const cardBg = isPaidOrAutopay
       ? "bg-green-500/10 border-green-500/30"
-      : "bg-red-500/10 border-red-500/30";
+      : entry.frequency === "Yearly"
+        ? "bg-red-500/10 border-red-500/30"  // Red highlight for unpaid yearly
+        : "bg-red-500/10 border-red-500/30";  // Red highlight for unpaid monthly/other
 
     return (
       <div
@@ -165,7 +192,9 @@ export default function Subscriptions() {
                 onCheckedChange={togglePaidThisMonth}
               />
               <span className="text-xs text-muted-foreground">
-                {format(new Date(), "MMM")}
+                {entry.frequency === "Yearly"
+                  ? format(new Date(), "yyyy")
+                  : format(new Date(), "MMM")}
               </span>
             </div>
           )}
@@ -175,11 +204,10 @@ export default function Subscriptions() {
                 Cancelled{" "}
                 {entry.cancelledIndefinitely
                   ? "— Indefinitely"
-                  : `until ${
-                      entry.cancelledTo
-                        ? format(new Date(entry.cancelledTo), "PPP")
-                        : ""
-                    }`}
+                  : `until ${entry.cancelledTo
+                    ? format(new Date(entry.cancelledTo), "PPP")
+                    : ""
+                  }`}
                 {entry.cancelledNote && (
                   <span className="ml-2 text-sm text-muted-foreground italic">
                     ({entry.cancelledNote})
@@ -189,7 +217,13 @@ export default function Subscriptions() {
             )}
             <p className="font-semibold">{entry.name}</p>
             <p className="text-sm text-muted-foreground">
-              {entry.frequency} • {entry.frequency === 'Monthly' ? formatMonthlyLabel(entry.date) : format(new Date(entry.date), 'PPP')}
+              {entry.frequency} • {
+                entry.frequency === "Yearly"
+                  ? format(new Date(entry.date), "MMMM d")  // Just month and day for yearly
+                  : entry.frequency === "Monthly"
+                    ? formatMonthlyLabel(entry.date)
+                    : format(new Date(entry.date), "PPP")
+              }
               {entry.autopay && (
                 <span className="ml-2 text-xs text-primary">(Autopay)</span>
               )}
@@ -528,8 +562,8 @@ export default function Subscriptions() {
                         const updated = checked
                           ? [...(entry.paidMonths || []), monthKey]
                           : (entry.paidMonths || []).filter(
-                              (m) => m !== monthKey
-                            );
+                            (m) => m !== monthKey
+                          );
                         updateSubscription(entry.id, { paidMonths: updated });
                       }}
                     />
@@ -747,8 +781,8 @@ export default function Subscriptions() {
                     cancelIndefinite
                       ? null
                       : cancelEnd
-                      ? cancelEnd.toISOString()
-                      : null,
+                        ? cancelEnd.toISOString()
+                        : null,
                     cancelIndefinite,
                     cancelNote || undefined
                   );
@@ -879,14 +913,14 @@ export default function Subscriptions() {
             <div className="space-y-2 md:col-span-2">
               <Label>Wallet</Label>
               <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+                value={assetId ?? "__external"}
+                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select account (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
+                  <SelectItem value="__external">From External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}
