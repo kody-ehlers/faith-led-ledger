@@ -10,23 +10,21 @@ export interface IncomeEntry {
     | "Weekly"
     | "Biweekly"
     | "Monthly"
+    | "Bimonthly"
     | "Quarterly"
     | "Yearly";
   preTax: boolean;
   date: string;
   notes: string;
-  // Optional suspension fields
   suspendedFrom?: string | null;
   suspendedTo?: string | null;
   suspendedIndefinitely?: boolean;
   suspendedNote?: string | null;
-  // Change history: records amount changes over time for this income
   changes?: Array<{
     amount: number;
-    start: string; // ISO date when this amount became active
-    end?: string | null; // ISO date when this amount ended (inclusive) or null if current
+    start: string;
+    end?: string | null;
   }>;
-  // Optional association to a wallet asset
   assetId?: string | null;
 }
 
@@ -37,12 +35,9 @@ export interface ExpenseEntry {
   category: string;
   date: string;
   type: "need" | "want";
-  // Optional association to a wallet asset
   assetId?: string | null;
-  // For date range entries - stores the original range info for display purposes
   dateRangeStart?: string | null;
   dateRangeEnd?: string | null;
-  // Groups individual split entries from the same range together
   rangeGroupId?: string | null;
 }
 
@@ -51,91 +46,77 @@ export interface TithePayment {
   amount: number;
   date: string;
   given: boolean;
-  // Optional asset this tithe was paid from
   assetId?: string | null;
 }
+
+export type RecurringFrequency = "Weekly" | "Biweekly" | "Monthly" | "Bimonthly" | "Quarterly" | "Yearly";
 
 export interface SubscriptionEntry {
   id: string;
   name: string;
   amount: number;
-  frequency: "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
-  date: string; // start date ISO
+  frequency: RecurringFrequency;
+  date: string;
   notes?: string;
-  // cancellation fields
   cancelledFrom?: string | null;
   cancelledTo?: string | null;
   cancelledIndefinitely?: boolean;
   cancelledNote?: string | null;
-  // change history similar to incomes
   changes?: Array<{
     amount: number;
     start: string;
     end?: string | null;
   }>;
-  // Optional asset association
   assetId?: string | null;
-  // Variable pricing
   variablePrice?: boolean;
-  monthlyPrices?: { [month: string]: number }; // YYYY-MM -> amount
-  // Autopay and payment tracking
+  monthlyPrices?: { [month: string]: number };
   autopay?: boolean;
-  paidMonths?: string[]; // Array of YYYY-MM strings
+  paidMonths?: string[];
 }
 
 export interface BillEntry {
   id: string;
   name: string;
   amount: number;
-  frequency: "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
-  date: string; // start date ISO
+  frequency: RecurringFrequency;
+  date: string;
   notes?: string;
-  // cancellation fields
   cancelledFrom?: string | null;
   cancelledTo?: string | null;
   cancelledIndefinitely?: boolean;
   cancelledNote?: string | null;
-  // change history
   changes?: Array<{
     amount: number;
     start: string;
     end?: string | null;
   }>;
-  // Optional asset association
   assetId?: string | null;
-  // Variable pricing
   variablePrice?: boolean;
-  monthlyPrices?: { [month: string]: number }; // YYYY-MM -> amount
-  // Autopay and payment tracking
+  monthlyPrices?: { [month: string]: number };
   autopay?: boolean;
-  paidMonths?: string[]; // Array of YYYY-MM strings
+  paidMonths?: string[];
 }
 
 export interface InvestmentEntry {
   id: string;
   name: string;
-  contributionAmount: number; // amount contributed per period
-  frequency: "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
-  date: string; // start date ISO
+  contributionAmount: number;
+  frequency: RecurringFrequency;
+  date: string;
   notes?: string;
-  // Optional asset this investment is funded from
   assetId?: string | null;
-  // Money earned (interest, capital gains, dividends, etc.)
-  moneyEarned: number; // cumulative earnings
-  // Earnings history to track when money was earned
+  moneyEarned: number;
   earningsHistory?: Array<{
     id: string;
-    date: string; // ISO date
-    amount: number; // positive for gains, negative for losses
-    description?: string; // e.g., "Interest earned", "Capital gain", "Dividend"
+    date: string;
+    amount: number;
+    description?: string;
   }>;
-  // Paused/resumed tracking
   pausedFrom?: string | null;
   pausedTo?: string | null;
   pausedIndefinitely?: boolean;
   pausedNote?: string | null;
-  // Contribution history
-  contributedMonths?: string[]; // Array of YYYY-MM strings tracking when contributions were made
+  contributedMonths?: string[];
 }
 
 export interface LiquidAsset {
@@ -144,22 +125,19 @@ export interface LiquidAsset {
   type: "Cash" | "Checking" | "Savings" | "Credit Card";
   startingAmount: number;
   currentAmount: number;
-  enactDate?: string; // when the account becomes active
-  closed?: boolean; // when true no new transactions can be created through the UI
-  // Credit card specific fields
+  enactDate?: string;
+  closed?: boolean;
   creditLimit?: number | null;
-  // credit limit change history
   creditLimitChanges?: Array<{
     amount: number;
-    start: string; // YYYY-MM-DD
+    start: string;
     end?: string | null;
   }>;
-  paymentDueDay?: number | null; // day of month
-  // simple transaction history
+  paymentDueDay?: number | null;
   transactions?: Array<{
     id: string;
     date: string;
-    amount: number; // positive for inflow to this asset, negative for outflow (payments)
+    amount: number;
     memo?: string;
   }>;
 }
@@ -179,6 +157,15 @@ export interface DebtEntry {
   interestRate: number;
   minimumPayment: number;
   dueDate: string;
+  notes?: string;
+  assetId?: string | null;
+  // Payment history
+  paymentHistory?: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    memo?: string;
+  }>;
 }
 
 interface FinanceState {
@@ -192,7 +179,7 @@ interface FinanceState {
   bills: BillEntry[];
   investments: InvestmentEntry[];
   appName: string;
-  expenseCategories: string[]; // Custom expense categories
+  expenseCategories: string[];
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -222,6 +209,7 @@ interface FinanceState {
   addDebt: (debt: Omit<DebtEntry, "id">) => void;
   updateDebt: (id: string, updates: Partial<DebtEntry>) => void;
   removeDebt: (id: string) => void;
+  addDebtPayment: (debtId: string, amount: number, memo?: string) => void;
   // Assets
   addAsset: (
     asset: Omit<LiquidAsset, "id" | "currentAmount" | "transactions">
@@ -420,7 +408,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       addDebt: (debt) =>
         set((state) => ({
-          debts: [...state.debts, { ...debt, id: crypto.randomUUID() }],
+          debts: [...state.debts, { ...debt, id: crypto.randomUUID(), paymentHistory: [] }],
         })),
 
       updateDebt: (id, updates) =>
@@ -433,6 +421,27 @@ export const useFinanceStore = create<FinanceState>()(
       removeDebt: (id) =>
         set((state) => ({
           debts: state.debts.filter((d) => d.id !== id),
+        })),
+
+      addDebtPayment: (debtId, amount, memo = "") =>
+        set((state) => ({
+          debts: state.debts.map((d) =>
+            d.id === debtId
+              ? {
+                  ...d,
+                  balance: Math.max(0, d.balance - amount),
+                  paymentHistory: [
+                    ...(d.paymentHistory || []),
+                    {
+                      id: crypto.randomUUID(),
+                      date: new Date().toISOString(),
+                      amount,
+                      memo,
+                    },
+                  ],
+                }
+              : d
+          ),
         })),
 
       // Assets (wallet accounts) - include a default Cash account
@@ -459,7 +468,6 @@ export const useFinanceStore = create<FinanceState>()(
             {
               ...asset,
               id: crypto.randomUUID(),
-              // For credit cards we store starting/current amounts as negative values to represent money owed
               startingAmount:
                 asset.type === "Credit Card"
                   ? -Math.abs(asset.startingAmount ?? 0)
@@ -468,7 +476,6 @@ export const useFinanceStore = create<FinanceState>()(
                 asset.type === "Credit Card"
                   ? -Math.abs(asset.startingAmount ?? 0)
                   : asset.startingAmount ?? 0,
-              // Only create a starting transaction for credit card accounts; other account types have no transactions
               transactions:
                 asset.type === "Credit Card" &&
                 (asset.startingAmount ?? 0) !== 0
@@ -483,7 +490,6 @@ export const useFinanceStore = create<FinanceState>()(
                       },
                     ]
                   : [],
-              // Initialize credit limit change history if provided
               creditLimitChanges: asset.creditLimit
                 ? [
                     {
@@ -516,11 +522,9 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           assets: state.assets.map((a) => {
             if (a.id !== assetId) return a;
-            // For non-credit accounts, disallow transactions that would drive the balance below zero.
             const curr = a.currentAmount ?? 0;
             let amt = tx.amount;
             if (a.type !== "Credit Card" && amt < 0) {
-              // Allowed outflow is at most current balance
               const allowedOutflow = Math.min(Math.abs(amt), curr);
               amt = -allowedOutflow;
             }
@@ -545,7 +549,6 @@ export const useFinanceStore = create<FinanceState>()(
             const newTransactions = (a.transactions || []).filter(
               (t) => t.id !== txId
             );
-            // Recompute currentAmount conservatively from starting amount + remaining transactions
             const starting = a.startingAmount ?? 0;
             const computed = newTransactions.reduce(
               (s, t) => s + t.amount,
@@ -565,14 +568,10 @@ export const useFinanceStore = create<FinanceState>()(
             const prev = a.creditLimitChanges
               ? a.creditLimitChanges.map((c) => ({ ...c }))
               : [];
-            const newStart = startDate; // expected YYYY-MM-DD
-
-            // keep only changes that start before the new start
+            const newStart = startDate;
             const kept = prev.filter(
               (c) => new Date(c.start) < new Date(newStart + "T12:00:00")
             );
-
-            // close the last kept change the day before newStart
             if (kept.length > 0) {
               const last = kept[kept.length - 1];
               if (!last.end) {
@@ -581,16 +580,12 @@ export const useFinanceStore = create<FinanceState>()(
                 last.end = dayBefore.toISOString().slice(0, 10);
               }
             }
-
             kept.push({ amount: newLimit, start: newStart, end: null });
-
-            // If effective date is today or earlier, apply immediately
             const today = new Date();
             today.setHours(12, 0, 0, 0);
             const eff = new Date(newStart + "T12:00:00");
             const newCreditLimit =
               eff.getTime() <= today.getTime() ? newLimit : a.creditLimit;
-
             return {
               ...a,
               creditLimit: newCreditLimit,
@@ -775,7 +770,7 @@ export const useFinanceStore = create<FinanceState>()(
                   contributedMonths: [
                     ...(inv.contributedMonths || []),
                     month,
-                  ].filter((v, i, a) => a.indexOf(v) === i), // deduplicate
+                  ].filter((v, i, a) => a.indexOf(v) === i),
                 }
               : inv
           ),

@@ -9,18 +9,37 @@ import { useFinanceStore } from "@/store/financeStore";
 import { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Button } from "@/components/ui/button";
-import { startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 
-type TimePeriod = "MTD" | "3M" | "6M" | "12M" | "YTD";
+type TimePeriod = "MTD" | "3M" | "6M" | "12M" | "YTD" | "MONTH";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82ca9d"];
 
 export default function Statistics() {
   const { expenses, subscriptions, bills, savings } = useFinanceStore();
   const [period, setPeriod] = useState<TimePeriod>("MTD");
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
+
+  // Generate last 24 months for the month selector
+  const monthOptions = Array.from({ length: 24 }, (_, i) => {
+    const d = subMonths(new Date(), i);
+    return { value: format(d, "yyyy-MM"), label: format(d, "MMMM yyyy") };
+  });
 
   const getDateRange = () => {
     const now = new Date();
+    if (period === "MONTH") {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+      return { start: startOfMonth(d), end: endOfMonth(d) };
+    }
     switch (period) {
       case "MTD":
         return { start: startOfMonth(now), end: now };
@@ -37,32 +56,27 @@ export default function Statistics() {
 
   const { start, end } = getDateRange();
 
-  // Calculate expenses in period
   const expensesInPeriod = expenses.filter((e) => {
     const expenseDate = new Date(e.date);
     return expenseDate >= start && expenseDate <= end;
   });
 
-  // Calculate subscriptions in period
   const subsInPeriod = subscriptions.filter((s) => {
     const subDate = new Date(s.date);
     return subDate >= start && subDate <= end;
   });
 
-  // Calculate bills in period
   const billsInPeriod = bills.filter((b) => {
     const billDate = new Date(b.date);
     return billDate >= start && billDate <= end;
   });
 
-  // Calculate total expenses by category
   const expensesByCategory = expensesInPeriod.reduce((acc, exp) => {
     const category = exp.category || "Other";
     acc[category] = (acc[category] || 0) + exp.amount;
     return acc;
   }, {} as Record<string, number>);
 
-  // Add subscriptions and bills
   const totalSubs = subsInPeriod.reduce((sum, s) => sum + s.amount, 0);
   const totalBills = billsInPeriod.reduce((sum, b) => sum + b.amount, 0);
 
@@ -76,7 +90,6 @@ export default function Statistics() {
 
   const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
 
-  // Calculate income for the period (using monthly income for simplicity)
   const { income: incomeEntries } = useFinanceStore.getState();
   const totalIncome = incomeEntries.reduce((sum, inc) => {
     if (inc.frequency === "One-time") {
@@ -85,7 +98,6 @@ export default function Statistics() {
         return sum + inc.amount;
       }
     } else {
-      // For recurring income, calculate based on period
       const monthsInPeriod = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
       const monthlyAmount = inc.amount;
       return sum + (monthlyAmount * monthsInPeriod);
@@ -93,10 +105,8 @@ export default function Statistics() {
     return sum;
   }, 0);
 
-  // Calculate net savings (income - expenses)
   const netSavings = Math.max(0, totalIncome - totalExpenses);
 
-  // Overall data including net savings
   const overallData = [
     { name: "Expenses", value: totalExpenses },
     { name: "Savings", value: netSavings },
@@ -131,18 +141,34 @@ export default function Statistics() {
           <CardTitle>Time Period</CardTitle>
           <CardDescription>Select a time period to view</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {(["MTD", "3M", "6M", "12M", "YTD"] as TimePeriod[]).map((p) => (
+            {(["MTD", "3M", "6M", "12M", "YTD", "MONTH"] as TimePeriod[]).map((p) => (
               <Button
                 key={p}
                 variant={period === p ? "default" : "outline"}
                 onClick={() => setPeriod(p)}
               >
-                {p}
+                {p === "MONTH" ? "Month" : p}
               </Button>
             ))}
           </div>
+          {period === "MONTH" && (
+            <div className="max-w-xs">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -150,7 +176,7 @@ export default function Statistics() {
         <CardHeader>
           <CardTitle>Expenses vs Savings</CardTitle>
           <CardDescription>
-            Overview of expenses and savings for the selected period
+            Overview for {period === "MONTH" ? monthOptions.find(m => m.value === selectedMonth)?.label : period}
           </CardDescription>
         </CardHeader>
         <CardContent>

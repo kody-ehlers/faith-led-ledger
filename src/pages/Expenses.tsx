@@ -367,7 +367,7 @@ export default function Expenses() {
                   <SelectValue placeholder="Select account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__external">From External Account</SelectItem>
+                  <SelectItem value="__external">External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}

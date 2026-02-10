@@ -81,6 +81,7 @@ export default function Income() {
     | "Monthly"
     | "Weekly"
     | "Biweekly"
+    | "Bimonthly"
     | "Quarterly"
     | "Yearly"
     | "One-time";
@@ -142,6 +143,9 @@ export default function Income() {
           } else if (frequency === "Monthly") {
             const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()) + 1;
             count = Math.max(0, monthDiff);
+          } else if (frequency === "Bimonthly") {
+            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+            count = Math.max(0, Math.floor(monthDiff / 2) + 1);
           } else if (frequency === "Quarterly") {
             const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
             count = Math.max(0, Math.floor(monthDiff / 3) + 1);
@@ -155,15 +159,12 @@ export default function Income() {
 
         // Add manual transaction to wallet if amount > 0
         if (totalAmount > 0) {
-          const today = new Date().toISOString().split('T')[0];
-          const newTransaction = {
-            id: crypto.randomUUID(),
-            date: today,
+          const { addAssetTransaction } = useFinanceStore.getState();
+          addAssetTransaction(assetId, {
+            date: new Date().toISOString(),
             amount: totalAmount,
             memo: `Retroactive ${frequency.toLowerCase()} income: ${source.trim()}`,
-          };
-
-          // This would require an updateAsset action - for now just show a message
+          });
           toast.success(`Applied ${formatCurrency(totalAmount)} retroactively to wallet`);
         }
       }
@@ -247,6 +248,7 @@ export default function Income() {
       frequency: editingIncome.frequency,
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
+      assetId: editingIncome.assetId,
     };
 
     updateIncome(editingIncome.id, updates);
@@ -959,10 +961,11 @@ export default function Income() {
                 <SelectContent>
                   <SelectItem value="One-time">One-time</SelectItem>
                   <SelectItem value="Weekly">Weekly</SelectItem>
-                  <SelectItem value="Biweekly">Biweekly</SelectItem>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                  <SelectItem value="Yearly">Yearly</SelectItem>
+                   <SelectItem value="Biweekly">Biweekly</SelectItem>
+                   <SelectItem value="Monthly">Monthly</SelectItem>
+                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                   <SelectItem value="Quarterly">Quarterly</SelectItem>
+                   <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1026,7 +1029,7 @@ export default function Income() {
                   <SelectValue placeholder="Select an account (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__external">From External Account</SelectItem>
+                  <SelectItem value="__external">External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}
@@ -1146,9 +1149,10 @@ export default function Income() {
                     <SelectItem value="One-time">One-time</SelectItem>
                     <SelectItem value="Weekly">Weekly</SelectItem>
                     <SelectItem value="Biweekly">Biweekly</SelectItem>
-                    <SelectItem value="Monthly">Monthly</SelectItem>
-                    <SelectItem value="Quarterly">Quarterly</SelectItem>
-                    <SelectItem value="Yearly">Yearly</SelectItem>
+                     <SelectItem value="Monthly">Monthly</SelectItem>
+                     <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                     <SelectItem value="Quarterly">Quarterly</SelectItem>
+                     <SelectItem value="Yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1173,6 +1177,31 @@ export default function Income() {
                     })
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={editingIncome.assetId ?? "__external"}
+                  onValueChange={(v) =>
+                    setEditingIncome({
+                      ...editingIncome,
+                      assetId: v === "__external" ? null : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

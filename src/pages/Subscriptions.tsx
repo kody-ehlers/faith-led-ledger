@@ -38,7 +38,8 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 
-type Frequency = "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly";
+import type { RecurringFrequency } from "@/store/financeStore";
+type Frequency = RecurringFrequency;
 
 export default function Subscriptions() {
   const {
@@ -134,22 +135,36 @@ export default function Subscriptions() {
 
     const cancelledNow = isCancelledNow();
 
-    // Check if current month/year is paid (depending on frequency)
+    // Determine if this subscription should be paid in the current iteration
     const now = new Date();
     const currentMonth = format(now, "yyyy-MM");
     const currentYear = now.getFullYear().toString();
+    const startDate = new Date(entry.date);
 
-    let isPaidThisMonth = false;
-    let checkLabel = "Month";
+    // Check if paid for current iteration based on frequency
+    let isPaidCurrentIteration = false;
+    let iterationLabel = "Month";
 
     if (entry.frequency === "Yearly") {
-      // For yearly, check if any paid month is in the current year
-      isPaidThisMonth = (entry.paidMonths || []).some((m) => m.startsWith(currentYear));
-      checkLabel = "Year";
+      isPaidCurrentIteration = (entry.paidMonths || []).some((m) => m.startsWith(currentYear));
+      iterationLabel = "Year";
+    } else if (entry.frequency === "Quarterly") {
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const quarterMonths = [currentQuarter * 3, currentQuarter * 3 + 1, currentQuarter * 3 + 2].map(
+        (m) => format(new Date(now.getFullYear(), m, 1), "yyyy-MM")
+      );
+      isPaidCurrentIteration = (entry.paidMonths || []).some((m) => quarterMonths.includes(m));
+      iterationLabel = "Qtr";
+    } else if (entry.frequency === "Bimonthly") {
+      // Every other month — check if current month or previous month (within the 2-month window)
+      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+      const isPayMonth = monthsSinceStart % 2 === 0;
+      const checkMonth = isPayMonth ? currentMonth : format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
+      isPaidCurrentIteration = (entry.paidMonths || []).includes(checkMonth);
+      iterationLabel = "Period";
     } else {
-      // For other frequencies, check if current month is paid
-      isPaidThisMonth = entry.paidMonths?.includes(currentMonth) ?? false;
-      checkLabel = "Month";
+      isPaidCurrentIteration = entry.paidMonths?.includes(currentMonth) ?? false;
+      iterationLabel = "Month";
     }
 
     const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
@@ -157,28 +172,24 @@ export default function Subscriptions() {
     const togglePaidThisMonth = () => {
       let updated;
       if (entry.frequency === "Yearly") {
-        // For yearly, toggle a month in current year (e.g., January of current year)
         const monthToToggle = `${currentYear}-01`;
-        updated = isPaidThisMonth
+        updated = isPaidCurrentIteration
           ? (entry.paidMonths || []).filter((m) => !m.startsWith(currentYear))
           : [...(entry.paidMonths || []), monthToToggle];
       } else {
-        // For other frequencies, toggle the current month
-        updated = isPaidThisMonth
+        updated = isPaidCurrentIteration
           ? (entry.paidMonths || []).filter((m) => m !== currentMonth)
           : [...(entry.paidMonths || []), currentMonth];
       }
       updateSubscription(entry.id, { paidMonths: updated });
-      toast.success(isPaidThisMonth ? `Marked as unpaid` : `Marked as paid`);
+      toast.success(isPaidCurrentIteration ? `Marked as unpaid` : `Marked as paid`);
     };
 
-    // Card background based on payment status - green for paid OR autopay
-    const isPaidOrAutopay = entry.autopay || isPaidThisMonth;
+    // Card background based on payment status - green for paid OR autopay, red for unpaid
+    const isPaidOrAutopay = entry.autopay || isPaidCurrentIteration;
     const cardBg = isPaidOrAutopay
       ? "bg-green-500/10 border-green-500/30"
-      : entry.frequency === "Yearly"
-        ? "bg-red-500/10 border-red-500/30"  // Red highlight for unpaid yearly
-        : "bg-red-500/10 border-red-500/30";  // Red highlight for unpaid monthly/other
+      : "bg-red-500/10 border-red-500/30";
 
     return (
       <div
@@ -188,7 +199,7 @@ export default function Subscriptions() {
           {!entry.autopay && (
             <div className="flex flex-col items-center gap-1">
               <Checkbox
-                checked={isPaidThisMonth}
+                checked={isPaidCurrentIteration}
                 onCheckedChange={togglePaidThisMonth}
               />
               <span className="text-xs text-muted-foreground">
@@ -862,9 +873,10 @@ export default function Subscriptions() {
                 <SelectContent>
                   <SelectItem value="Weekly">Weekly</SelectItem>
                   <SelectItem value="Biweekly">Biweekly</SelectItem>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                  <SelectItem value="Yearly">Yearly</SelectItem>
+                   <SelectItem value="Monthly">Monthly</SelectItem>
+                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                   <SelectItem value="Quarterly">Quarterly</SelectItem>
+                   <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -920,7 +932,7 @@ export default function Subscriptions() {
                   <SelectValue placeholder="Select account (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__external">From External Account</SelectItem>
+                  <SelectItem value="__external">External Account</SelectItem>
                   {assets.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} • {a.type}
@@ -986,9 +998,10 @@ export default function Subscriptions() {
                   <SelectContent>
                     <SelectItem value="Weekly">Weekly</SelectItem>
                     <SelectItem value="Biweekly">Biweekly</SelectItem>
-                    <SelectItem value="Monthly">Monthly</SelectItem>
-                    <SelectItem value="Quarterly">Quarterly</SelectItem>
-                    <SelectItem value="Yearly">Yearly</SelectItem>
+                     <SelectItem value="Monthly">Monthly</SelectItem>
+                     <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                     <SelectItem value="Quarterly">Quarterly</SelectItem>
+                     <SelectItem value="Yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1011,6 +1024,44 @@ export default function Subscriptions() {
                   }
                 />
                 <Label>Autopay Enabled</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      {format(new Date(editing.date), "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(editing.date)}
+                      onSelect={(d) => d && setEditing({ ...editing, date: d.toISOString() })}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={editing.assetId ?? "__external"}
+                  onValueChange={(v) => setEditing({ ...editing, assetId: v === "__external" ? undefined : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
