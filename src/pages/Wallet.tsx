@@ -36,10 +36,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History } from "lucide-react";
+import { History, Percent, SquarePen } from "lucide-react";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, income, expenses, bills, subscriptions, tithes } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
@@ -74,6 +74,7 @@ export default function Wallet() {
   );
   const [creditLimit, setCreditLimit] = useState<string>("");
   const [paymentDueDay, setPaymentDueDay] = useState<string>("");
+  const [interestRate, setInterestRate] = useState<string>("");
   const [isEnactOpen, setIsEnactOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
@@ -97,6 +98,20 @@ export default function Wallet() {
   // History modal state
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Interest dialog state for checking/savings accounts
+  const [interestTarget, setInterestTarget] = useState<string | null>(null);
+  const [interestAmount, setInterestAmount] = useState<number | null>(null);
+  const [interestDate, setInterestDate] = useState<Date>(new Date());
+  // APY change dialog state
+  const [apyTarget, setApyTarget] = useState<string | null>(null);
+  const [apyNewRate, setApyNewRate] = useState<string>("");
+  const [apyDate, setApyDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [isApyOpen, setIsApyOpen] = useState(false);
+  // APY history dialog state
+  const [apyHistoryTarget, setApyHistoryTarget] = useState<string | null>(null);
+  const [isApyHistoryOpen, setIsApyHistoryOpen] = useState(false);
   // Payment dialog state for credit cards
   const [payTarget, setPayTarget] = useState<string | null>(null);
   const [isPayOpen, setIsPayOpen] = useState(false);
@@ -118,11 +133,13 @@ export default function Wallet() {
       enactDate: enactDate || undefined,
       creditLimit: creditLimit === "" ? null : Number(creditLimit),
       paymentDueDay: paymentDueDay === "" ? null : Number(paymentDueDay),
+      interestRate: interestRate ? parseFloat(interestRate) : undefined,
     });
     toast.success("Wallet item added");
     setName("");
     setStartingAmount("");
     setPaymentDueDay("");
+    setInterestRate("");
   };
 
   const handleSubmitPayment = () => {
@@ -168,6 +185,39 @@ export default function Wallet() {
     setIsHistoryOpen(true);
   };
 
+  const handleApplyInterest = () => {
+    if (!interestTarget || !interestAmount || interestAmount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    const account = assets.find((a) => a.id === interestTarget);
+    if (!account) return;
+    const dateIso = interestDate?.toISOString?.() || new Date().toISOString();
+    applyAssetInterest(interestTarget, interestAmount, "Interest earned", dateIso);
+    toast.success(`Applied ${formatCurrency(interestAmount)} interest`);
+    setInterestTarget(null);
+    setInterestAmount(null);
+    setInterestDate(new Date());
+  };
+
+  const handleUpdateAPY = () => {
+    if (!apyTarget || !apyNewRate) {
+      toast.error("Enter a valid APY rate");
+      return;
+    }
+    const newRate = parseFloat(apyNewRate);
+    if (isNaN(newRate)) {
+      toast.error("Enter a valid APY rate");
+      return;
+    }
+    updateAssetInterestRate(apyTarget, newRate, apyDate);
+    toast.success(`Updated APY to ${newRate}%`);
+    setApyTarget(null);
+    setApyNewRate("");
+    setApyDate(new Date().toISOString().slice(0, 10));
+    setIsApyOpen(false);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex items-center gap-3">
@@ -185,6 +235,9 @@ export default function Wallet() {
               strokeLinejoin="round"
             />
           </svg>
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Wallet</h2>
           <p className="text-muted-foreground">
             Manage checking, savings, and credit card accounts
           </p>
@@ -274,6 +327,19 @@ export default function Wallet() {
                 </div>
               </>
             )}
+
+            {(type === "Checking" || type === "Savings") && (
+              <div className="space-y-2">
+                <Label>Interest Rate (% APY)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g., 4.5"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="mt-4">
@@ -322,6 +388,39 @@ export default function Wallet() {
                   <span className="font-medium text-foreground">
                     Day {a.paymentDueDay} of each month
                   </span>
+                </div>
+              )}
+
+              {(a.type === "Checking" || a.type === "Savings") && (
+                <div className="mb-3 flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground">APY:</span>
+                  <span className="text-sm font-medium">
+                    {a.interestRate ? `${a.interestRate}%` : "N/A"}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-6 p-0"
+                    onClick={() => {
+                      setApyTarget(a.id);
+                      setApyNewRate(a.interestRate?.toString() || "");
+                      setApyDate(new Date().toISOString().slice(0, 10));
+                      setIsApyOpen(true);
+                    }}
+                  >
+                    <SquarePen className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-2 p-1 ml-1"
+                    onClick={() => {
+                      setApyHistoryTarget(a.id);
+                      setIsApyHistoryOpen(true);
+                    }}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               )}
 
@@ -405,6 +504,27 @@ export default function Wallet() {
                   <History className="h-4 w-4" />
                   History
                 </Button>
+                {(a.type === "Checking" || a.type === "Savings") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setInterestTarget(a.id);
+                      // Calculate monthly interest as default
+                      const monthly =
+                        a.interestRate
+                          ? (calculateWalletBalance(a, income, expenses, bills, subscriptions, tithes) * (a.interestRate / 100)) / 12
+                          : 0;
+                      setInterestAmount(
+                        monthly > 0 ? parseFloat(monthly.toFixed(2)) : null
+                      );
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Percent className="h-4 w-4" />
+                    Apply Interest
+                  </Button>
+                )}
                 {a.type === "Credit Card" && (
                   <Button
                     variant="outline"
@@ -425,6 +545,7 @@ export default function Wallet() {
                 {!a.closed && (
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => {
                       updateAsset(a.id, { closed: true });
                       toast.success(
@@ -437,6 +558,7 @@ export default function Wallet() {
                 )}
                 <Button
                   variant="ghost"
+                  size="sm"
                   className="text-destructive"
                   onClick={() => {
                     setRemoveTarget(a.id);
@@ -687,6 +809,161 @@ export default function Wallet() {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsHistoryOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Interest Dialog for Checking/Savings */}
+        <Dialog
+          open={!!interestTarget}
+          onOpenChange={(open) => {
+            if (!open) setInterestTarget(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                Apply Interest — {assets.find((a) => a.id === interestTarget)?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Interest Amount</Label>
+                <CurrencyInput
+                  value={interestAmount}
+                  onChange={(v) => setInterestAmount(v)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <DatePicker selected={interestDate} onSelect={(d) => setInterestDate(d)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pre-filled with estimated monthly interest based on APY.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setInterestTarget(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleApplyInterest}>Apply Interest</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* APY Change Dialog */}
+        <Dialog open={isApyOpen} onOpenChange={setIsApyOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                Update APY — {assets.find((a) => a.id === apyTarget)?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>New APY Rate (%)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g., 4.5"
+                  value={apyNewRate}
+                  onChange={(e) => setApyNewRate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Effective Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      className="w-full justify-start text-left font-normal"
+                      variant="outline"
+                    >
+                      {apyDate
+                        ? format(parseDateSafe(apyDate), "PPP")
+                        : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={parseDateSafe(apyDate)}
+                      onSelect={(d) => {
+                        if (d) {
+                          setApyDate(d.toISOString().slice(0, 10));
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsApyOpen(false);
+                  setApyTarget(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateAPY}>Update APY</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* APY History Dialog */}
+        <Dialog open={isApyHistoryOpen} onOpenChange={setIsApyHistoryOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                APY History — {assets.find((a) => a.id === apyHistoryTarget)?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {apyHistoryTarget && (() => {
+                const asset = assets.find((a) => a.id === apyHistoryTarget);
+                if (!asset) return null;
+
+                const apyChanges = asset.interestRateChanges || [];
+                if (apyChanges.length === 0) {
+                  return (
+                    <div className="text-center text-muted-foreground py-8">
+                      No APY changes recorded.
+                    </div>
+                  );
+                }
+
+                const sorted = [...apyChanges].sort(
+                  (a, b) => new Date(b.start).getTime() - new Date(a.start).getTime()
+                );
+
+                return (
+                  <div className="space-y-3">
+                    {sorted.map((change, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">
+                              {change.amount}%
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatDateSafe(change.start)}
+                            {change.end && ` to ${formatDateSafe(change.end)}`}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsApyHistoryOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

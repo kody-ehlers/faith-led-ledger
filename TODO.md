@@ -1,0 +1,2 @@
+1. How can i make this so I can produce and MSI file to install this on windows?
+2. can you move the APY calculation portion from the last commit on the "pages/Savings" to be part of the "pages/Wallet" and be able to be applied to both checking and savings accounts?

@@ -128,6 +128,18 @@ export interface LiquidAsset {
   currentAmount: number;
   enactDate?: string;
   closed?: boolean;
+  interestRate?: number;
+  interestRateChanges?: Array<{
+    amount: number;
+    start: string;
+    end?: string | null;
+  }>;
+  interestHistory?: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    memo?: string;
+  }>;
   creditLimit?: number | null;
   creditLimitChanges?: Array<{
     amount: number;
@@ -238,6 +250,17 @@ interface FinanceState {
   updateAssetCreditLimit: (
     assetId: string,
     newLimit: number,
+    startDate: string
+  ) => void;
+  applyAssetInterest: (
+    assetId: string,
+    amount: number,
+    memo?: string,
+    date?: string
+  ) => void;
+  updateAssetInterestRate: (
+    assetId: string,
+    newRate: number,
     startDate: string
   ) => void;
   // Subscriptions
@@ -468,6 +491,8 @@ export const useFinanceStore = create<FinanceState>()(
           currentAmount: 0,
           enactDate: new Date().toISOString().slice(0, 10),
           closed: false,
+          interestRate: undefined,
+          interestHistory: [],
           creditLimit: null,
           creditLimitChanges: [],
           paymentDueDay: null,
@@ -515,6 +540,19 @@ export const useFinanceStore = create<FinanceState>()(
                     },
                   ]
                 : [],
+              interestRate: asset.interestRate ?? undefined,
+              interestRateChanges: asset.interestRate
+                ? [
+                    {
+                      amount: asset.interestRate,
+                      start:
+                        asset.enactDate ??
+                        new Date().toISOString().slice(0, 10),
+                      end: null,
+                    },
+                  ]
+                : [],
+              interestHistory: asset.interestHistory ?? [],
               closed: false,
             },
           ],
@@ -623,6 +661,59 @@ export const useFinanceStore = create<FinanceState>()(
               ...a,
               creditLimit: newCreditLimit,
               creditLimitChanges: kept,
+            };
+          }),
+        })),
+
+      applyAssetInterest: (assetId, amount, memo = "Interest earned", date) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            return {
+              ...a,
+              currentAmount: a.currentAmount + amount,
+              interestHistory: [
+                ...(a.interestHistory || []),
+                {
+                  id: crypto.randomUUID(),
+                  date: date || new Date().toISOString(),
+                  amount,
+                  memo,
+                },
+              ],
+            };
+          }),
+        })),
+
+      updateAssetInterestRate: (assetId, newRate, startDate) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            const prev = a.interestRateChanges
+              ? a.interestRateChanges.map((c) => ({ ...c }))
+              : [];
+            const newStart = startDate;
+            const kept = prev.filter(
+              (c) => new Date(c.start) < new Date(newStart + "T12:00:00")
+            );
+            if (kept.length > 0) {
+              const last = kept[kept.length - 1];
+              if (!last.end) {
+                const dayBefore = new Date(newStart + "T12:00:00");
+                dayBefore.setDate(dayBefore.getDate() - 1);
+                last.end = dayBefore.toISOString().slice(0, 10);
+              }
+            }
+            kept.push({ amount: newRate, start: newStart, end: null });
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            const eff = new Date(newStart + "T12:00:00");
+            const newInterestRate =
+              eff.getTime() <= today.getTime() ? newRate : a.interestRate;
+            return {
+              ...a,
+              interestRate: newInterestRate,
+              interestRateChanges: kept,
             };
           }),
         })),

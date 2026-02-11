@@ -812,6 +812,21 @@ export const calculateWalletTransactions = (
     }
   }
 
+  // Add interest history transactions
+  for (const interest of asset.interestHistory || []) {
+    const interestDate = new Date(interest.date);
+    if (isBefore(interestDate, enactDate) || isAfter(interestDate, today)) continue;
+    
+    transactions.push({
+      dateObj: interestDate,
+      date: interest.date.slice(0, 10),
+      amount: interest.amount,
+      description: interest.memo || "Interest earned",
+      type: "interest",
+      balance: 0,
+    });
+  }
+
   // Add manual credit card transactions
   if (asset.transactions && asset.transactions.length > 0) {
     for (const tx of asset.transactions) {
