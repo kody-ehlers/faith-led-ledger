@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, subDays } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
   DialogContent,
@@ -148,6 +149,24 @@ export default function Subscriptions() {
     if (entry.frequency === "Yearly") {
       isPaidCurrentIteration = (entry.paidMonths || []).some((m) => m.startsWith(currentYear));
       iterationLabel = "Year";
+    }
+    // If not marked paid but on autopay, treat as paid when the scheduled due date
+    // for the current cycle has passed (handles Monthly and Yearly schedules).
+    if (!isPaidCurrentIteration && entry.autopay) {
+      try {
+        const today = new Date();
+        if (entry.frequency === "Monthly") {
+          const day = new Date(entry.date).getDate();
+          const due = new Date(today.getFullYear(), today.getMonth(), day);
+          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+        } else if (entry.frequency === "Yearly") {
+          const d = new Date(entry.date);
+          const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+        }
+      } catch {
+        // ignore parse errors
+      }
     } else if (entry.frequency === "Quarterly") {
       const currentQuarter = Math.floor(now.getMonth() / 3);
       const quarterMonths = [currentQuarter * 3, currentQuarter * 3 + 1, currentQuarter * 3 + 2].map(
@@ -185,9 +204,8 @@ export default function Subscriptions() {
       toast.success(isPaidCurrentIteration ? `Marked as unpaid` : `Marked as paid`);
     };
 
-    // Card background based on payment status - green for paid OR autopay, red for unpaid
-    const isPaidOrAutopay = entry.autopay || isPaidCurrentIteration;
-    const cardBg = isPaidOrAutopay
+    // Card background based on payment status - green only if actually paid for current cycle
+    const cardBg = isPaidCurrentIteration
       ? "bg-green-500/10 border-green-500/30"
       : "bg-red-500/10 border-red-500/30";
 
@@ -608,20 +626,7 @@ export default function Subscriptions() {
 
               <div className="space-y-2">
                 <Label>Effective Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {format(adjustDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={adjustDate}
-                      onSelect={(d) => d && setAdjustDate(d)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker selected={adjustDate} onSelect={(d) => setAdjustDate(d)} />
                 <p className="text-sm text-muted-foreground">
                   If the date is in the future, the current price will stop the
                   day before and a new price will start on the effective date.
@@ -873,10 +878,10 @@ export default function Subscriptions() {
                 <SelectContent>
                   <SelectItem value="Weekly">Weekly</SelectItem>
                   <SelectItem value="Biweekly">Biweekly</SelectItem>
-                   <SelectItem value="Monthly">Monthly</SelectItem>
-                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                   <SelectItem value="Quarterly">Quarterly</SelectItem>
-                   <SelectItem value="Yearly">Yearly</SelectItem>
+                  <SelectItem value="Monthly">Monthly</SelectItem>
+                  <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                  <SelectItem value="Quarterly">Quarterly</SelectItem>
+                  <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -998,10 +1003,10 @@ export default function Subscriptions() {
                   <SelectContent>
                     <SelectItem value="Weekly">Weekly</SelectItem>
                     <SelectItem value="Biweekly">Biweekly</SelectItem>
-                     <SelectItem value="Monthly">Monthly</SelectItem>
-                     <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                     <SelectItem value="Quarterly">Quarterly</SelectItem>
-                     <SelectItem value="Yearly">Yearly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

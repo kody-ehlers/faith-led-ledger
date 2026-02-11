@@ -203,8 +203,8 @@ export default function Debt() {
               <div className="space-y-2">
                 <Label>Interest Rate (%)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="e.g., 5.25"
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}

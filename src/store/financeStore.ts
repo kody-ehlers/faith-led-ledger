@@ -220,6 +220,11 @@ interface FinanceState {
     assetId: string,
     tx: { date: string; amount: number; memo?: string }
   ) => void;
+  updateAssetTransaction: (
+    assetId: string,
+    txId: string,
+    updates: Partial<{ date: string; amount: number; memo?: string }>
+  ) => void;
   removeAssetTransaction: (assetId: string, txId: string) => void;
   updateAssetCreditLimit: (
     assetId: string,
@@ -542,6 +547,22 @@ export const useFinanceStore = create<FinanceState>()(
             };
           }),
         })),
+      updateAssetTransaction: (assetId, txId, updates) =>
+        set((state) => ({
+          assets: state.assets.map((a) => {
+            if (a.id !== assetId) return a;
+            const newTransactions = (a.transactions || []).map((t) =>
+              t.id === txId ? { ...t, ...(updates as any) } : t
+            );
+            const starting = a.startingAmount ?? 0;
+            const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
+            return {
+              ...a,
+              transactions: newTransactions,
+              currentAmount: computed,
+            };
+          }),
+        })),
       removeAssetTransaction: (assetId, txId) =>
         set((state) => ({
           assets: state.assets.map((a) => {
@@ -550,13 +571,16 @@ export const useFinanceStore = create<FinanceState>()(
               (t) => t.id !== txId
             );
             const starting = a.startingAmount ?? 0;
-            const computed = newTransactions.reduce(
-              (s, t) => s + t.amount,
-              starting
-            );
+            const removedTx = (a.transactions || []).find((t) => t.id === txId);
+            const removedWasStarting =
+              removedTx &&
+              (removedTx.memo === "Starting balance" || removedTx.memo === "Starting Balance");
+            const newStarting = removedWasStarting ? 0 : starting;
+            const computed = newTransactions.reduce((s, t) => s + t.amount, newStarting);
             return {
               ...a,
               transactions: newTransactions,
+              startingAmount: newStarting,
               currentAmount: computed,
             };
           }),

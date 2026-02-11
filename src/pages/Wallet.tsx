@@ -34,11 +34,12 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History } from "lucide-react";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, income, expenses, bills, subscriptions, tithes } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, income, expenses, bills, subscriptions, tithes } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
@@ -51,6 +52,15 @@ export default function Wallet() {
     const s = normalizeDateOnly(d);
     if (!s) return new Date();
     return new Date(s + "T12:00:00");
+  };
+
+  const formatDateSafe = (d?: string | null) => {
+    if (!d) return "-";
+    const dt = new Date(d);
+    if (!isNaN(dt.getTime())) return dt.toLocaleDateString();
+    const dt2 = parseDateSafe(d);
+    if (!isNaN(dt2.getTime())) return dt2.toLocaleDateString();
+    return "-";
   };
 
   const [name, setName] = useState("");
@@ -67,6 +77,16 @@ export default function Wallet() {
   const [isEnactOpen, setIsEnactOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
+  // Transaction remove dialog state
+  const [txRemoveAssetId, setTxRemoveAssetId] = useState<string | null>(null);
+  const [txRemoveTxId, setTxRemoveTxId] = useState<string | null>(null);
+  const [isTxRemoveOpen, setIsTxRemoveOpen] = useState(false);
+  // Edit starting-transaction dialog state
+  const [txEditAssetId, setTxEditAssetId] = useState<string | null>(null);
+  const [txEditTxId, setTxEditTxId] = useState<string | null>(null);
+  const [isTxEditOpen, setIsTxEditOpen] = useState(false);
+  const [txEditAmount, setTxEditAmount] = useState<number | null>(null);
+  const [txEditDate, setTxEditDate] = useState<Date | null>(null);
   // Adjust Credit Limit dialog state
   const [adjustTarget, setAdjustTarget] = useState<string | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -77,6 +97,12 @@ export default function Wallet() {
   // History modal state
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Payment dialog state for credit cards
+  const [payTarget, setPayTarget] = useState<string | null>(null);
+  const [isPayOpen, setIsPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState<number | null>(null);
+  const [payFromAssetId, setPayFromAssetId] = useState<string | null>(null);
+  const [payDate, setPayDate] = useState<Date>(new Date());
 
   const handleAdd = () => {
     if (!name.trim()) {
@@ -97,6 +123,44 @@ export default function Wallet() {
     setName("");
     setStartingAmount("");
     setPaymentDueDay("");
+  };
+
+  const handleSubmitPayment = () => {
+    if (!payTarget) return;
+    if (!payFromAssetId) {
+      toast.error("Select a source account");
+      return;
+    }
+    if (!payAmount || payAmount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+
+    const source = assets.find((x) => x.id === payFromAssetId);
+    const card = assets.find((x) => x.id === payTarget);
+    if (!source || !card) return;
+
+    const dateIso = payDate?.toISOString?.() || new Date().toISOString();
+
+    // From source: outflow (negative)
+    addAssetTransaction(source.id, {
+      date: dateIso,
+      amount: -Math.abs(payAmount),
+      memo: `Credit card payment to ${card.name}`,
+    });
+
+    // To credit card: inflow (positive) - reduces owed (credit cards store negative balances)
+    addAssetTransaction(card.id, {
+      date: dateIso,
+      amount: Math.abs(payAmount),
+      memo: `Payment from ${source.name}`,
+    });
+
+    toast.success(`Paid ${formatCurrency(payAmount)} to ${card.name}`);
+    setPayTarget(null);
+    setIsPayOpen(false);
+    setPayAmount(null);
+    setPayFromAssetId(null);
   };
 
   const openHistory = (assetId: string) => {
@@ -121,9 +185,6 @@ export default function Wallet() {
               strokeLinejoin="round"
             />
           </svg>
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Wallet</h2>
           <p className="text-muted-foreground">
             Manage checking, savings, and credit card accounts
           </p>
@@ -281,8 +342,7 @@ export default function Wallet() {
                           className="flex justify-between text-sm items-center"
                         >
                           <div>
-                            {new Date(t.date).toLocaleDateString()}{" "}
-                            {t.memo ? `• ${t.memo}` : ""}
+                            {formatDateSafe(t.date)} {t.memo ? `• ${t.memo}` : ""}
                           </div>
                           <div className="flex items-center gap-3">
                             <div
@@ -294,20 +354,40 @@ export default function Wallet() {
                             >
                               {formatCurrency(t.amount)}
                             </div>
-                            {/* allow removing recent transactions for credit card accounts */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => {
-                                if (confirm("Remove this transaction?")) {
-                                  removeAssetTransaction(a.id, t.id);
-                                  toast.success("Transaction removed");
-                                }
-                              }}
-                            >
-                              ✕
-                            </Button>
+                            {/* For starting balance, show Edit instead of Remove */}
+                            {(t.memo === "Starting balance" || t.memo === "Starting Balance") ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTxEditAssetId(a.id);
+                                  setTxEditTxId(t.id);
+                                  // default amount: present positive value to user
+                                  const displayAmt = a.type === "Credit Card" ? Math.abs(t.amount) : t.amount;
+                                  setTxEditAmount(displayAmt);
+                                  // set txEditDate as Date object
+                                  const raw = t.date || a.enactDate || new Date().toISOString().slice(0, 10);
+                                  const parsed = raw.includes("T") ? new Date(raw) : new Date(raw + "T12:00:00");
+                                  setTxEditDate(parsed);
+                                  setIsTxEditOpen(true);
+                                }}
+                              >
+                                ✎
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive"
+                                onClick={() => {
+                                  setTxRemoveAssetId(a.id);
+                                  setTxRemoveTxId(t.id);
+                                  setIsTxRemoveOpen(true);
+                                }}
+                              >
+                                ✕
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -325,6 +405,23 @@ export default function Wallet() {
                   <History className="h-4 w-4" />
                   History
                 </Button>
+                {a.type === "Credit Card" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPayTarget(a.id);
+                      setIsPayOpen(true);
+                      // default select first non-credit asset
+                      const src = assets.find((x) => x.type !== "Credit Card" && !x.closed);
+                      setPayFromAssetId(src?.id ?? null);
+                      setPayAmount(null);
+                      setPayDate(new Date());
+                    }}
+                  >
+                    Pay
+                  </Button>
+                )}
                 {!a.closed && (
                   <Button
                     variant="outline"
@@ -352,6 +449,94 @@ export default function Wallet() {
             </CardContent>
           </Card>
         ))}
+        {/* Transaction remove confirmation dialog */}
+        <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Remove Transaction</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">
+              {txRemoveAssetId && txRemoveTxId ? (
+                (() => {
+                  const asset = assets.find((x) => x.id === txRemoveAssetId);
+                  const tx = asset?.transactions?.find((u) => u.id === txRemoveTxId);
+                  return (
+                    <div>
+                      <div className="mb-2">
+                        Are you sure you want to remove this transaction?
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <div>Date: {tx ? format(new Date(tx.date + "T00:00:00"), "PPP") : "-"}</div>
+                        <div>Memo: {tx?.memo ?? "-"}</div>
+                        <div>Amount: {tx ? formatCurrency(tx.amount) : "-"}</div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div>Loading...</div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsTxRemoveOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-destructive text-white"
+                onClick={() => {
+                  if (txRemoveAssetId && txRemoveTxId) {
+                    removeAssetTransaction(txRemoveAssetId, txRemoveTxId);
+                    toast.success("Transaction removed");
+                  }
+                  setIsTxRemoveOpen(false);
+                  setTxRemoveAssetId(null);
+                  setTxRemoveTxId(null);
+                }}
+              >
+                Remove Transaction
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Starting Balance Dialog */}
+        <Dialog open={isTxEditOpen} onOpenChange={setIsTxEditOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Starting Balance</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <CurrencyInput value={txEditAmount ?? null} onChange={(v) => setTxEditAmount(v)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <DatePicker selected={txEditDate ?? undefined} onSelect={(d) => setTxEditDate(d)} placeholder="Pick a date" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => { setIsTxEditOpen(false); setTxEditAssetId(null); setTxEditTxId(null); }}>Cancel</Button>
+              <Button onClick={() => {
+                if (!txEditAssetId || !txEditTxId) return;
+                const asset = assets.find((x) => x.id === txEditAssetId);
+                if (!asset) return;
+                const amt = txEditAmount ?? 0;
+                const signed = asset.type === "Credit Card" ? -Math.abs(amt) : amt;
+                const dateIso = txEditDate ? txEditDate.toISOString() : (asset.enactDate ? (asset.enactDate.includes('T') ? asset.enactDate : `${asset.enactDate}T12:00:00`) : new Date().toISOString());
+                // update startingAmount on asset
+                updateAsset(txEditAssetId, { startingAmount: signed, currentAmount: undefined });
+                // update the transaction
+                updateAssetTransaction(txEditAssetId, txEditTxId, { amount: signed, date: dateIso, memo: "Starting balance" });
+                toast.success("Starting balance updated");
+                setIsTxEditOpen(false);
+                setTxEditAssetId(null);
+                setTxEditTxId(null);
+              }}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Remove confirmation dialog */}
         <Dialog open={isRemoveOpen} onOpenChange={setIsRemoveOpen}>
           <DialogContent className="sm:max-w-md">
@@ -378,6 +563,51 @@ export default function Wallet() {
               >
                 Remove Account
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Payment Dialog for Credit Cards */}
+        <Dialog open={isPayOpen || payTarget !== null} onOpenChange={(open) => {
+          if (!open) {
+            setPayTarget(null);
+            setPayAmount(null);
+            setPayFromAssetId(null);
+          }
+          setIsPayOpen(open);
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Pay Credit Card - {assets.find((a) => a.id === payTarget)?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>From Account</Label>
+                <Select value={payFromAssetId ?? "__none"} onValueChange={(v) => setPayFromAssetId(v === "__none" ? null : v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Select account</SelectItem>
+                    {assets.filter(x => x.type !== "Credit Card" && !x.closed).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name} • {s.type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <DatePicker selected={payDate} onSelect={(d) => setPayDate(d)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => { setPayTarget(null); setIsPayOpen(false); }}>Cancel</Button>
+              <Button onClick={handleSubmitPayment}>Pay</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -429,14 +659,7 @@ export default function Wallet() {
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(tx.date + "T00:00:00").toLocaleDateString(
-                                "en-US",
-                                {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                }
-                              )}
+                              {formatDateSafe(tx.date)}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1">

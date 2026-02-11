@@ -2,13 +2,6 @@
 
 ## TODO
 
-- [ ] Ability to switch which wallet item is used for income/bills/subscriptions/investments/debt... specifically nice for auto pay and income
-- [ ] Remove suggestions from some fields (e.g. Add Income: Source)
-- [ ] When adding income have an toggleable that says (Apply Income from start date to now) -> if this is turned on, it will allocate all the money to the wallet account.
-- [ ] Yearly subscriptions shouldn't say the year, it should say December 12, for example and it should highlight red if it hasn't yet been paid in this current year. Same goes for monthly subscriptions that haven't yet been paid this month
-- [ ] Investments, should be simple for setup (Investment Name, Initial Contribution, Notes, Auto Deposit? -> which should turn on Frequency/Date/Wallet)
-- [ ] Investments "Add Investment" button can't be seen. Clean up the cards for investments, record earnings is good, but there needs to be an "Contribute" button for one  time contributions, and wallet options for this should have an option for "From External Account" and that actually should apply to any payments (expenses, bills, etc.) and it would just get paid but not by one of our wallet items
-
 ## Project info
 
 **URL**: https://lovable.dev/projects/ba5a6a34-4206-46fb-9a41-ec1ab444cbab

@@ -143,7 +143,13 @@ export default function Expenses() {
     toast.success("Expense removed");
   };
 
-  const monthlyTotal = calculateMonthlyExpenses(expenses);
+  const now = new Date();
+  const monthlyTotal = expenses
+    .filter((e) => {
+      const d = new Date(e.date);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    })
+    .reduce((sum, e) => sum + e.amount, 0);
   const categoryTotals = calculateCategoryTotals(
     expenses.filter(
       (e) => new Date(e.date).getMonth() === new Date().getMonth()

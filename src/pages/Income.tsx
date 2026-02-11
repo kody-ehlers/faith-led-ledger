@@ -48,7 +48,7 @@ import {
   TrendingUp,
   Settings,
 } from "lucide-react";
-import { subDays } from "date-fns";
+import { subDays, addDays, addMonths, addYears } from "date-fns";
 import { toast } from "sonner";
 import {
   Popover,
@@ -58,6 +58,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
+import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
   DialogContent,
@@ -122,50 +123,48 @@ export default function Income() {
     if (applyRetroactive && assetId) {
       const asset = assets.find((a) => a.id === assetId);
       if (asset) {
-        // Calculate total amount based on frequency and dates
         const now = new Date();
-        let totalAmount = 0;
+        const startDate = new Date(date);
+
+        const occurrences: Date[] = [];
 
         if (frequency === "One-time") {
-          // For one-time, just add the amount if date is in the past
-          if (new Date(date) <= now) {
-            totalAmount = amount;
-          }
+          if (startDate <= now) occurrences.push(startDate);
         } else {
-          // For recurring, calculate number of periods from date to now
-          const startDate = new Date(date);
-          let count = 0;
+          let curr = new Date(startDate);
+          while (curr <= now) {
+            occurrences.push(new Date(curr));
 
-          if (frequency === "Weekly") {
-            count = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-          } else if (frequency === "Biweekly") {
-            count = Math.floor((now.getTime() - startDate.getTime()) / (14 * 24 * 60 * 60 * 1000)) + 1;
-          } else if (frequency === "Monthly") {
-            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()) + 1;
-            count = Math.max(0, monthDiff);
-          } else if (frequency === "Bimonthly") {
-            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-            count = Math.max(0, Math.floor(monthDiff / 2) + 1);
-          } else if (frequency === "Quarterly") {
-            const monthDiff = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-            count = Math.max(0, Math.floor(monthDiff / 3) + 1);
-          } else if (frequency === "Yearly") {
-            const yearDiff = now.getFullYear() - startDate.getFullYear();
-            count = yearDiff >= 0 ? 1 : 0;
+            if (frequency === "Weekly") {
+              curr = addDays(curr, 7);
+            } else if (frequency === "Biweekly") {
+              curr = addDays(curr, 14);
+            } else if (frequency === "Monthly") {
+              curr = addMonths(curr, 1);
+            } else if (frequency === "Bimonthly") {
+              curr = addMonths(curr, 2);
+            } else if (frequency === "Quarterly") {
+              curr = addMonths(curr, 3);
+            } else if (frequency === "Yearly") {
+              curr = addYears(curr, 1);
+            } else {
+              // fallback to monthly
+              curr = addMonths(curr, 1);
+            }
           }
-
-          totalAmount = Math.max(0, count * amount);
         }
 
-        // Add manual transaction to wallet if amount > 0
-        if (totalAmount > 0) {
+        if (occurrences.length > 0) {
           const { addAssetTransaction } = useFinanceStore.getState();
-          addAssetTransaction(assetId, {
-            date: new Date().toISOString(),
-            amount: totalAmount,
-            memo: `Retroactive ${frequency.toLowerCase()} income: ${source.trim()}`,
+          occurrences.forEach((occ, idx) => {
+            addAssetTransaction(assetId, {
+              date: occ.toISOString(),
+              amount: amount,
+              memo: `Retroactive ${frequency.toLowerCase()} income: ${source.trim()} (${idx + 1}/${occurrences.length})`,
+            });
           });
-          toast.success(`Applied ${formatCurrency(totalAmount)} retroactively to wallet`);
+          const totalAmount = occurrences.length * amount;
+          toast.success(`Applied ${formatCurrency(totalAmount)} retroactively to wallet (${occurrences.length} entries)`);
         }
       }
     }
@@ -439,42 +438,12 @@ export default function Income() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {suspendStart
-                        ? format(suspendStart, "PPP")
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={suspendStart}
-                      onSelect={(d) => d && setSuspendStart(d)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker selected={suspendStart} onSelect={(d) => setSuspendStart(d)} placeholder="Pick a date" />
               </div>
               <div className="space-y-2">
                 <Label>End Date</Label>
                 <div className="flex items-center gap-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" disabled={suspendIndefinite}>
-                        {suspendEnd
-                          ? format(suspendEnd, "PPP")
-                          : "Pick an end date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent side="bottom" className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={suspendEnd ?? undefined}
-                        onSelect={(d) => d && setSuspendEnd(d)}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker selected={suspendEnd ?? undefined} onSelect={(d) => setSuspendEnd(d)} placeholder="Pick an end date" />
                   <div className="flex items-center space-x-2">
                     <Switch
                       checked={suspendIndefinite}
@@ -543,20 +512,7 @@ export default function Income() {
 
               <div className="space-y-2">
                 <Label>Effective Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {format(adjustDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={adjustDate}
-                      onSelect={(d) => d && setAdjustDate(d)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker selected={adjustDate} onSelect={(d) => setAdjustDate(d)} />
                 <p className="text-sm text-muted-foreground">
                   If the date is in the future, the current income will stop the
                   day before and a new income will start on the effective date.
@@ -961,11 +917,11 @@ export default function Income() {
                 <SelectContent>
                   <SelectItem value="One-time">One-time</SelectItem>
                   <SelectItem value="Weekly">Weekly</SelectItem>
-                   <SelectItem value="Biweekly">Biweekly</SelectItem>
-                   <SelectItem value="Monthly">Monthly</SelectItem>
-                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                   <SelectItem value="Quarterly">Quarterly</SelectItem>
-                   <SelectItem value="Yearly">Yearly</SelectItem>
+                  <SelectItem value="Biweekly">Biweekly</SelectItem>
+                  <SelectItem value="Monthly">Monthly</SelectItem>
+                  <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                  <SelectItem value="Quarterly">Quarterly</SelectItem>
+                  <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1030,11 +986,13 @@ export default function Income() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__external">External Account</SelectItem>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} • {a.type}
-                    </SelectItem>
-                  ))}
+                  {assets
+                    .filter((a) => a.type !== "Credit Card" && !a.closed)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1149,10 +1107,10 @@ export default function Income() {
                     <SelectItem value="One-time">One-time</SelectItem>
                     <SelectItem value="Weekly">Weekly</SelectItem>
                     <SelectItem value="Biweekly">Biweekly</SelectItem>
-                     <SelectItem value="Monthly">Monthly</SelectItem>
-                     <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                     <SelectItem value="Quarterly">Quarterly</SelectItem>
-                     <SelectItem value="Yearly">Yearly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

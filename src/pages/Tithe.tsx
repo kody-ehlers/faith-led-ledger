@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 
 export default function Tithe() {
   const { income, tithes, addTithe, markTitheGiven, updateTithe, removeTithe } =
@@ -269,7 +270,7 @@ export default function Tithe() {
                         const percent =
                           data.target > 0
                             ? (Math.min(data.paid, data.target) / data.target) *
-                              100
+                            100
                             : 0;
                         return (
                           <div className="bg-background border border-border rounded-md p-3 shadow-lg">
@@ -405,18 +406,7 @@ export default function Tithe() {
             </p>
             <div className="space-y-2">
               <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline">{format(fullDate, "PPP")}</Button>
-                </PopoverTrigger>
-                <PopoverContent side="bottom" className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={fullDate}
-                    onSelect={(d) => d && setFullDate(d)}
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker selected={fullDate} onSelect={(d) => setFullDate(d)} />
             </div>
           </div>
           <DialogFooter>
@@ -443,20 +433,7 @@ export default function Tithe() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline">
-                    {format(partialDate, "PPP")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="bottom" className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={partialDate}
-                    onSelect={(d) => d && setPartialDate(d)}
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker selected={partialDate} onSelect={(d) => setPartialDate(d)} />
             </div>
           </div>
           <DialogFooter>
@@ -489,32 +466,16 @@ export default function Tithe() {
 
               <div className="space-y-2">
                 <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {editingTithe.date
-                        ? format(new Date(editingTithe.date), "PPP")
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={
-                        editingTithe.date
-                          ? new Date(editingTithe.date)
-                          : new Date()
-                      }
-                      onSelect={(d) =>
-                        d &&
-                        setEditingTithe({
-                          ...editingTithe,
-                          date: d.toISOString(),
-                        })
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  selected={editingTithe.date ? new Date(editingTithe.date) : new Date()}
+                  onSelect={(d) =>
+                    setEditingTithe({
+                      ...editingTithe,
+                      date: d.toISOString(),
+                    })
+                  }
+                  placeholder="Pick a date"
+                />
               </div>
             </div>
             <DialogFooter>

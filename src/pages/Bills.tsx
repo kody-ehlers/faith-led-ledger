@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, subDays } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
   DialogContent,
@@ -160,6 +161,25 @@ export default function Bills() {
       isPaidCurrentIteration = entry.paidMonths?.includes(currentMonth) ?? false;
     }
 
+    // If not marked paid but on autopay, treat as paid when the scheduled due date
+    // for the current cycle has passed (handles Monthly and Yearly schedules).
+    if (!isPaidCurrentIteration && entry.autopay) {
+      try {
+        const today = new Date();
+        if (entry.frequency === "Monthly") {
+          const day = new Date(entry.date).getDate();
+          const due = new Date(today.getFullYear(), today.getMonth(), day);
+          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+        } else if (entry.frequency === "Yearly") {
+          const d = new Date(entry.date);
+          const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
 
     const togglePaidThisMonth = () => {
@@ -170,9 +190,8 @@ export default function Bills() {
       toast.success(isPaidCurrentIteration ? "Marked as unpaid" : "Marked as paid");
     };
 
-    // Card background based on payment status - green for paid OR autopay
-    const isPaidOrAutopay = entry.autopay || isPaidCurrentIteration;
-    const cardBg = isPaidOrAutopay
+    // Card background based on payment status - green only if actually paid for current cycle
+    const cardBg = isPaidCurrentIteration
       ? "bg-green-500/10 border-green-500/30"
       : "bg-red-500/10 border-red-500/30";
 
@@ -585,20 +604,7 @@ export default function Bills() {
 
               <div className="space-y-2">
                 <Label>Effective Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {format(adjustDate, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={adjustDate}
-                      onSelect={(d) => d && setAdjustDate(d)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker selected={adjustDate} onSelect={(d) => setAdjustDate(d)} />
                 <p className="text-sm text-muted-foreground">
                   If the date is in the future, the current price will stop the
                   day before and a new price will start on the effective date.
@@ -702,41 +708,13 @@ export default function Bills() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      {format(cancelStart, "PPP")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={cancelStart}
-                      onSelect={(d) => d && setCancelStart(d)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker selected={cancelStart} onSelect={(d) => setCancelStart(d)} />
               </div>
 
               <div className="space-y-2">
                 <Label>End Date</Label>
                 <div className="flex items-center gap-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" disabled={cancelIndefinite}>
-                        {cancelEnd
-                          ? format(cancelEnd, "PPP")
-                          : "Pick an end date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent side="bottom" className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={cancelEnd ?? undefined}
-                        onSelect={(d) => d && setCancelEnd(d)}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker selected={cancelEnd ?? undefined} onSelect={(d) => setCancelEnd(d)} placeholder="Pick an end date" />
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       checked={cancelIndefinite}
@@ -820,10 +798,10 @@ export default function Bills() {
                     <SelectContent>
                       <SelectItem value="Weekly">Weekly</SelectItem>
                       <SelectItem value="Biweekly">Biweekly</SelectItem>
-                       <SelectItem value="Monthly">Monthly</SelectItem>
-                       <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                       <SelectItem value="Quarterly">Quarterly</SelectItem>
-                       <SelectItem value="Yearly">Yearly</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                      <SelectItem value="Quarterly">Quarterly</SelectItem>
+                      <SelectItem value="Yearly">Yearly</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -962,10 +940,10 @@ export default function Bills() {
                 <SelectContent>
                   <SelectItem value="Weekly">Weekly</SelectItem>
                   <SelectItem value="Biweekly">Biweekly</SelectItem>
-                   <SelectItem value="Monthly">Monthly</SelectItem>
-                   <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                   <SelectItem value="Quarterly">Quarterly</SelectItem>
-                   <SelectItem value="Yearly">Yearly</SelectItem>
+                  <SelectItem value="Monthly">Monthly</SelectItem>
+                  <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                  <SelectItem value="Quarterly">Quarterly</SelectItem>
+                  <SelectItem value="Yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>

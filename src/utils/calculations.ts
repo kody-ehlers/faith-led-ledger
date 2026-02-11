@@ -22,13 +22,13 @@ export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
   // Calculate the total income for the current month by enumerating occurrences
   // and using any change history to determine the amount for each occurrence.
   const now = new Date();
-  return calculateIncomeForMonth(income, now, /*includePreTax*/ true);
+  return calculateIncomeForMonth(income, now, /*includePreTax*/ true, now);
 };
 
 export const calculatePostTaxIncome = (income: IncomeEntry[]): number => {
   // Use the monthly occurrence enumeration but exclude pre-tax incomes
   const now = new Date();
-  return calculateIncomeForMonth(income, now, /*includePreTax*/ false);
+  return calculateIncomeForMonth(income, now, /*includePreTax*/ false, now);
 };
 
 // Public wrapper to calculate income for an arbitrary month. includePreTax controls
@@ -38,7 +38,7 @@ export const calculateIncomeForMonthPublic = (
   targetDate = new Date(),
   includePreTax = true
 ): number => {
-  return calculateIncomeForMonth(income, targetDate, includePreTax);
+  return calculateIncomeForMonth(income, targetDate, includePreTax, targetDate);
 };
 
 // Calculate how much a single income entry contributes in the given month (respects
@@ -154,7 +154,8 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
 const calculateIncomeForMonth = (
   income: IncomeEntry[],
   targetDate: Date,
-  includePreTax: boolean
+  includePreTax: boolean,
+  asOfDate: Date = new Date()
 ) => {
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
@@ -182,7 +183,8 @@ const calculateIncomeForMonth = (
       const d = start;
       if (
         d.getFullYear() === monthStart.getFullYear() &&
-        d.getMonth() === monthStart.getMonth()
+        d.getMonth() === monthStart.getMonth() &&
+        !isAfter(d, asOfDate)
       ) {
         if (!isDateSuspended(entry, d)) total += getAmountForDate(entry, d);
       }
@@ -209,7 +211,7 @@ const calculateIncomeForMonth = (
       }
     };
 
-    if (isAfter(occurrence, monthEnd)) continue;
+    if (isAfter(occurrence, monthEnd) || isAfter(occurrence, asOfDate)) continue;
 
     let guard = 0;
     while (isBefore(occurrence, monthStart) && guard < 1000) {
@@ -221,6 +223,7 @@ const calculateIncomeForMonth = (
     guard = 0;
     while (
       (isBefore(occurrence, monthEnd) || isEqual(occurrence, monthEnd)) &&
+      !isAfter(occurrence, asOfDate) &&
       guard < 1000
     ) {
       if (
@@ -423,20 +426,143 @@ export const calculateTitheAmount = (postTaxIncome: number): number => {
   return postTaxIncome * 0.1;
 };
 
-export const calculateMonthlyExpenses = (expenses: ExpenseEntry[]): number => {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+export const calculateMonthlyExpenses = (
+  expenses: ExpenseEntry[],
+  bills: BillEntry[],
+  subscriptions: SubscriptionEntry[],
+  tithes: TithePayment[],
+  assets: LiquidAsset[],
+  asOfDate: Date = new Date()
+): number => {
+  const now = asOfDate;
+  const monthKey = now.toISOString().slice(0, 7); // YYYY-MM
 
-  return expenses
-    .filter((expense) => {
-      const expenseDate = new Date(expense.date);
-      return (
-        expenseDate.getMonth() === currentMonth &&
-        expenseDate.getFullYear() === currentYear
-      );
-    })
-    .reduce((total, expense) => total + expense.amount, 0);
+  let total = 0;
+
+  // 1) Expenses with a date in the current month
+  for (const e of expenses) {
+    const d = new Date(e.date);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      total += e.amount;
+    }
+  }
+
+  // 2) Tithes with a date in the current month
+  for (const t of tithes) {
+    const d = new Date(t.date);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      total += t.amount;
+    }
+  }
+
+  // 3) Bills that have been marked paid for this month (paidMonths contains YYYY-MM)
+  for (const b of bills) {
+    if (!b.paidMonths) continue;
+    if (b.paidMonths.includes(monthKey)) {
+      const amount = b.variablePrice ? b.monthlyPrices?.[monthKey] || b.amount : b.amount;
+      total += amount;
+    }
+  }
+
+  // 4) Subscriptions: include if paidMonths includes monthKey, or if autopay and scheduled occurrence for this month is on-or-before today
+  for (const s of subscriptions) {
+    const amountForMonth = s.variablePrice ? s.monthlyPrices?.[monthKey] || s.amount : s.amount;
+    if (s.paidMonths && s.paidMonths.includes(monthKey)) {
+      total += amountForMonth;
+      continue;
+    }
+
+    if (s.autopay) {
+      // find occurrence date for this month
+      const start = new Date(s.date);
+      if (isAfter(start, now)) continue;
+
+      let occ = new Date(start);
+      const advance = (d: Date) => {
+        switch (s.frequency) {
+          case "Weekly":
+            return addDays(d, 7);
+          case "Biweekly":
+            return addDays(d, 14);
+          case "Monthly":
+            return addMonths(d, 1);
+          case "Bimonthly":
+            return addMonths(d, 2);
+          case "Quarterly":
+            return addMonths(d, 3);
+          case "Yearly":
+            return addYears(d, 1);
+          default:
+            return addMonths(d, 1);
+        }
+      };
+
+      let guard = 0;
+      while (occ.getFullYear() < now.getFullYear() || (occ.getFullYear() === now.getFullYear() && occ.getMonth() < now.getMonth())) {
+        occ = advance(occ);
+        guard++;
+        if (guard > 1000) break;
+      }
+
+      if (occ.getFullYear() === now.getFullYear() && occ.getMonth() === now.getMonth()) {
+        // treat as spent if occurrence date is on-or-before today
+        const occDate = occ;
+        if (!isAfter(occDate, now)) {
+          total += amountForMonth;
+        }
+      }
+    }
+  }
+
+  // 5) Manual asset transactions (negative amounts) for the month — avoid double-counting by skipping transactions that match an expense/bill/subscription/tithe already counted
+  const alreadyCounted = new Set<string>();
+  // mark expenses
+  for (const e of expenses) {
+    const key = `${e.date}|${e.amount}`;
+    alreadyCounted.add(key);
+  }
+  for (const t of tithes) {
+    const key = `${t.date}|${t.amount}`;
+    alreadyCounted.add(key);
+  }
+  for (const b of bills) {
+    if (!b.paidMonths) continue;
+    for (const pm of b.paidMonths) {
+      if (pm === monthKey) {
+        const key = `${pm}|${b.amount}`;
+        alreadyCounted.add(key);
+      }
+    }
+  }
+  for (const s of subscriptions) {
+    if (!s.paidMonths) continue;
+    for (const pm of s.paidMonths) {
+      if (pm === monthKey) {
+        const key = `${pm}|${s.amount}`;
+        alreadyCounted.add(key);
+      }
+    }
+  }
+
+  for (const a of assets) {
+    if (!a.transactions) continue;
+    for (const tx of a.transactions) {
+      const txDate = new Date(tx.date);
+      if (txDate.getFullYear() === now.getFullYear() && txDate.getMonth() === now.getMonth()) {
+        const key1 = `${tx.date}|${-Math.abs(tx.amount)}`;
+        const key2 = `${tx.date}|${tx.amount}`;
+        // consider negative amounts as outflows
+        const amt = tx.amount;
+        if (amt < 0) {
+          // skip if matched
+          if (alreadyCounted.has(key1) || alreadyCounted.has(key2)) continue;
+          total += -amt;
+        }
+      }
+    }
+  }
+
+  return total;
 };
 
 export const calculateNetWorth = (

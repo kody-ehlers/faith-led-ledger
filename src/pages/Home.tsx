@@ -66,14 +66,24 @@ const COLORS = [
 ];
 
 export default function Home() {
-  const { income, expenses, savings, debts, subscriptions, tithes, assets } =
+  const { income, expenses, savings, debts, bills, subscriptions, tithes, assets } =
     useFinanceStore();
 
+  const now = new Date();
   const monthlyIncome = calculateMonthlyIncome(income);
   const postTaxIncome = calculatePostTaxIncome(income);
-  const monthlyExpenses = calculateMonthlyExpenses(expenses);
+  // Monthly expenses for Home exclude tithes (tithe shown separately)
+  const monthlyExpenses = calculateMonthlyExpenses(
+    expenses,
+    bills,
+    subscriptions,
+    [],
+    assets,
+    now
+  );
   const titheAmount = calculateTitheAmount(postTaxIncome);
   const netWorth = calculateNetWorth(assets, debts);
+  const monthlyProfit = monthlyIncome - monthlyExpenses - titheAmount;
   const totalSavings = savings.reduce((sum, acc) => sum + acc.currentAmount, 0);
 
   const categoryData = Object.entries(calculateCategoryTotals(expenses))
@@ -131,7 +141,6 @@ export default function Home() {
   };
 
   // Prepare last 12 months of income data
-  const now = new Date();
   const monthlyIncomeData = Array.from({ length: 12 }).map((_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const monthName = date.toLocaleString("default", { month: "short" });
@@ -375,9 +384,8 @@ export default function Home() {
         </CardHeader>
         <CardContent>
           <p
-            className={`text-5xl font-bold ${
-              netWorth >= 0 ? "text-success" : "text-destructive"
-            }`}
+            className={`text-5xl font-bold ${netWorth >= 0 ? "text-success" : "text-destructive"
+              }`}
           >
             {formatCurrency(netWorth)}
           </p>
@@ -434,13 +442,16 @@ export default function Home() {
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Savings
+              Monthly Profit
             </CardTitle>
             <PiggyBank className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {formatCurrency(totalSavings)}
+            <div
+              className={`text-2xl font-bold ${monthlyProfit >= 0 ? "text-success" : "text-destructive"
+                }`}
+            >
+              {formatCurrency(monthlyProfit)}
             </div>
           </CardContent>
         </Card>
@@ -582,17 +593,15 @@ export default function Home() {
                             <Tooltip key={d.toISOString()}>
                               <TooltipTrigger asChild>
                                 <div
-                                  className={`min-h-[80px] p-2 rounded border ${
-                                    muted
-                                      ? "bg-muted/5 text-muted-foreground"
-                                      : "bg-card"
-                                  } hover:shadow-sm`}
+                                  className={`min-h-[80px] p-2 rounded border ${muted
+                                    ? "bg-muted/5 text-muted-foreground"
+                                    : "bg-card"
+                                    } hover:shadow-sm`}
                                 >
                                   <div className="flex justify-between items-start">
                                     <div
-                                      className={`text-sm font-medium ${
-                                        muted ? "opacity-60" : ""
-                                      }`}
+                                      className={`text-sm font-medium ${muted ? "opacity-60" : ""
+                                        }`}
                                     >
                                       {format(d, "d")}
                                     </div>
@@ -608,13 +617,13 @@ export default function Home() {
                                     )}
                                     {expensesTotal + subsTotal + titheTotal >
                                       0 && (
-                                      <div className="text-destructive font-semibold text-sm">
-                                        -
-                                        {formatCurrency(
-                                          expensesTotal + subsTotal + titheTotal
-                                        )}
-                                      </div>
-                                    )}
+                                        <div className="text-destructive font-semibold text-sm">
+                                          -
+                                          {formatCurrency(
+                                            expensesTotal + subsTotal + titheTotal
+                                          )}
+                                        </div>
+                                      )}
                                     {incomeTotal === 0 &&
                                       expensesTotal + subsTotal === 0 && (
                                         <div className="text-sm text-muted-foreground">
@@ -634,7 +643,7 @@ export default function Home() {
                                       Net:{" "}
                                       {formatCurrency(
                                         incomeTotal -
-                                          (expensesTotal + subsTotal)
+                                        (expensesTotal + subsTotal)
                                       )}
                                     </div>
                                   </div>
@@ -671,8 +680,8 @@ export default function Home() {
                                       Expenses & Tithe
                                     </div>
                                     {expensesList.length === 0 &&
-                                    subsList.length === 0 &&
-                                    titheList.length === 0 ? (
+                                      subsList.length === 0 &&
+                                      titheList.length === 0 ? (
                                       <div className="text-sm text-muted-foreground">
                                         None
                                       </div>
