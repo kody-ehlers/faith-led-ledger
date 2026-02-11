@@ -106,6 +106,7 @@ export interface InvestmentEntry {
   notes?: string;
   assetId?: string | null;
   moneyEarned: number;
+  expectedReturnRate?: number;
   earningsHistory?: Array<{
     id: string;
     date: string;
@@ -148,18 +149,26 @@ export interface SavingsAccount {
   currentAmount: number;
   goalAmount: number;
   targetDate?: string;
+  interestRate?: number;
+  interestHistory?: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    memo?: string;
+  }>;
 }
 
 export interface DebtEntry {
   id: string;
   name: string;
   balance: number;
+  originalBalance: number;
   interestRate: number;
   minimumPayment: number;
+  termMonths?: number;
   dueDate: string;
   notes?: string;
   assetId?: string | null;
-  // Payment history
   paymentHistory?: Array<{
     id: string;
     date: string;
@@ -413,7 +422,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       addDebt: (debt) =>
         set((state) => ({
-          debts: [...state.debts, { ...debt, id: crypto.randomUUID(), paymentHistory: [] }],
+          debts: [...state.debts, { ...debt, id: crypto.randomUUID(), originalBalance: debt.balance, paymentHistory: [] }],
         })),
 
       updateDebt: (id, updates) =>

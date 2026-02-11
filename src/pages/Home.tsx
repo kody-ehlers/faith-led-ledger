@@ -2,8 +2,7 @@ import { useFinanceStore } from "@/store/financeStore";
 import {
   calculateMonthlyIncome,
   calculatePostTaxIncome,
-  calculateTitheAmount,
-  calculateMonthlyExpenses,
+  calculatePostTaxIncomeReceivedSoFar,
   calculateNetWorth,
   formatCurrency,
   calculateCategoryTotals,
@@ -66,25 +65,69 @@ const COLORS = [
 ];
 
 export default function Home() {
-  const { income, expenses, savings, debts, bills, subscriptions, tithes, assets } =
+  const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments } =
     useFinanceStore();
 
   const now = new Date();
+  const monthKey = now.toISOString().slice(0, 7); // YYYY-MM
+
+  // ── MTD Income: all income sources + investment earnings + savings interest ──
+  const incomeReceivedMTD = calculatePostTaxIncomeReceivedSoFar(income, now);
+  // Add investment earnings recorded this month
+  const investmentEarningsMTD = investments.reduce((sum, inv) => {
+    return sum + (inv.earningsHistory || [])
+      .filter((e) => e.amount > 0 && e.date.startsWith(monthKey))
+      .reduce((s, e) => s + e.amount, 0);
+  }, 0);
+  // Add savings interest earned this month
+  const savingsInterestMTD = savings.reduce((sum, s) => {
+    return sum + (s.interestHistory || [])
+      .filter((h) => h.date.startsWith(monthKey))
+      .reduce((s2, h) => s2 + h.amount, 0);
+  }, 0);
+  const monthlyIncomeMTD = incomeReceivedMTD + investmentEarningsMTD + savingsInterestMTD;
+
+  // ── MTD Expenses: expenses + bills + subscriptions + debt payments (NOT tithe) ──
+  const expensesMTD = expenses
+    .filter((e) => { const d = new Date(e.date); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); })
+    .reduce((sum, e) => sum + e.amount, 0);
+  const billsMTD = bills.reduce((sum, b) => {
+    if (!b.paidMonths?.includes(monthKey)) return sum;
+    return sum + (b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount);
+  }, 0);
+  const subsMTD = subscriptions.reduce((sum, s) => {
+    if (!s.paidMonths?.includes(monthKey)) {
+      // Check autopay
+      if (s.autopay) {
+        try {
+          const day = new Date(s.date).getDate();
+          const due = new Date(now.getFullYear(), now.getMonth(), day);
+          if (due <= now) return sum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
+        } catch { /* ignore */ }
+      }
+      return sum;
+    }
+    return sum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
+  }, 0);
+  const debtPaymentsMTD = debts.reduce((sum, d) => {
+    return sum + (d.paymentHistory || [])
+      .filter((p) => p.date.startsWith(monthKey))
+      .reduce((s, p) => s + p.amount, 0);
+  }, 0);
+  const monthlyExpensesMTD = expensesMTD + billsMTD + subsMTD + debtPaymentsMTD;
+
+  // ── MTD Tithe ──
+  const titheMTD = tithes
+    .filter((t) => t.date.startsWith(monthKey) && new Date(t.date) <= now)
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // ── Total Savings = Income - Expenses - Tithe (MTD) ──
+  const totalSavingsMTD = monthlyIncomeMTD - monthlyExpensesMTD - titheMTD;
+
+  // Legacy values used elsewhere in Home
   const monthlyIncome = calculateMonthlyIncome(income);
   const postTaxIncome = calculatePostTaxIncome(income);
-  // Monthly expenses for Home exclude tithes (tithe shown separately)
-  const monthlyExpenses = calculateMonthlyExpenses(
-    expenses,
-    bills,
-    subscriptions,
-    [],
-    assets,
-    now
-  );
-  const titheAmount = calculateTitheAmount(postTaxIncome);
   const netWorth = calculateNetWorth(assets, debts);
-  const monthlyProfit = monthlyIncome - monthlyExpenses - titheAmount;
-  const totalSavings = savings.reduce((sum, acc) => sum + acc.currentAmount, 0);
 
   const categoryData = Object.entries(calculateCategoryTotals(expenses))
     .map(([name, value]) => ({ name, value }))
@@ -400,59 +443,62 @@ export default function Home() {
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Income
+              Monthly Income (MTD)
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {formatCurrency(monthlyIncome)}
+              {formatCurrency(monthlyIncomeMTD)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">All income + interest + earnings</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Expenses
+              Monthly Expenses (MTD)
             </CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(monthlyExpenses)}
+              {formatCurrency(monthlyExpensesMTD)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Bills + subs + expenses + debt payments</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Tithe (10%)
+              Tithe (MTD)
             </CardTitle>
             <Heart className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">
-              {formatCurrency(titheAmount)}
+              {formatCurrency(titheMTD)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Contributions this month</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Profit
+              Total Savings (MTD)
             </CardTitle>
             <PiggyBank className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${monthlyProfit >= 0 ? "text-success" : "text-destructive"
-                }`}
+              className={`text-2xl font-bold ${totalSavingsMTD >= 0 ? "text-success" : "text-destructive"}`}
             >
-              {formatCurrency(monthlyProfit)}
+              {formatCurrency(totalSavingsMTD)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Income − Expenses − Tithe</p>
           </CardContent>
         </Card>
       </div>
