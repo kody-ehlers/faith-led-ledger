@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,7 @@ export default function Investments() {
   // One-time contribution dialog
   const [contributionTarget, setContributionTarget] = useState<string | null>(null);
   const [contributionAmount2, setContributionAmount2] = useState<number | null>(null);
+  const [contributionDate, setContributionDate] = useState<Date>(new Date());
 
   // Earnings dialog
   const [earningsTarget, setEarningsTarget] = useState<string | null>(null);
@@ -115,8 +117,8 @@ export default function Investments() {
 
   const handleAdd = () => {
     if (!name.trim()) { toast.error("Please provide a name"); return; }
-    if (initialContribution === null || initialContribution <= 0) { toast.error("Please provide an initial contribution"); return; }
-    if (autoDeposit && (contributionAmount === null || contributionAmount <= 0)) { toast.error("Please provide a contribution amount"); return; }
+
+    const initAmount = initialContribution ?? 0;
 
     addInvestment({
       name: name.trim(),
@@ -128,9 +130,16 @@ export default function Investments() {
       expectedReturnRate: expectedReturn ? parseFloat(expectedReturn) : undefined,
     });
 
-    const inv = investments.find(i => i.name === name.trim());
-    if (inv && initialContribution > 0) {
-      addEarnings(inv.id, -initialContribution, "Initial contribution");
+    // Record the initial contribution as a separate earnings entry after adding
+    if (initAmount > 0) {
+      // We need to get the just-added investment
+      setTimeout(() => {
+        const state = useFinanceStore.getState();
+        const newInv = state.investments.find(i => i.name === name.trim());
+        if (newInv) {
+          state.addEarnings(newInv.id, -initAmount, "Initial contribution");
+        }
+      }, 0);
     }
 
     toast.success("Investment added");
@@ -172,7 +181,9 @@ export default function Investments() {
   const totalContributed = investments.reduce((sum, inv) => {
     return sum + (inv.earningsHistory || []).filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0);
   }, 0);
-  const totalEarned = investments.reduce((sum, inv) => sum + (inv.moneyEarned || 0), 0);
+  const totalEarned = investments.reduce((sum, inv) => {
+    return sum + (inv.earningsHistory || []).filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0);
+  }, 0);
 
   // Growth projection for selected investment
   const projInv = investments.find((i) => i.id === projectionTarget);
@@ -374,7 +385,9 @@ export default function Investments() {
                     <Button size="sm" variant="outline" onClick={() => setEarningsTarget(inv.id)} className="flex-1">
                       <TrendingUp className="h-4 w-4 mr-1" />Earnings
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setProjectionTarget(inv.id)}>📊</Button>
+                    <Button size="sm" variant="outline" onClick={() => setProjectionTarget(inv.id)}>
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { removeInvestment(inv.id); toast.success("Investment removed"); }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -387,7 +400,7 @@ export default function Investments() {
       </div>
 
       {/* Contribution Dialog with preview */}
-      <Dialog open={contributionTarget !== null} onOpenChange={(open) => { if (!open) { setContributionTarget(null); setContributionAmount2(null); } }}>
+      <Dialog open={contributionTarget !== null} onOpenChange={(open) => { if (!open) { setContributionTarget(null); setContributionAmount2(null); setContributionDate(new Date()); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Contribute — {investments.find((i) => i.id === contributionTarget)?.name}</DialogTitle>
@@ -396,6 +409,10 @@ export default function Investments() {
             <div className="space-y-2">
               <Label>Amount</Label>
               <CurrencyInput value={contributionAmount2} onChange={(v) => setContributionAmount2(v)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <DatePicker selected={contributionDate} onSelect={(d) => setContributionDate(d)} />
             </div>
             {contribPreview && (
               <Card className="bg-muted/30">

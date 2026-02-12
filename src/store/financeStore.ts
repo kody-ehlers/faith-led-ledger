@@ -181,10 +181,14 @@ export interface DebtEntry {
   dueDate: string;
   notes?: string;
   assetId?: string | null;
+  autopay?: boolean;
+  autopayDay?: number;
   paymentHistory?: Array<{
     id: string;
     date: string;
     amount: number;
+    principalPortion?: number;
+    interestPortion?: number;
     memo?: string;
   }>;
 }
@@ -230,7 +234,7 @@ interface FinanceState {
   addDebt: (debt: Omit<DebtEntry, "id">) => void;
   updateDebt: (id: string, updates: Partial<DebtEntry>) => void;
   removeDebt: (id: string) => void;
-  addDebtPayment: (debtId: string, amount: number, memo?: string) => void;
+  addDebtPayment: (debtId: string, amount: number, memo?: string, date?: string, principalPortion?: number, interestPortion?: number) => void;
   // Assets
   addAsset: (
     asset: Omit<LiquidAsset, "id" | "currentAmount" | "transactions">
@@ -460,19 +464,21 @@ export const useFinanceStore = create<FinanceState>()(
           debts: state.debts.filter((d) => d.id !== id),
         })),
 
-      addDebtPayment: (debtId, amount, memo = "") =>
+      addDebtPayment: (debtId, amount, memo = "", date, principalPortion, interestPortion) =>
         set((state) => ({
           debts: state.debts.map((d) =>
             d.id === debtId
               ? {
                   ...d,
-                  balance: Math.max(0, d.balance - amount),
+                  balance: Math.max(0, d.balance - (principalPortion ?? amount)),
                   paymentHistory: [
                     ...(d.paymentHistory || []),
                     {
                       id: crypto.randomUUID(),
-                      date: new Date().toISOString(),
+                      date: date || new Date().toISOString(),
                       amount,
+                      principalPortion,
+                      interestPortion,
                       memo,
                     },
                   ],

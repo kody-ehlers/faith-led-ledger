@@ -119,53 +119,31 @@ export default function Income() {
       notes: notes.trim(),
     });
 
-    // If retroactive application is enabled and income is linked to a wallet
+    // Retroactive application is now informational only — wallet sync handles actual allocation
     if (applyRetroactive && assetId) {
-      const asset = assets.find((a) => a.id === assetId);
-      if (asset) {
-        const now = new Date();
-        const startDate = new Date(date);
+      const now = new Date();
+      const startDate = new Date(date);
+      let count = 0;
 
-        const occurrences: Date[] = [];
-
-        if (frequency === "One-time") {
-          if (startDate <= now) occurrences.push(startDate);
-        } else {
-          let curr = new Date(startDate);
-          while (curr <= now) {
-            occurrences.push(new Date(curr));
-
-            if (frequency === "Weekly") {
-              curr = addDays(curr, 7);
-            } else if (frequency === "Biweekly") {
-              curr = addDays(curr, 14);
-            } else if (frequency === "Monthly") {
-              curr = addMonths(curr, 1);
-            } else if (frequency === "Bimonthly") {
-              curr = addMonths(curr, 2);
-            } else if (frequency === "Quarterly") {
-              curr = addMonths(curr, 3);
-            } else if (frequency === "Yearly") {
-              curr = addYears(curr, 1);
-            } else {
-              // fallback to monthly
-              curr = addMonths(curr, 1);
-            }
-          }
+      if (frequency === "One-time") {
+        if (startDate <= now) count = 1;
+      } else {
+        let curr = new Date(startDate);
+        while (curr <= now) {
+          count++;
+          if (frequency === "Weekly") curr = addDays(curr, 7);
+          else if (frequency === "Biweekly") curr = addDays(curr, 14);
+          else if (frequency === "Monthly") curr = addMonths(curr, 1);
+          else if (frequency === "Bimonthly") curr = addMonths(curr, 2);
+          else if (frequency === "Quarterly") curr = addMonths(curr, 3);
+          else if (frequency === "Yearly") curr = addYears(curr, 1);
+          else curr = addMonths(curr, 1);
         }
+      }
 
-        if (occurrences.length > 0) {
-          const { addAssetTransaction } = useFinanceStore.getState();
-          occurrences.forEach((occ, idx) => {
-            addAssetTransaction(assetId, {
-              date: occ.toISOString(),
-              amount: amount,
-              memo: `Retroactive ${frequency.toLowerCase()} income: ${source.trim()} (${idx + 1}/${occurrences.length})`,
-            });
-          });
-          const totalAmount = occurrences.length * amount;
-          toast.success(`Applied ${formatCurrency(totalAmount)} retroactively to wallet (${occurrences.length} entries)`);
-        }
+      if (count > 0) {
+        const totalAmount = count * amount;
+        toast.success(`Wallet sync will allocate ${formatCurrency(totalAmount)} (${count} occurrences) on next refresh`);
       }
     }
 
@@ -978,14 +956,14 @@ export default function Income() {
             <div className="space-y-2 md:col-span-2">
               <Label>Wallet</Label>
               <Select
-                value={assetId ?? "__external"}
-                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
+                value={assetId ?? "__none"}
+                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an account (optional)" />
+                  <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__external">External Account</SelectItem>
+                  <SelectItem value="__none">No Wallet Selected</SelectItem>
                   {assets
                     .filter((a) => a.type !== "Credit Card" && !a.closed)
                     .map((a) => (
@@ -1140,11 +1118,11 @@ export default function Income() {
               <div className="space-y-2">
                 <Label>Wallet</Label>
                 <Select
-                  value={editingIncome.assetId ?? "__external"}
+                  value={editingIncome.assetId ?? "__none"}
                   onValueChange={(v) =>
                     setEditingIncome({
                       ...editingIncome,
-                      assetId: v === "__external" ? null : v,
+                      assetId: v === "__none" ? null : v,
                     })
                   }
                 >
@@ -1152,12 +1130,14 @@ export default function Income() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__external">External Account</SelectItem>
-                    {assets.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} • {a.type}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="__none">No Wallet Selected</SelectItem>
+                    {assets
+                      .filter((a) => a.type !== "Credit Card" && !a.closed)
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} • {a.type}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

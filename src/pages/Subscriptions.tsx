@@ -136,11 +136,27 @@ export default function Subscriptions() {
 
     const cancelledNow = isCancelledNow();
 
-    // Determine if this subscription should be paid in the current iteration
+    // Determine if this subscription is due this month
     const now = new Date();
     const currentMonth = format(now, "yyyy-MM");
     const currentYear = now.getFullYear().toString();
     const startDate = new Date(entry.date);
+
+    // Check if this subscription has a due date this month based on frequency
+    let isDueThisMonth = false;
+    const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+
+    if (entry.frequency === "Monthly") {
+      isDueThisMonth = true;
+    } else if (entry.frequency === "Weekly" || entry.frequency === "Biweekly") {
+      isDueThisMonth = true; // always has occurrences each month
+    } else if (entry.frequency === "Yearly") {
+      isDueThisMonth = startDate.getMonth() === now.getMonth();
+    } else if (entry.frequency === "Quarterly") {
+      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
+    } else if (entry.frequency === "Bimonthly") {
+      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
+    }
 
     // Check if paid for current iteration based on frequency
     let isPaidCurrentIteration = false;
@@ -151,14 +167,14 @@ export default function Subscriptions() {
       iterationLabel = "Year";
     }
     // If not marked paid but on autopay, treat as paid when the scheduled due date
-    // for the current cycle has passed (handles Monthly and Yearly schedules).
+    // for the current cycle has passed
     if (!isPaidCurrentIteration && entry.autopay) {
       try {
         const today = new Date();
-        if (entry.frequency === "Monthly") {
+        if (entry.frequency === "Monthly" || entry.frequency === "Bimonthly") {
           const day = new Date(entry.date).getDate();
           const due = new Date(today.getFullYear(), today.getMonth(), day);
-          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+          if (due.getTime() <= today.getTime() && isDueThisMonth) isPaidCurrentIteration = true;
         } else if (entry.frequency === "Yearly") {
           const d = new Date(entry.date);
           const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
@@ -175,11 +191,14 @@ export default function Subscriptions() {
       isPaidCurrentIteration = (entry.paidMonths || []).some((m) => quarterMonths.includes(m));
       iterationLabel = "Qtr";
     } else if (entry.frequency === "Bimonthly") {
-      // Every other month — check if current month or previous month (within the 2-month window)
-      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-      const isPayMonth = monthsSinceStart % 2 === 0;
-      const checkMonth = isPayMonth ? currentMonth : format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
-      isPaidCurrentIteration = (entry.paidMonths || []).includes(checkMonth);
+      // Every other month - only check current month if it's a pay month
+      if (isDueThisMonth) {
+        isPaidCurrentIteration = (entry.paidMonths || []).includes(currentMonth);
+      } else {
+        // Not a pay month, check previous pay month
+        const prevPayMonth = format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
+        isPaidCurrentIteration = (entry.paidMonths || []).includes(prevPayMonth);
+      }
       iterationLabel = "Period";
     } else {
       isPaidCurrentIteration = entry.paidMonths?.includes(currentMonth) ?? false;
@@ -956,15 +975,53 @@ export default function Subscriptions() {
 
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Your Subscriptions</CardTitle>
-          <CardDescription>Active and cancelled subscriptions</CardDescription>
+          <CardTitle>This Month</CardTitle>
+          <CardDescription>Subscriptions due this month</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {subscriptions.length === 0 ? (
-            <p className="text-muted-foreground">No subscriptions yet.</p>
-          ) : (
-            subscriptions.map((s) => <SubscriptionCard key={s.id} entry={s} />)
-          )}
+          {(() => {
+            const now = new Date();
+            const thisMonthSubs = subscriptions.filter((s) => {
+              const startDate = new Date(s.date);
+              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+              if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") return true;
+              if (s.frequency === "Yearly") return startDate.getMonth() === now.getMonth();
+              if (s.frequency === "Quarterly") return monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
+              if (s.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
+              return true;
+            });
+            return thisMonthSubs.length === 0 ? (
+              <p className="text-muted-foreground">No subscriptions due this month.</p>
+            ) : (
+              thisMonthSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Not This Month</CardTitle>
+          <CardDescription>Subscriptions due in other months</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(() => {
+            const now = new Date();
+            const otherSubs = subscriptions.filter((s) => {
+              const startDate = new Date(s.date);
+              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+              if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") return false;
+              if (s.frequency === "Yearly") return startDate.getMonth() !== now.getMonth();
+              if (s.frequency === "Quarterly") return monthsSinceStart < 0 || monthsSinceStart % 3 !== 0;
+              if (s.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
+              return false;
+            });
+            return otherSubs.length === 0 ? (
+              <p className="text-muted-foreground">All subscriptions are due this month.</p>
+            ) : (
+              otherSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+            );
+          })()}
         </CardContent>
       </Card>
 
