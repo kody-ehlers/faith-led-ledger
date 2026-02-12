@@ -136,11 +136,23 @@ export default function Bills() {
 
     const cancelledNow = isCancelledNow();
 
-    // Determine if this bill should be paid in the current iteration
+    // Determine if this bill is due this month
     const now = new Date();
     const currentMonth = format(now, "yyyy-MM");
     const currentYear = now.getFullYear().toString();
     const startDate = new Date(entry.date);
+    const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+
+    let isDueThisMonth = false;
+    if (entry.frequency === "Monthly" || entry.frequency === "Weekly" || entry.frequency === "Biweekly") {
+      isDueThisMonth = true;
+    } else if (entry.frequency === "Yearly") {
+      isDueThisMonth = startDate.getMonth() === now.getMonth();
+    } else if (entry.frequency === "Quarterly") {
+      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
+    } else if (entry.frequency === "Bimonthly") {
+      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
+    }
 
     let isPaidCurrentIteration = false;
 
@@ -153,23 +165,24 @@ export default function Bills() {
       );
       isPaidCurrentIteration = (entry.paidMonths || []).some((m) => quarterMonths.includes(m));
     } else if (entry.frequency === "Bimonthly") {
-      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-      const isPayMonth = monthsSinceStart % 2 === 0;
-      const checkMonth = isPayMonth ? currentMonth : format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
-      isPaidCurrentIteration = (entry.paidMonths || []).includes(checkMonth);
+      if (isDueThisMonth) {
+        isPaidCurrentIteration = (entry.paidMonths || []).includes(currentMonth);
+      } else {
+        const prevPayMonth = format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "yyyy-MM");
+        isPaidCurrentIteration = (entry.paidMonths || []).includes(prevPayMonth);
+      }
     } else {
       isPaidCurrentIteration = entry.paidMonths?.includes(currentMonth) ?? false;
     }
 
-    // If not marked paid but on autopay, treat as paid when the scheduled due date
-    // for the current cycle has passed (handles Monthly and Yearly schedules).
+    // If not marked paid but on autopay, treat as paid when due date has passed
     if (!isPaidCurrentIteration && entry.autopay) {
       try {
         const today = new Date();
-        if (entry.frequency === "Monthly") {
+        if (entry.frequency === "Monthly" || entry.frequency === "Bimonthly") {
           const day = new Date(entry.date).getDate();
           const due = new Date(today.getFullYear(), today.getMonth(), day);
-          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
+          if (due.getTime() <= today.getTime() && isDueThisMonth) isPaidCurrentIteration = true;
         } else if (entry.frequency === "Yearly") {
           const d = new Date(entry.date);
           const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
@@ -1017,15 +1030,53 @@ export default function Bills() {
 
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Your Bills</CardTitle>
-          <CardDescription>Manage your recorded bills</CardDescription>
+          <CardTitle>This Month</CardTitle>
+          <CardDescription>Bills due this month</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {bills.length === 0 ? (
-            <p className="text-muted-foreground">No bills recorded.</p>
-          ) : (
-            bills.map((b) => <BillCard key={b.id} entry={b} />)
-          )}
+          {(() => {
+            const now = new Date();
+            const thisMonthBills = bills.filter((b) => {
+              const startDate = new Date(b.date);
+              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+              if (b.frequency === "Monthly" || b.frequency === "Weekly" || b.frequency === "Biweekly") return true;
+              if (b.frequency === "Yearly") return startDate.getMonth() === now.getMonth();
+              if (b.frequency === "Quarterly") return monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
+              if (b.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
+              return true;
+            });
+            return thisMonthBills.length === 0 ? (
+              <p className="text-muted-foreground">No bills due this month.</p>
+            ) : (
+              thisMonthBills.map((b) => <BillCard key={b.id} entry={b} />)
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle>Not This Month</CardTitle>
+          <CardDescription>Bills due in other months</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(() => {
+            const now = new Date();
+            const otherBills = bills.filter((b) => {
+              const startDate = new Date(b.date);
+              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+              if (b.frequency === "Monthly" || b.frequency === "Weekly" || b.frequency === "Biweekly") return false;
+              if (b.frequency === "Yearly") return startDate.getMonth() !== now.getMonth();
+              if (b.frequency === "Quarterly") return monthsSinceStart < 0 || monthsSinceStart % 3 !== 0;
+              if (b.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
+              return false;
+            });
+            return otherBills.length === 0 ? (
+              <p className="text-muted-foreground">All bills are due this month.</p>
+            ) : (
+              otherBills.map((b) => <BillCard key={b.id} entry={b} />)
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

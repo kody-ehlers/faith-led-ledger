@@ -595,7 +595,7 @@ export interface WalletTransaction {
   date: string; // ISO date
   amount: number; // positive for income/inflows, negative for expenses/outflows
   description: string;
-  type: "income" | "expense" | "bill" | "subscription" | "tithe" | "manual";
+  type: "income" | "expense" | "bill" | "subscription" | "tithe" | "manual" | "interest" | "debt";
   balance: number; // running balance after this transaction
 }
 

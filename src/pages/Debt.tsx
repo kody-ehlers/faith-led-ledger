@@ -1,10 +1,6 @@
 import { useState, useMemo } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,29 +10,19 @@ import { useFinanceStore, DebtEntry } from "@/store/financeStore";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import DatePicker from "@/components/DatePicker";
+import { format } from "date-fns";
 
 // Amortization row
 interface AmortRow {
@@ -48,10 +34,7 @@ interface AmortRow {
 }
 
 function buildAmortization(
-  balance: number,
-  annualRate: number,
-  monthlyPayment: number,
-  maxMonths = 360
+  balance: number, annualRate: number, monthlyPayment: number, maxMonths = 360
 ): AmortRow[] {
   const rows: AmortRow[] = [];
   let remaining = balance;
@@ -74,13 +57,7 @@ function buildAmortization(
 
 export default function Debt() {
   const {
-    debts,
-    addDebt,
-    updateDebt,
-    removeDebt,
-    addDebtPayment,
-    assets,
-    addAssetTransaction,
+    debts, addDebt, updateDebt, removeDebt, addDebtPayment, assets, addAssetTransaction,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -91,20 +68,19 @@ export default function Debt() {
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [autopay, setAutopay] = useState(false);
 
   // Payment dialog state
   const [payFor, setPayFor] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
   const [payAsset, setPayAsset] = useState<string | null>(null);
+  const [payDate, setPayDate] = useState<Date>(new Date());
 
   // Amortization preview dialog
   const [amortTarget, setAmortTarget] = useState<string | null>(null);
 
   const handleAdd = () => {
-    if (!name.trim()) {
-      toast.error("Enter a name");
-      return;
-    }
+    if (!name.trim()) { toast.error("Enter a name"); return; }
     addDebt({
       name: name.trim(),
       balance: balance ?? 0,
@@ -115,43 +91,38 @@ export default function Debt() {
       dueDate: new Date().toISOString(),
       notes: notes.trim(),
       assetId: assetId ?? undefined,
+      autopay,
     });
     toast.success("Debt added");
-    setName("");
-    setBalance(null);
-    setMinPayment(null);
-    setInterestRate("");
-    setTermMonths("");
-    setNotes("");
-    setAssetId(null);
-    setShowForm(false);
+    setName(""); setBalance(null); setMinPayment(null); setInterestRate("");
+    setTermMonths(""); setNotes(""); setAssetId(null); setShowForm(false); setAutopay(false);
   };
 
   const openPay = (debtId: string, debtMinPayment: number) => {
     setPayFor(debtId);
     setPayAmount(debtMinPayment);
     setPayAsset(assets.find((a) => a.type !== "Credit Card")?.id ?? null);
+    setPayDate(new Date());
   };
 
   const confirmPay = () => {
     if (!payFor) return;
     const amt = payAmount ?? 0;
-    if (amt <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    if (!payAsset) {
-      toast.error("Select a wallet account to pay from");
-      return;
-    }
+    if (amt <= 0) { toast.error("Enter a valid amount"); return; }
+    if (!payAsset) { toast.error("Select a wallet account to pay from"); return; }
     const debt = debts.find((d) => d.id === payFor);
     if (!debt) return;
+
+    const monthlyRate = debt.interestRate / 100 / 12;
+    const interestPortion = parseFloat((debt.balance * monthlyRate).toFixed(2));
+    const principalPortion = parseFloat(Math.max(0, amt - interestPortion).toFixed(2));
+
     addAssetTransaction(payAsset, {
-      date: new Date().toISOString(),
+      date: payDate.toISOString(),
       amount: -amt,
       memo: `Payment to ${debt.name}`,
     });
-    addDebtPayment(payFor, amt, `Payment from wallet`);
+    addDebtPayment(payFor, amt, `Payment from wallet`, payDate.toISOString(), principalPortion, interestPortion);
     toast.success("Payment recorded");
     setPayFor(null);
   };
@@ -164,8 +135,7 @@ export default function Debt() {
   const totalDebt = debts.reduce((sum, d) => sum + d.balance, 0);
   const totalMinPayments = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
   const totalPaid = debts.reduce(
-    (sum, d) => sum + (d.paymentHistory || []).reduce((s, p) => s + p.amount, 0),
-    0
+    (sum, d) => sum + (d.paymentHistory || []).reduce((s, p) => s + p.amount, 0), 0
   );
 
   // Payment preview for the pay dialog
@@ -184,11 +154,7 @@ export default function Debt() {
   const amortDebt = debts.find((d) => d.id === amortTarget);
   const amortTable = useMemo(() => {
     if (!amortDebt) return [];
-    return buildAmortization(
-      amortDebt.balance,
-      amortDebt.interestRate,
-      amortDebt.minimumPayment
-    );
+    return buildAmortization(amortDebt.balance, amortDebt.interestRate, amortDebt.minimumPayment);
   }, [amortDebt]);
 
   return (
@@ -206,37 +172,16 @@ export default function Debt() {
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Total Owed</CardTitle>
-            <CardDescription>All debts combined</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-destructive">
-              {formatCurrency(totalDebt)}
-            </p>
-          </CardContent>
+          <CardHeader><CardTitle>Total Owed</CardTitle><CardDescription>All debts combined</CardDescription></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-destructive">{formatCurrency(totalDebt)}</p></CardContent>
         </Card>
         <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Total Paid</CardTitle>
-            <CardDescription>All payments made</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-success">
-              {formatCurrency(totalPaid)}
-            </p>
-          </CardContent>
+          <CardHeader><CardTitle>Total Paid</CardTitle><CardDescription>All payments made</CardDescription></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-success">{formatCurrency(totalPaid)}</p></CardContent>
         </Card>
         <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Monthly Minimums</CardTitle>
-            <CardDescription>Combined minimum payments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-foreground">
-              {formatCurrency(totalMinPayments)}
-            </p>
-          </CardContent>
+          <CardHeader><CardTitle>Monthly Minimums</CardTitle><CardDescription>Combined minimum payments</CardDescription></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-foreground">{formatCurrency(totalMinPayments)}</p></CardContent>
         </Card>
       </div>
 
@@ -244,10 +189,7 @@ export default function Debt() {
       <Card className="shadow-md">
         <CardHeader className="cursor-pointer" onClick={() => setShowForm(!showForm)}>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Add Debt</CardTitle>
-              <CardDescription>Record a loan or credit balance</CardDescription>
-            </div>
+            <div><CardTitle>Add Debt</CardTitle><CardDescription>Record a loan or credit balance</CardDescription></div>
             {showForm ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
           </div>
         </CardHeader>
@@ -278,6 +220,10 @@ export default function Debt() {
                 <Label>Notes (optional)</Label>
                 <Input placeholder="e.g., Federal loan" value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
+              <div className="flex items-center space-x-2">
+                <Switch checked={autopay} onCheckedChange={setAutopay} />
+                <Label>Autopay Enabled</Label>
+              </div>
               <div className="md:col-span-2 space-y-2">
                 <Label>Default Payment Wallet</Label>
                 <Select value={assetId ?? "__external"} onValueChange={(v) => setAssetId(v === "__external" ? null : v)}>
@@ -298,7 +244,7 @@ export default function Debt() {
         )}
       </Card>
 
-      {/* Debts List - Wallet Card Style */}
+      {/* Debts List */}
       <div className="grid gap-4 md:grid-cols-2">
         {debts.length === 0 ? (
           <Card className="md:col-span-2">
@@ -320,9 +266,7 @@ export default function Debt() {
                       <CardTitle>{d.name}</CardTitle>
                       {d.notes && <CardDescription>{d.notes}</CardDescription>}
                     </div>
-                    <span className="text-xl font-bold text-destructive">
-                      {formatCurrency(d.balance)}
-                    </span>
+                    <span className="text-xl font-bold text-destructive">{formatCurrency(d.balance)}</span>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -352,14 +296,25 @@ export default function Debt() {
                     </div>
                   </div>
 
-                  {/* Recent Payments */}
+                  {d.autopay && (
+                    <div className="text-xs text-primary font-medium">(Autopay Enabled)</div>
+                  )}
+
+                  {/* Recent Payments with principal/interest split */}
                   {d.paymentHistory && d.paymentHistory.length > 0 && (
                     <div className="pt-2 border-t">
                       <div className="text-xs font-semibold mb-1">Recent Payments</div>
-                      <div className="space-y-1 max-h-24 overflow-y-auto">
-                        {d.paymentHistory.slice().reverse().slice(0, 3).map((p) => (
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {d.paymentHistory.slice().reverse().slice(0, 5).map((p) => (
                           <div key={p.id} className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">{new Date(p.date).toLocaleDateString()}</span>
+                            <div className="flex flex-col">
+                              <span className="text-muted-foreground">{format(new Date(p.date), "MMM d, yyyy")}</span>
+                              {(p.principalPortion !== undefined || p.interestPortion !== undefined) && (
+                                <span className="text-muted-foreground">
+                                  P: {formatCurrency(p.principalPortion ?? 0)} / I: {formatCurrency(p.interestPortion ?? 0)}
+                                </span>
+                              )}
+                            </div>
                             <span className="font-semibold text-success">-{formatCurrency(p.amount)}</span>
                           </div>
                         ))}
@@ -409,6 +364,10 @@ export default function Debt() {
             <div className="space-y-2">
               <Label>Amount</Label>
               <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Date</Label>
+              <DatePicker selected={payDate} onSelect={(d) => setPayDate(d)} />
             </div>
 
             {/* Payment Preview */}
@@ -464,9 +423,7 @@ export default function Debt() {
               {amortTable.length > 0 && (
                 <div className="text-sm text-muted-foreground">
                   Payoff in <strong>{amortTable.length}</strong> months ({(amortTable.length / 12).toFixed(1)} years) •
-                  Total Interest: <strong className="text-destructive">
-                    {formatCurrency(amortTable.reduce((s, r) => s + r.interest, 0))}
-                  </strong>
+                  Total Interest: <strong className="text-destructive">{formatCurrency(amortTable.reduce((s, r) => s + r.interest, 0))}</strong>
                 </div>
               )}
               <ScrollArea className="h-[400px] border rounded-lg">

@@ -238,6 +238,7 @@ export default function Expenses() {
                 placeholder="e.g., Grocery shopping"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="off"
               />
             </div>
 
@@ -338,7 +339,7 @@ export default function Expenses() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {expenseCategories.map((cat) => (
+                  {[...expenseCategories].sort((a, b) => a.localeCompare(b)).map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
