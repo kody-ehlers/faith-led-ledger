@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Landmark,
   BarChart3,
+  Target,
   Settings,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -32,6 +33,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Investments", url: "/investments", icon: TrendingUp },
     { title: "Debt", url: "/debt", icon: Landmark },
     { title: "Statistics", url: "/statistics", icon: BarChart3 },
+    { title: "Budget", url: "/budget", icon: Target },
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 

@@ -16,6 +16,7 @@ import Savings from "./pages/Savings";
 import Investments from "./pages/Investments";
 import Debt from "./pages/Debt";
 import Statistics from "./pages/Statistics";
+import Budget from "./pages/Budget";
 import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,7 @@ const AppRoutes = () => {
         <Route path="/investments" element={<Investments />} />
         <Route path="/debt" element={<Debt />} />
         <Route path="/statistics" element={<Statistics />} />
+        <Route path="/budget" element={<Budget />} />
         <Route path="/settings" element={<Settings />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
