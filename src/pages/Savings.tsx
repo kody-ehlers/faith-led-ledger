@@ -175,17 +175,20 @@ export default function Savings() {
       </Card>
 
       {/* Accounts List */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {savings.length === 0 ? (
-          <Card className="md:col-span-2">
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">
-                No savings accounts yet.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          savings.map((s) => {
+      {savings.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              No savings accounts yet.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <SortableCardGrid
+          items={getOrdered(savings, cardOrders["savings"])}
+          onReorder={(ids) => updateCardOrder("savings", ids)}
+          className="grid gap-4 md:grid-cols-2"
+          renderItem={(s) => {
             const progress =
               s.goalAmount > 0
                 ? Math.min((s.currentAmount / s.goalAmount) * 100, 100)
