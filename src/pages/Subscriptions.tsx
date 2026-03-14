@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, SquarePen } from "lucide-react";
 import { toast } from "sonner";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -51,6 +52,8 @@ export default function Subscriptions() {
     cancelSubscription,
     renewSubscription,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -225,8 +228,8 @@ export default function Subscriptions() {
 
     // Card background based on payment status - green only if actually paid for current cycle
     const cardBg = isPaidCurrentIteration
-      ? "bg-green-500/10 border-green-500/30"
-      : "bg-red-500/10 border-red-500/30";
+      ? "bg-success/10 border-success/30"
+      : "bg-destructive/10 border-destructive/30";
 
     return (
       <div
@@ -248,7 +251,7 @@ export default function Subscriptions() {
           )}
           <div>
             {cancelledNow && (
-              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+              <div className="mb-1 text-accent font-semibold text-sm">
                 Cancelled{" "}
                 {entry.cancelledIndefinitely
                   ? "— Indefinitely"
@@ -978,7 +981,7 @@ export default function Subscriptions() {
           <CardTitle>This Month</CardTitle>
           <CardDescription>Subscriptions due this month</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const thisMonthSubs = subscriptions.filter((s) => {
@@ -990,10 +993,17 @@ export default function Subscriptions() {
               if (s.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
               return true;
             });
-            return thisMonthSubs.length === 0 ? (
-              <p className="text-muted-foreground">No subscriptions due this month.</p>
+            const ordered = getOrdered(thisMonthSubs, cardOrders["subs-this"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">No subscriptions due this month.</p>
             ) : (
-              thisMonthSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("subs-this", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(s) => <SubscriptionCard entry={s} />}
+              />
             );
           })()}
         </CardContent>
@@ -1004,7 +1014,7 @@ export default function Subscriptions() {
           <CardTitle>Not This Month</CardTitle>
           <CardDescription>Subscriptions due in other months</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const otherSubs = subscriptions.filter((s) => {
@@ -1016,10 +1026,17 @@ export default function Subscriptions() {
               if (s.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
               return false;
             });
-            return otherSubs.length === 0 ? (
-              <p className="text-muted-foreground">All subscriptions are due this month.</p>
+            const ordered = getOrdered(otherSubs, cardOrders["subs-other"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">All subscriptions are due this month.</p>
             ) : (
-              otherSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("subs-other", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(s) => <SubscriptionCard entry={s} />}
+              />
             );
           })()}
         </CardContent>

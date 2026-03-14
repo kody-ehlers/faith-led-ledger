@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import {
   Table,
   TableBody,
@@ -87,6 +88,8 @@ export default function Investments() {
     removeInvestment,
     addEarnings,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -130,16 +133,13 @@ export default function Investments() {
       expectedReturnRate: expectedReturn ? parseFloat(expectedReturn) : undefined,
     });
 
-    // Record the initial contribution as a separate earnings entry after adding
+    // Record initial contribution synchronously (zustand set is sync)
     if (initAmount > 0) {
-      // We need to get the just-added investment
-      setTimeout(() => {
-        const state = useFinanceStore.getState();
-        const newInv = state.investments.find(i => i.name === name.trim());
-        if (newInv) {
-          state.addEarnings(newInv.id, -initAmount, "Initial contribution");
-        }
-      }, 0);
+      const state = useFinanceStore.getState();
+      const newInv = state.investments[state.investments.length - 1];
+      if (newInv) {
+        state.addEarnings(newInv.id, -initAmount, "Initial contribution");
+      }
     }
 
     toast.success("Investment added");
@@ -213,8 +213,8 @@ export default function Investments() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-emerald/10">
-          <TrendingUp className="h-6 w-6 text-emerald" />
+        <div className="p-3 rounded-full bg-success/10">
+          <TrendingUp className="h-6 w-6 text-success" />
         </div>
         <div>
           <h2 className="text-3xl font-bold text-foreground">Investments</h2>
@@ -319,11 +319,14 @@ export default function Investments() {
       </Card>
 
       {/* Investments List - Wallet Card Style */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {investments.length === 0 ? (
-          <Card className="md:col-span-2"><CardContent className="py-8"><p className="text-center text-muted-foreground">No investments yet.</p></CardContent></Card>
-        ) : (
-          investments.map((inv) => {
+      {investments.length === 0 ? (
+        <Card><CardContent className="py-8"><p className="text-center text-muted-foreground">No investments yet.</p></CardContent></Card>
+      ) : (
+        <SortableCardGrid
+          items={getOrdered(investments, cardOrders["investments"])}
+          onReorder={(ids) => updateCardOrder("investments", ids)}
+          className="grid gap-4 md:grid-cols-2"
+          renderItem={(inv) => {
             const value = getInvestmentValue(inv);
             const contributed = (inv.earningsHistory || []).filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0);
             const earned = (inv.earningsHistory || []).filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0);
@@ -395,9 +398,9 @@ export default function Investments() {
                 </CardContent>
               </Card>
             );
-          })
-        )}
-      </div>
+          }}
+        />
+      )}
 
       {/* Contribution Dialog with preview */}
       <Dialog open={contributionTarget !== null} onOpenChange={(open) => { if (!open) { setContributionTarget(null); setContributionAmount2(null); setContributionDate(new Date()); } }}>

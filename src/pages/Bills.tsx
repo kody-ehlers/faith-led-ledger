@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, SquarePen } from "lucide-react";
 import { toast } from "sonner";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -51,6 +52,8 @@ export default function Bills() {
     cancelBill,
     renewBill,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -205,8 +208,8 @@ export default function Bills() {
 
     // Card background based on payment status - green only if actually paid for current cycle
     const cardBg = isPaidCurrentIteration
-      ? "bg-green-500/10 border-green-500/30"
-      : "bg-red-500/10 border-red-500/30";
+      ? "bg-success/10 border-success/30"
+      : "bg-destructive/10 border-destructive/30";
 
     return (
       <div
@@ -226,7 +229,7 @@ export default function Bills() {
           )}
           <div>
             {cancelledNow && (
-              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+              <div className="mb-1 text-accent font-semibold text-sm">
                 Cancelled{" "}
                 {entry.cancelledIndefinitely
                   ? "— Indefinitely"
@@ -1033,7 +1036,7 @@ export default function Bills() {
           <CardTitle>This Month</CardTitle>
           <CardDescription>Bills due this month</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const thisMonthBills = bills.filter((b) => {
@@ -1045,10 +1048,17 @@ export default function Bills() {
               if (b.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
               return true;
             });
-            return thisMonthBills.length === 0 ? (
-              <p className="text-muted-foreground">No bills due this month.</p>
+            const ordered = getOrdered(thisMonthBills, cardOrders["bills-this"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">No bills due this month.</p>
             ) : (
-              thisMonthBills.map((b) => <BillCard key={b.id} entry={b} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("bills-this", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(b) => <BillCard entry={b} />}
+              />
             );
           })()}
         </CardContent>
@@ -1059,7 +1069,7 @@ export default function Bills() {
           <CardTitle>Not This Month</CardTitle>
           <CardDescription>Bills due in other months</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const otherBills = bills.filter((b) => {
@@ -1071,10 +1081,17 @@ export default function Bills() {
               if (b.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
               return false;
             });
-            return otherBills.length === 0 ? (
-              <p className="text-muted-foreground">All bills are due this month.</p>
+            const ordered = getOrdered(otherBills, cardOrders["bills-other"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">All bills are due this month.</p>
             ) : (
-              otherBills.map((b) => <BillCard key={b.id} entry={b} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("bills-other", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(b) => <BillCard entry={b} />}
+              />
             );
           })()}
         </CardContent>

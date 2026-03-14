@@ -326,7 +326,7 @@ export default function Income() {
           {/* Left: Source + Frequency/PreTax */}
           <div className="flex-1 flex flex-col justify-center">
             {suspendedNow && (
-              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+              <div className="mb-1 text-accent font-semibold text-sm">
                 {entry.suspendedIndefinitely
                   ? "Suspended — Indefinitely"
                   : `Suspended until ${entry.suspendedTo
@@ -357,7 +357,7 @@ export default function Income() {
             <span
               className={cn(
                 "font-semibold w-24 text-right",
-                isPast ? "text-green-700" : "text-foreground"
+                isPast ? "text-success" : "text-foreground"
               )}
             >
               {formatCurrency(entry.amount)}

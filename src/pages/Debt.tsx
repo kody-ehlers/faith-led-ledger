@@ -23,6 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import DatePicker from "@/components/DatePicker";
 import { format } from "date-fns";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 // Amortization row
 interface AmortRow {
@@ -58,6 +59,7 @@ function buildAmortization(
 export default function Debt() {
   const {
     debts, addDebt, updateDebt, removeDebt, addDebtPayment, assets, addAssetTransaction,
+    cardOrders, updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -245,15 +247,18 @@ export default function Debt() {
       </Card>
 
       {/* Debts List */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {debts.length === 0 ? (
-          <Card className="md:col-span-2">
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">No debts recorded yet.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          debts.map((d) => {
+      {debts.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No debts recorded yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <SortableCardGrid
+          items={getOrdered(debts, cardOrders["debts"])}
+          onReorder={(ids) => updateCardOrder("debts", ids)}
+          className="grid gap-4 md:grid-cols-2"
+          renderItem={(d) => {
             const totalPaidOnDebt = (d.paymentHistory || []).reduce((s, p) => s + p.amount, 0);
             const origBal = d.originalBalance || d.balance + totalPaidOnDebt;
             const paidPercent = origBal > 0 ? Math.min((totalPaidOnDebt / origBal) * 100, 100) : 0;
@@ -338,9 +343,9 @@ export default function Debt() {
                 </CardContent>
               </Card>
             );
-          })
-        )}
-      </div>
+          }}
+        />
+      )}
 
       {/* Pay dialog with preview */}
       <Dialog open={!!payFor} onOpenChange={(open) => { if (!open) setPayFor(null); }}>

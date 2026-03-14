@@ -205,6 +205,7 @@ interface FinanceState {
   investments: InvestmentEntry[];
   appName: string;
   expenseCategories: string[];
+  cardOrders: Record<string, string[]>;
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -306,6 +307,7 @@ interface FinanceState {
   
   // Settings
   updateAppName: (name: string) => void;
+  updateCardOrder: (page: string, order: string[]) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -921,6 +923,11 @@ export const useFinanceStore = create<FinanceState>()(
       removeExpenseCategory: (category) =>
         set((state) => ({
           expenseCategories: state.expenseCategories.filter((c) => c !== category),
+        })),
+
+      updateCardOrder: (page, order) =>
+        set((state) => ({
+          cardOrders: { ...state.cardOrders, [page]: order },
         })),
     }),
     {
