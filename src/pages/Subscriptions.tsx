@@ -52,6 +52,8 @@ export default function Subscriptions() {
     cancelSubscription,
     renewSubscription,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
