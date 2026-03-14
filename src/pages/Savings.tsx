@@ -21,6 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PiggyBank, Plus, Percent, Trash2 } from "lucide-react";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Savings() {
   const { savings, addSavings, updateSavings, removeSavings } =
