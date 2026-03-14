@@ -213,8 +213,8 @@ export default function Investments() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-emerald/10">
-          <TrendingUp className="h-6 w-6 text-emerald" />
+        <div className="p-3 rounded-full bg-success/10">
+          <TrendingUp className="h-6 w-6 text-success" />
         </div>
         <div>
           <h2 className="text-3xl font-bold text-foreground">Investments</h2>
