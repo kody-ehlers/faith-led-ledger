@@ -287,9 +287,9 @@ export default function Savings() {
                 </CardContent>
               </Card>
             );
-          })
-        )}
-      </div>
+          }}
+        />
+      )}
 
       {/* Interest Dialog */}
       <Dialog

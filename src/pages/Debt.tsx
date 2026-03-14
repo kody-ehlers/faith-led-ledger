@@ -343,9 +343,9 @@ export default function Debt() {
                 </CardContent>
               </Card>
             );
-          })
-        )}
-      </div>
+          }}
+        />
+      )}
 
       {/* Pay dialog with preview */}
       <Dialog open={!!payFor} onOpenChange={(open) => { if (!open) setPayFor(null); }}>

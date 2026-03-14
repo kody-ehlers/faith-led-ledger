@@ -924,6 +924,11 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           expenseCategories: state.expenseCategories.filter((c) => c !== category),
         })),
+
+      updateCardOrder: (page, order) =>
+        set((state) => ({
+          cardOrders: { ...state.cardOrders, [page]: order },
+        })),
     }),
     {
       name: "finance-storage",

@@ -251,7 +251,7 @@ export default function Subscriptions() {
           )}
           <div>
             {cancelledNow && (
-              <div className="mb-1 text-yellow-700 font-semibold text-sm">
+              <div className="mb-1 text-accent font-semibold text-sm">
                 Cancelled{" "}
                 {entry.cancelledIndefinitely
                   ? "— Indefinitely"

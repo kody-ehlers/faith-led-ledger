@@ -398,9 +398,9 @@ export default function Investments() {
                 </CardContent>
               </Card>
             );
-          })
-        )}
-      </div>
+          }}
+        />
+      )}
 
       {/* Contribution Dialog with preview */}
       <Dialog open={contributionTarget !== null} onOpenChange={(open) => { if (!open) { setContributionTarget(null); setContributionAmount2(null); setContributionDate(new Date()); } }}>
