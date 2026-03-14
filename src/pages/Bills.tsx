@@ -208,8 +208,8 @@ export default function Bills() {
 
     // Card background based on payment status - green only if actually paid for current cycle
     const cardBg = isPaidCurrentIteration
-      ? "bg-green-500/10 border-green-500/30"
-      : "bg-red-500/10 border-red-500/30";
+      ? "bg-success/10 border-success/30"
+      : "bg-destructive/10 border-destructive/30";
 
     return (
       <div
