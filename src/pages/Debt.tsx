@@ -59,6 +59,7 @@ function buildAmortization(
 export default function Debt() {
   const {
     debts, addDebt, updateDebt, removeDebt, addDebtPayment, assets, addAssetTransaction,
+    cardOrders, updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
