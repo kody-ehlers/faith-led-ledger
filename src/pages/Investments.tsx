@@ -133,16 +133,13 @@ export default function Investments() {
       expectedReturnRate: expectedReturn ? parseFloat(expectedReturn) : undefined,
     });
 
-    // Record the initial contribution as a separate earnings entry after adding
+    // Record initial contribution synchronously (zustand set is sync)
     if (initAmount > 0) {
-      // We need to get the just-added investment
-      setTimeout(() => {
-        const state = useFinanceStore.getState();
-        const newInv = state.investments.find(i => i.name === name.trim());
-        if (newInv) {
-          state.addEarnings(newInv.id, -initAmount, "Initial contribution");
-        }
-      }, 0);
+      const state = useFinanceStore.getState();
+      const newInv = state.investments[state.investments.length - 1];
+      if (newInv) {
+        state.addEarnings(newInv.id, -initAmount, "Initial contribution");
+      }
     }
 
     toast.success("Investment added");
