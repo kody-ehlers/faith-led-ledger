@@ -52,6 +52,8 @@ export default function Bills() {
     cancelBill,
     renewBill,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
