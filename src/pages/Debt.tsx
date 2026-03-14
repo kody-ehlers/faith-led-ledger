@@ -23,6 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import DatePicker from "@/components/DatePicker";
 import { format } from "date-fns";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 // Amortization row
 interface AmortRow {
