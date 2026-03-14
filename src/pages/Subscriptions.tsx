@@ -1014,7 +1014,7 @@ export default function Subscriptions() {
           <CardTitle>Not This Month</CardTitle>
           <CardDescription>Subscriptions due in other months</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const otherSubs = subscriptions.filter((s) => {
@@ -1026,10 +1026,17 @@ export default function Subscriptions() {
               if (s.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
               return false;
             });
-            return otherSubs.length === 0 ? (
-              <p className="text-muted-foreground">All subscriptions are due this month.</p>
+            const ordered = getOrdered(otherSubs, cardOrders["subs-other"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">All subscriptions are due this month.</p>
             ) : (
-              otherSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("subs-other", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(s) => <SubscriptionCard entry={s} />}
+              />
             );
           })()}
         </CardContent>
