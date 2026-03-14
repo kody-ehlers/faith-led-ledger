@@ -307,6 +307,7 @@ interface FinanceState {
   
   // Settings
   updateAppName: (name: string) => void;
+  updateCardOrder: (page: string, order: string[]) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
