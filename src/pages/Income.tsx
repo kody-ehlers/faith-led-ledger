@@ -357,7 +357,7 @@ export default function Income() {
             <span
               className={cn(
                 "font-semibold w-24 text-right",
-                isPast ? "text-green-700" : "text-foreground"
+                isPast ? "text-success" : "text-foreground"
               )}
             >
               {formatCurrency(entry.amount)}
