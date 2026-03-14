@@ -24,7 +24,7 @@ import { PiggyBank, Plus, Percent, Trash2 } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Savings() {
-  const { savings, addSavings, updateSavings, removeSavings } =
+  const { savings, addSavings, updateSavings, removeSavings, cardOrders, updateCardOrder } =
     useFinanceStore();
   const [name, setName] = useState("");
   const [current, setCurrent] = useState<number | null>(null);
