@@ -247,15 +247,18 @@ export default function Debt() {
       </Card>
 
       {/* Debts List */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {debts.length === 0 ? (
-          <Card className="md:col-span-2">
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">No debts recorded yet.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          debts.map((d) => {
+      {debts.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No debts recorded yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <SortableCardGrid
+          items={getOrdered(debts, cardOrders["debts"])}
+          onReorder={(ids) => updateCardOrder("debts", ids)}
+          className="grid gap-4 md:grid-cols-2"
+          renderItem={(d) => {
             const totalPaidOnDebt = (d.paymentHistory || []).reduce((s, p) => s + p.amount, 0);
             const origBal = d.originalBalance || d.balance + totalPaidOnDebt;
             const paidPercent = origBal > 0 ? Math.min((totalPaidOnDebt / origBal) * 100, 100) : 0;
