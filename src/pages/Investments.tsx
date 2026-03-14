@@ -319,11 +319,14 @@ export default function Investments() {
       </Card>
 
       {/* Investments List - Wallet Card Style */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {investments.length === 0 ? (
-          <Card className="md:col-span-2"><CardContent className="py-8"><p className="text-center text-muted-foreground">No investments yet.</p></CardContent></Card>
-        ) : (
-          investments.map((inv) => {
+      {investments.length === 0 ? (
+        <Card><CardContent className="py-8"><p className="text-center text-muted-foreground">No investments yet.</p></CardContent></Card>
+      ) : (
+        <SortableCardGrid
+          items={getOrdered(investments, cardOrders["investments"])}
+          onReorder={(ids) => updateCardOrder("investments", ids)}
+          className="grid gap-4 md:grid-cols-2"
+          renderItem={(inv) => {
             const value = getInvestmentValue(inv);
             const contributed = (inv.earningsHistory || []).filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0);
             const earned = (inv.earningsHistory || []).filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0);
