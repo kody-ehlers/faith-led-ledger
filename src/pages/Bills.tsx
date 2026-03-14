@@ -1069,7 +1069,7 @@ export default function Bills() {
           <CardTitle>Not This Month</CardTitle>
           <CardDescription>Bills due in other months</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const otherBills = bills.filter((b) => {
@@ -1081,10 +1081,17 @@ export default function Bills() {
               if (b.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
               return false;
             });
-            return otherBills.length === 0 ? (
-              <p className="text-muted-foreground">All bills are due this month.</p>
+            const ordered = getOrdered(otherBills, cardOrders["bills-other"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">All bills are due this month.</p>
             ) : (
-              otherBills.map((b) => <BillCard key={b.id} entry={b} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("bills-other", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(b) => <BillCard entry={b} />}
+              />
             );
           })()}
         </CardContent>
