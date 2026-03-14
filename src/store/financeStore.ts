@@ -205,6 +205,7 @@ interface FinanceState {
   investments: InvestmentEntry[];
   appName: string;
   expenseCategories: string[];
+  cardOrders: Record<string, string[]>;
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
