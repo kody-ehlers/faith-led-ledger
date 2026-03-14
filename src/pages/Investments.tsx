@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import {
   Table,
   TableBody,
