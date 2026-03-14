@@ -88,6 +88,8 @@ export default function Investments() {
     removeInvestment,
     addEarnings,
     assets,
+    cardOrders,
+    updateCardOrder,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
