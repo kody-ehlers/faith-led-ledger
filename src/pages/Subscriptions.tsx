@@ -981,7 +981,7 @@ export default function Subscriptions() {
           <CardTitle>This Month</CardTitle>
           <CardDescription>Subscriptions due this month</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {(() => {
             const now = new Date();
             const thisMonthSubs = subscriptions.filter((s) => {
@@ -993,10 +993,17 @@ export default function Subscriptions() {
               if (s.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
               return true;
             });
-            return thisMonthSubs.length === 0 ? (
-              <p className="text-muted-foreground">No subscriptions due this month.</p>
+            const ordered = getOrdered(thisMonthSubs, cardOrders["subs-this"]);
+            return ordered.length === 0 ? (
+              <p className="text-muted-foreground py-4">No subscriptions due this month.</p>
             ) : (
-              thisMonthSubs.map((s) => <SubscriptionCard key={s.id} entry={s} />)
+              <SortableCardGrid
+                items={ordered}
+                onReorder={(ids) => updateCardOrder("subs-this", ids)}
+                className="space-y-3"
+                layout="list"
+                renderItem={(s) => <SubscriptionCard entry={s} />}
+              />
             );
           })()}
         </CardContent>
