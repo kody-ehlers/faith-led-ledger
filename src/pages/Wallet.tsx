@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Percent, SquarePen } from "lucide-react";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
   const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes } =
