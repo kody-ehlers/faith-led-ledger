@@ -351,14 +351,17 @@ export default function Wallet() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {assets.map((a) => (
+      <SortableCardGrid
+        items={getOrdered(assets.map(a => ({ ...a, id: a.id })), cardOrders["wallet"])}
+        onReorder={(ids) => updateCardOrder("wallet", ids)}
+        className="grid gap-4 md:grid-cols-2"
+        renderItem={(a) => (
           <Card key={a.id}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="flex items-center justify-between text-base">
                 <span>
                   {a.name}{" "}
-                  <small className="text-muted-foreground">
+                  <small className="text-muted-foreground text-xs font-normal">
                     {a.type}
                     {a.closed ? " • Closed" : ""}
                   </small>
