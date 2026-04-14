@@ -40,7 +40,7 @@ import { History, Percent, SquarePen } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes, cardOrders, updateCardOrder } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
