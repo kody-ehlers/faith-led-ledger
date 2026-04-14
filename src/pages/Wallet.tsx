@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -37,9 +37,10 @@ import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Percent, SquarePen } from "lucide-react";
+import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes, cardOrders, updateCardOrder } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
@@ -350,14 +351,17 @@ export default function Wallet() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {assets.map((a) => (
+      <SortableCardGrid
+        items={getOrdered(assets.map(a => ({ ...a, id: a.id })), cardOrders["wallet"])}
+        onReorder={(ids) => updateCardOrder("wallet", ids)}
+        className="grid gap-4 md:grid-cols-2"
+        renderItem={(a) => (
           <Card key={a.id}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="flex items-center justify-between text-base">
                 <span>
                   {a.name}{" "}
-                  <small className="text-muted-foreground">
+                  <small className="text-muted-foreground text-xs font-normal">
                     {a.type}
                     {a.closed ? " • Closed" : ""}
                   </small>
@@ -570,7 +574,8 @@ export default function Wallet() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )}
+      />
         {/* Transaction remove confirmation dialog */}
         <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
           <DialogContent className="sm:max-w-md">
@@ -967,7 +972,6 @@ export default function Wallet() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 }
