@@ -574,7 +574,8 @@ export default function Wallet() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )}
+      />
         {/* Transaction remove confirmation dialog */}
         <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
           <DialogContent className="sm:max-w-md">
