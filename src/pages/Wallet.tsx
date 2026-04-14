@@ -972,7 +972,6 @@ export default function Wallet() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 }
