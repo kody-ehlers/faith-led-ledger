@@ -313,6 +313,7 @@ interface FinanceState {
 export const useFinanceStore = create<FinanceState>()(
   persist(
     (set) => ({
+      cardOrders: {},
       income: [],
       expenses: [],
       tithes: [],
