@@ -216,6 +216,53 @@ export default function Home() {
     });
   };
 
+  const getDebtPaymentsForDay = (day: Date) => {
+    const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    const list: { name: string; amount: number }[] = [];
+    for (const d of debts) {
+      const payments = d.paymentHistory || [];
+      for (const payment of payments) {
+        if (payment.date === dayStr) {
+          list.push({ name: d.name, amount: payment.amount });
+        }
+      }
+    }
+    return list;
+  };
+
+  // Check if a day falls within any date range expense
+  const getDateRangeExpensesForDay = (day: Date) => {
+    const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    const ranges: { name: string; amount: number; startDate: string; endDate: string }[] = [];
+
+    // Track unique ranges to avoid duplicates
+    const seenRanges = new Set<string>();
+
+    for (const expense of expenses) {
+      if (expense.dateRangeStart && expense.dateRangeEnd) {
+        const rangeKey = `${expense.dateRangeStart}-${expense.dateRangeEnd}`;
+        if (seenRanges.has(rangeKey)) continue;
+
+        // Only show on the first day of the range
+        if (dayStr === expense.dateRangeStart) {
+          seenRanges.add(rangeKey);
+          const totalAmount = expenses
+            .filter(e => e.dateRangeStart === expense.dateRangeStart && e.dateRangeEnd === expense.dateRangeEnd)
+            .reduce((sum, e) => sum + e.amount, 0);
+
+          ranges.push({
+            name: expense.name,
+            amount: totalAmount,
+            startDate: expense.dateRangeStart,
+            endDate: expense.dateRangeEnd,
+          });
+        }
+      }
+    }
+
+    return ranges;
+  };
+
   const getTithesForDay = (day: Date) => {
     const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
     return tithes.filter((t) => {
@@ -371,14 +418,12 @@ export default function Home() {
               {todayItems.map((item, idx) => (
                 <div key={idx} className="flex justify-between items-center py-1.5 border-b last:border-b-0">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      item.type === "income" ? "bg-success" : "bg-destructive"
-                    }`} />
+                    <div className={`w-2 h-2 rounded-full ${item.type === "income" ? "bg-success" : "bg-destructive"
+                      }`} />
                     <span className="text-sm font-medium">{item.label}</span>
                   </div>
-                  <span className={`text-sm font-semibold ${
-                    item.type === "income" ? "text-success" : "text-destructive"
-                  }`}>
+                  <span className={`text-sm font-semibold ${item.type === "income" ? "text-success" : "text-destructive"
+                    }`}>
                     {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
                   </span>
                 </div>
@@ -446,6 +491,9 @@ export default function Home() {
                         const incomeTotal = inList.reduce((s, it) => s + it.amount, 0);
                         const expensesList = getExpensesForDay(d);
                         const expensesTotal = expensesList.reduce((s, e) => s + e.amount, 0);
+                        const debtPaymentsList = getDebtPaymentsForDay(d);
+                        const debtPaymentsTotal = debtPaymentsList.reduce((s, dp) => s + dp.amount, 0);
+                        const dateRangeExpenses = getDateRangeExpensesForDay(d);
                         const subsList = getSubscriptionsForDay(d);
                         const subsTotal = subsList.reduce((s, it) => s + it.amount, 0);
                         const billsList = getBillsForDay(d);
@@ -458,10 +506,9 @@ export default function Home() {
                         return (
                           <Tooltip key={d.toISOString()}>
                             <TooltipTrigger asChild>
-                              <div className={`min-h-[80px] p-2 rounded border ${
-                                today ? "border-primary/50 bg-primary/5" :
-                                muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
-                              } hover:shadow-sm`}>
+                              <div className={`min-h-[80px] p-2 rounded border ${today ? "border-primary/50 bg-primary/5" :
+                                  muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
+                                } hover:shadow-sm`}>
                                 <div className="flex justify-between items-start">
                                   <div className={`text-sm font-medium ${muted ? "opacity-60" : ""} ${today ? "text-primary font-bold" : ""}`}>
                                     {format(d, "d")}
@@ -469,15 +516,20 @@ export default function Home() {
                                   <div className="text-xs text-muted-foreground">{format(d, "EEE")}</div>
                                 </div>
                                 <div className="mt-2 space-y-1">
+                                  {dateRangeExpenses.length > 0 && (
+                                    <div className="text-blue-600 font-semibold text-sm">
+                                      📅 {formatCurrency(dateRangeExpenses.reduce((s, r) => s + r.amount, 0))}
+                                    </div>
+                                  )}
                                   {incomeTotal > 0 && (
                                     <div className="text-success font-semibold text-sm">+{formatCurrency(incomeTotal)}</div>
                                   )}
-                                  {expensesTotal + subsTotal + billsTotal + titheTotal > 0 && (
+                                  {expensesTotal + subsTotal + billsTotal + titheTotal + debtPaymentsTotal > 0 && (
                                     <div className="text-destructive font-semibold text-sm">
-                                      -{formatCurrency(expensesTotal + subsTotal + billsTotal + titheTotal)}
+                                      -{formatCurrency(expensesTotal + subsTotal + billsTotal + titheTotal + debtPaymentsTotal)}
                                     </div>
                                   )}
-                                  {incomeTotal === 0 && expensesTotal + subsTotal + billsTotal === 0 && (
+                                  {incomeTotal === 0 && expensesTotal + subsTotal + billsTotal + debtPaymentsTotal === 0 && dateRangeExpenses.length === 0 && (
                                     <div className="text-sm text-muted-foreground">No activity</div>
                                   )}
                                 </div>
@@ -507,8 +559,8 @@ export default function Home() {
                                   )}
                                 </div>
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Expenses, Bills & Tithe</div>
-                                  {expensesList.length === 0 && subsList.length === 0 && billsList.length === 0 && titheList.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground mb-1">Expenses, Bills, Subs & Tithe</div>
+                                  {expensesList.length === 0 && subsList.length === 0 && billsList.length === 0 && titheList.length === 0 && debtPaymentsList.length === 0 ? (
                                     <div className="text-sm text-muted-foreground">None</div>
                                   ) : (
                                     <div className="space-y-1">
@@ -536,9 +588,33 @@ export default function Home() {
                                           <div className="text-sm font-medium">{formatCurrency(t.amount)}</div>
                                         </div>
                                       ))}
+                                      {debtPaymentsList.map((dp, idx) => (
+                                        <div key={`debt-${idx}`} className="flex justify-between">
+                                          <div className="text-sm">{dp.name} (Debt)</div>
+                                          <div className="text-sm font-medium">{formatCurrency(dp.amount)}</div>
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
+                                {dateRangeExpenses.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-1">Expense Ranges</div>
+                                    <div className="space-y-1">
+                                      {dateRangeExpenses.map((r, idx) => (
+                                        <div key={idx} className="flex justify-between">
+                                          <div className="text-sm">{r.name}</div>
+                                          <div className="text-sm font-medium text-blue-600">{formatCurrency(r.amount)}</div>
+                                        </div>
+                                      ))}
+                                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                        {dateRangeExpenses.map((r, idx) => (
+                                          <div key={idx}>{format(new Date(r.startDate), "MMM d")} - {format(new Date(r.endDate), "MMM d, yyyy")}</div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>

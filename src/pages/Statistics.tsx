@@ -10,6 +10,7 @@ import {
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { formatCurrency } from "@/utils/calculations";
 import CleanPieChart from "@/components/CleanPieChart";
+import { Heart } from "lucide-react";
 
 type TimePeriod = "MTD" | "3M" | "6M" | "12M" | "YTD" | "MONTH";
 
@@ -137,6 +138,23 @@ export default function Statistics() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Get all the advice and instruction you can, so you will be wise the rest of your life. Many are the plans in a person's heart, but it is the Lord's purpose that prevails."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 19:20 & 19:21 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <svg className="h-6 w-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -167,7 +185,7 @@ export default function Statistics() {
             <div className="max-w-xs">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent side="bottom" align="start" className="max-h-56">
                   {monthOptions.map((m) => (
                     <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                   ))}

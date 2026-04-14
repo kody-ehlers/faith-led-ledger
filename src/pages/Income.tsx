@@ -694,6 +694,23 @@ export default function Income() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <TrendingUp className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters, since you know that you will receive an inheritance from the Lord as a reward. It is the Lord Christ you are serving."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Colossians 3:23-24 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-success/10">

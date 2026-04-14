@@ -1,5 +1,5 @@
 import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useFinanceStore, SubscriptionEntry } from "@/store/financeStore";
 import {
   Card,
@@ -34,11 +34,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, SquarePen } from "lucide-react";
+import { Trash2, SquarePen, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatCurrency } from "@/utils/calculations";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
@@ -837,8 +838,66 @@ export default function Subscriptions() {
     );
   }
 
+  // Calculate total monthly subscriptions
+  const monthlyTotal = useMemo(() => {
+    const now = new Date();
+    const currentMonth = format(now, "yyyy-MM");
+
+    return subscriptions.reduce((sum, s) => {
+      // Skip if cancelled now
+      if (s.cancelledFrom) {
+        const from = new Date(s.cancelledFrom);
+        if (now >= from) {
+          if (s.cancelledIndefinitely) return sum;
+          if (s.cancelledTo && now <= new Date(s.cancelledTo)) return sum;
+        }
+      }
+
+      // Check if due this month
+      const startDate = new Date(s.date);
+      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+
+      let isDueThisMonth = false;
+      if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") {
+        isDueThisMonth = true;
+      } else if (s.frequency === "Yearly") {
+        isDueThisMonth = startDate.getMonth() === now.getMonth();
+      } else if (s.frequency === "Quarterly") {
+        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
+      } else if (s.frequency === "Bimonthly") {
+        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
+      }
+
+      if (!isDueThisMonth) return sum;
+
+      // Get the amount for this subscription
+      if (s.variablePrice) {
+        return sum + (s.monthlyPrices?.[currentMonth] ?? 0);
+      } else {
+        return sum + s.amount;
+      }
+    }, 0);
+  }, [subscriptions]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Keep your desires in check and don't be consumed by things. Focus on what truly matters."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">1 Timothy 6:8-9 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <svg
@@ -862,6 +921,12 @@ export default function Subscriptions() {
           </p>
         </div>
       </div>
+
+      {/* Monthly Summary Card */}
+      <Card className="shadow-md">
+        <CardHeader><CardTitle>Monthly Total</CardTitle><CardDescription>Subscriptions due this month</CardDescription></CardHeader>
+        <CardContent><p className="text-3xl font-bold text-foreground">{formatCurrency(monthlyTotal)}</p></CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

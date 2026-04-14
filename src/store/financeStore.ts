@@ -204,6 +204,7 @@ interface FinanceState {
   bills: BillEntry[];
   investments: InvestmentEntry[];
   appName: string;
+  timezone: string;
   expenseCategories: string[];
   cardOrders: Record<string, string[]>;
 
@@ -308,6 +309,7 @@ interface FinanceState {
   // Settings
   updateAppName: (name: string) => void;
   updateCardOrder: (page: string, order: string[]) => void;
+  updateTimezone: (tz: string) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -323,6 +325,7 @@ export const useFinanceStore = create<FinanceState>()(
       bills: [],
       investments: [],
       appName: "My Finances",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       expenseCategories: [
         "Groceries",
         "Dining",
@@ -406,9 +409,49 @@ export const useFinanceStore = create<FinanceState>()(
         })),
 
       removeExpense: (id) =>
-        set((state) => ({
-          expenses: state.expenses.filter((e) => e.id !== id),
-        })),
+        set((state) => {
+          const expenseToRemove = state.expenses.find((e) => e.id === id);
+          const newExpenses = state.expenses.filter((e) => e.id !== id);
+          
+          // If expense had an assetId, remove the corresponding wallet transaction
+          if (expenseToRemove?.assetId) {
+            const asset = state.assets.find((a) => a.id === expenseToRemove.assetId);
+            if (asset?.transactions) {
+              // Find the transaction that matches this expense
+              // Look for a transaction with memo pattern "Expense: {expense.name}" or just matching date/amount
+              const matchingTxIndex = asset.transactions.findIndex((tx) => {
+                const memoMatches = tx.memo?.includes(expenseToRemove.name) || 
+                                    tx.memo?.includes("Expense:");
+                const dateMatches = tx.date === expenseToRemove.date || 
+                                    tx.date.startsWith(expenseToRemove.date.slice(0, 10));
+                const amountMatches = tx.amount === -expenseToRemove.amount;
+                return memoMatches && dateMatches && amountMatches;
+              });
+              
+              if (matchingTxIndex !== -1) {
+                const newTransactions = asset.transactions.filter((_, idx) => idx !== matchingTxIndex);
+                const starting = asset.startingAmount ?? 0;
+                const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
+                
+                return {
+                  expenses: newExpenses,
+                  assets: state.assets.map((a) => {
+                    if (a.id === expenseToRemove.assetId) {
+                      return {
+                        ...a,
+                        transactions: newTransactions,
+                        currentAmount: computed,
+                      };
+                    }
+                    return a;
+                  }),
+                };
+              }
+            }
+          }
+          
+          return { expenses: newExpenses };
+        }),
 
       addTithe: (tithe) =>
         set((state) => ({
@@ -912,6 +955,11 @@ export const useFinanceStore = create<FinanceState>()(
       updateAppName: (name) =>
         set(() => ({
           appName: name,
+        })),
+
+      updateTimezone: (tz) =>
+        set(() => ({
+          timezone: tz,
         })),
 
       addExpenseCategory: (category) =>

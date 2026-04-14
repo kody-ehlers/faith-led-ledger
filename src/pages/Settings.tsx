@@ -8,22 +8,61 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useFinanceStore } from "@/store/financeStore";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Heart } from "lucide-react";
 
 export default function Settings() {
   const appName = useFinanceStore((state) => state.appName);
+  const timezone = useFinanceStore((state) => state.timezone);
   const updateAppName = useFinanceStore((state) => state.updateAppName);
+  const updateTimezone = useFinanceStore((state) => state.updateTimezone);
   const [localAppName, setLocalAppName] = useState(appName);
+  const [localTimezone, setLocalTimezone] = useState(timezone);
 
   const handleSave = () => {
     updateAppName(localAppName);
-    toast.success("App name updated successfully");
+    updateTimezone(localTimezone);
+    toast.success("Settings updated successfully");
   };
+
+  // US timezones
+  const timezones = [
+    { value: "America/New_York", label: "EST - Eastern Time" },
+    { value: "America/Chicago", label: "CST - Central Time" },
+    { value: "America/Denver", label: "MST - Mountain Time" },
+    { value: "America/Los_Angeles", label: "PST - Pacific Time" },
+    { value: "America/Anchorage", label: "AKST - Alaska Time" },
+    { value: "Pacific/Honolulu", label: "HST - Hawaii Time" },
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "If any of you lacks wisdom, you should ask God, who gives generously to all without finding fault, and it will be given to you."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">James 1:5 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-muted/10">
           <svg
@@ -57,6 +96,34 @@ export default function Settings() {
               onChange={(e) => setLocalAppName(e.target.value)}
               placeholder="My Finances"
             />
+          </div>
+          <Button onClick={handleSave}>Save Changes</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Timezone</CardTitle>
+          <CardDescription>Set your timezone for accurate date calculations</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Select value={localTimezone} onValueChange={setLocalTimezone}>
+              <SelectTrigger id="timezone">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent side="bottom" align="start">
+                {timezones.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Current timezone: {localTimezone}
+            </p>
           </div>
           <Button onClick={handleSave}>Save Changes</Button>
         </CardContent>

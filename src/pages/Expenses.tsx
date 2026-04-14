@@ -28,6 +28,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -38,7 +39,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
-import { format, eachDayOfInterval, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 export default function Expenses() {
   const {
@@ -69,6 +70,17 @@ export default function Expenses() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
+  // Recent expenses filter
+  const [filterDateRange, setFilterDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)), // Last 30 days by default
+    to: new Date(),
+  });
+  const [isFilterDateOpen, setIsFilterDateOpen] = useState(false);
+
+  // Category breakdown modal
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
+
   const handleAddExpense = () => {
     if (!name.trim() || amount === null || amount <= 0) {
       toast.error("Please fill in all fields with valid values");
@@ -87,21 +99,62 @@ export default function Expenses() {
       });
       toast.success("Expense added successfully");
     } else {
-      // Add expense for each day in range, but store range info for display
-      const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-      const amountPerDay = amount / days.length;
+      // Split amount proportionally by month based on days in each month
       const rangeGroupId = crypto.randomUUID();
+      const startDate = new Date(dateRange.from);
+      const endDate = new Date(dateRange.to);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
 
-      for (const day of days) {
+      // Group by month and calculate days in each month
+      const monthSegments: { startDate: Date; endDate: Date; daysInSegment: number }[] = [];
+      let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+      while (currentDate <= endDate) {
+        // Get last day of current month
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+        // Calculate segment boundaries
+        const segmentStart = currentDate > startDate ? currentDate : startDate;
+        const segmentEnd = monthEnd < endDate ? monthEnd : endDate;
+
+        // Count days in this segment (inclusive)
+        const daysInSegment = Math.floor((segmentEnd.getTime() - segmentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        monthSegments.push({
+          startDate: new Date(segmentStart),
+          endDate: new Date(segmentEnd),
+          daysInSegment,
+        });
+
+        // Move to first day of next month
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      }
+
+      // Calculate total days
+      const totalDays = monthSegments.reduce((sum, seg) => sum + seg.daysInSegment, 0);
+
+      // Create expense for each month segment with proportional amount
+      for (const segment of monthSegments) {
+        const segmentAmount = (amount * segment.daysInSegment) / totalDays;
+
+        // Format dates as YYYY-MM-DD to avoid timezone issues
+        const formatDateString = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         addExpense({
           name: name.trim(),
-          amount: amountPerDay,
+          amount: parseFloat(segmentAmount.toFixed(2)),
           category,
           type,
-          date: day.toISOString(),
+          date: segment.startDate.toISOString(),
           assetId: assetId ?? undefined,
-          dateRangeStart: dateRange.from.toISOString(),
-          dateRangeEnd: dateRange.to.toISOString(),
+          dateRangeStart: formatDateString(segment.startDate),
+          dateRangeEnd: formatDateString(segment.endDate),
           rangeGroupId,
         });
       }
@@ -174,6 +227,23 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <ShoppingCart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "An unreliable person who promises a gift is like clouds and wind that bring no rain."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 25:14 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-destructive/10">
           <ShoppingCart className="h-6 w-6 text-destructive" />
@@ -198,25 +268,25 @@ export default function Expenses() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-md border-primary/20">
+        <Card className="shadow-md border-emerald-500/20">
           <CardHeader>
             <CardTitle>Needs</CardTitle>
             <CardDescription>Essential expenses</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-3xl font-bold text-emerald-700">
               {formatCurrency(needsTotal)}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md border-accent/20">
+        <Card className="shadow-md border-amber-500/20">
           <CardHeader>
             <CardTitle>Wants</CardTitle>
             <CardDescription>Discretionary spending</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-accent">
+            <p className="text-3xl font-bold text-amber-700">
               {formatCurrency(wantsTotal)}
             </p>
           </CardContent>
@@ -400,22 +470,26 @@ export default function Expenses() {
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Category Breakdown</CardTitle>
-            <CardDescription>Spending by category this month</CardDescription>
+            <CardDescription>Spending by category this month (click for details)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {Object.entries(categoryTotals)
                 .sort(([, a], [, b]) => b - a)
                 .map(([cat, total]) => (
-                  <div
+                  <button
                     key={cat}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setIsCategoryDetailOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent/5 transition-colors cursor-pointer text-left"
                   >
                     <span className="font-medium text-foreground">{cat}</span>
                     <span className="text-lg font-bold text-destructive">
                       {formatCurrency(total)}
                     </span>
-                  </div>
+                  </button>
                 ))}
             </div>
           </CardContent>
@@ -425,8 +499,51 @@ export default function Expenses() {
       {/* Recent Expenses */}
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Recent Expenses</CardTitle>
-          <CardDescription>Your latest transactions</CardDescription>
+          <div className="flex flex-col gap-3">
+            <div>
+              <CardTitle>Recent Expenses</CardTitle>
+              <CardDescription>Your latest transactions</CardDescription>
+            </div>
+            <Popover open={isFilterDateOpen} onOpenChange={setIsFilterDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-fit justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(filterDateRange.from, "MMM d")} - {format(filterDateRange.to, "MMM d, yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="start">
+                <div className="space-y-2">
+                  <Calendar
+                    mode="range"
+                    selected={{ from: filterDateRange.from, to: filterDateRange.to }}
+                    onSelect={(range) => {
+                      if (range?.from) {
+                        setFilterDateRange({
+                          from: range.from,
+                          to: range.to || range.from
+                        });
+                      }
+                    }}
+                    numberOfMonths={2}
+                  />
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsFilterDateOpen(false)}
+                      className="flex-1"
+                    >
+                      Done
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardHeader>
         <CardContent>
           {expenses.length === 0 ? (
@@ -441,9 +558,17 @@ export default function Expenses() {
                 const displayedRangeGroups = new Set<string>();
                 const expensesToShow: typeof expenses = [];
 
-                const reversedExpenses = [...expenses].reverse();
+                // Sort expenses by date descending (newest first)
+                const sortedExpenses = [...expenses].sort((a, b) =>
+                  new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
 
-                for (const expense of reversedExpenses) {
+                for (const expense of sortedExpenses) {
+                  const expDate = new Date(expense.date);
+                  if (expDate < filterDateRange.from || expDate > filterDateRange.to) {
+                    continue;
+                  }
+
                   if (expense.rangeGroupId) {
                     if (!displayedRangeGroups.has(expense.rangeGroupId)) {
                       displayedRangeGroups.add(expense.rangeGroupId);
@@ -455,71 +580,77 @@ export default function Expenses() {
                   if (expensesToShow.length >= 20) break;
                 }
 
-                return expensesToShow.map((expense) => {
-                  // Calculate total amount if it's a range expense
-                  const isRangeExpense = expense.rangeGroupId && expense.dateRangeStart && expense.dateRangeEnd;
-                  let displayAmount = expense.amount;
+                return expensesToShow.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No expenses found in this date range.
+                  </p>
+                ) : (
+                  expensesToShow.map((expense) => {
+                    // Calculate total amount if it's a range expense
+                    const isRangeExpense = expense.rangeGroupId && expense.dateRangeStart && expense.dateRangeEnd;
+                    let displayAmount = expense.amount;
 
-                  if (isRangeExpense) {
-                    displayAmount = expenses
-                      .filter(e => e.rangeGroupId === expense.rangeGroupId)
-                      .reduce((sum, e) => sum + e.amount, 0);
-                  }
-
-                  const handleRemoveGroup = () => {
                     if (isRangeExpense) {
-                      // Remove all expenses in this range group
-                      const toRemove = expenses.filter(e => e.rangeGroupId === expense.rangeGroupId);
-                      toRemove.forEach(e => removeExpense(e.id));
-                      toast.success("Expense range removed");
-                    } else {
-                      handleRemoveExpense(expense.id);
+                      displayAmount = expenses
+                        .filter(e => e.rangeGroupId === expense.rangeGroupId)
+                        .reduce((sum, e) => sum + e.amount, 0);
                     }
-                  };
 
-                  return (
-                    <div
-                      key={expense.rangeGroupId || expense.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-foreground">
-                            {expense.name}
-                          </h4>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${expense.type === "need"
-                              ? "bg-primary/10 text-primary"
-                              : "bg-accent/10 text-accent"
-                              }`}
-                          >
-                            {expense.type}
-                          </span>
-                        </div>
-                        <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                          <span>{formatCurrency(displayAmount)}</span>
-                          <span>•</span>
-                          <span>{expense.category}</span>
-                          <span>•</span>
-                          <span>
-                            {isRangeExpense
-                              ? `${format(new Date(expense.dateRangeStart!), "MMM d")} - ${format(new Date(expense.dateRangeEnd!), "MMM d, yyyy")}`
-                              : new Date(expense.date).toLocaleDateString()
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleRemoveGroup}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    const handleRemoveGroup = () => {
+                      if (isRangeExpense) {
+                        // Remove all expenses in this range group
+                        const toRemove = expenses.filter(e => e.rangeGroupId === expense.rangeGroupId);
+                        toRemove.forEach(e => removeExpense(e.id));
+                        toast.success("Expense range removed");
+                      } else {
+                        handleRemoveExpense(expense.id);
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={expense.rangeGroupId || expense.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                });
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground">
+                              {expense.name}
+                            </h4>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${expense.type === "need"
+                                ? "bg-emerald-500/10 text-emerald-700"
+                                : "bg-amber-500/10 text-amber-700"
+                                }`}
+                            >
+                              {expense.type === "need" ? "Need" : "Want"}
+                            </span>
+                          </div>
+                          <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                            <span>{formatCurrency(displayAmount)}</span>
+                            <span>•</span>
+                            <span>{expense.category}</span>
+                            <span>•</span>
+                            <span>
+                              {isRangeExpense
+                                ? `${format(new Date(expense.dateRangeStart!), "MMM d")} - ${format(new Date(expense.dateRangeEnd!), "MMM d, yyyy")}`
+                                : new Date(expense.date).toLocaleDateString()
+                              }
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleRemoveGroup}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })
+                );
               })()}
             </div>
           )}
@@ -575,6 +706,82 @@ export default function Expenses() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsCategoryDialogOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Detail Modal */}
+      <Dialog open={isCategoryDetailOpen} onOpenChange={setIsCategoryDetailOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{selectedCategory} - This Month</DialogTitle>
+            <DialogDescription>
+              All expenses in this category
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            {selectedCategory && (() => {
+              const categoryExpenses = expenses.filter(
+                (e) =>
+                  e.category === selectedCategory &&
+                  new Date(e.date).getFullYear() === new Date().getFullYear() &&
+                  new Date(e.date).getMonth() === new Date().getMonth()
+              ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+              if (categoryExpenses.length === 0) {
+                return (
+                  <p className="text-center text-muted-foreground py-8">
+                    No expenses in this category this month.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-2 pr-4">
+                  {categoryExpenses.map((expense) => (
+                    <div
+                      key={expense.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-foreground">
+                            {expense.name}
+                          </h4>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${expense.type === "need"
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-amber-500/10 text-amber-700"
+                              }`}
+                          >
+                            {expense.type === "need" ? "Need" : "Want"}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                          <span>{formatCurrency(expense.amount)}</span>
+                          <span>•</span>
+                          <span>{new Date(expense.date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          removeExpense(expense.id);
+                          toast.success("Expense removed");
+                        }}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsCategoryDetailOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

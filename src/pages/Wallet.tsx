@@ -36,7 +36,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Percent, SquarePen } from "lucide-react";
+import { History, Percent, SquarePen, Heart, TrashIcon } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
@@ -221,6 +221,23 @@ export default function Wallet() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Whoever loves money never has money enough. Whoever loves wealth is never satisfied with their income."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Ecclesiastes 5:10 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <svg
@@ -404,7 +421,7 @@ export default function Wallet() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-6 p-0"
+                    className="h-5 w-6 p-0 ml-1"
                     onClick={() => {
                       setApyTarget(a.id);
                       setApyNewRate(a.interestRate?.toString() || "");
@@ -417,7 +434,7 @@ export default function Wallet() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-2 p-1 ml-1"
+                    className="h-5 w-5 p-1 ml-1"
                     onClick={() => {
                       setApyHistoryTarget(a.id);
                       setIsApyHistoryOpen(true);
@@ -569,409 +586,409 @@ export default function Wallet() {
                     setIsRemoveOpen(true);
                   }}
                 >
-                  Remove
+                  <TrashIcon className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
       />
-        {/* Transaction remove confirmation dialog */}
-        <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Remove Transaction</DialogTitle>
-            </DialogHeader>
-            <div className="py-2">
-              {txRemoveAssetId && txRemoveTxId ? (
-                (() => {
-                  const asset = assets.find((x) => x.id === txRemoveAssetId);
-                  const tx = asset?.transactions?.find((u) => u.id === txRemoveTxId);
-                  return (
-                    <div>
-                      <div className="mb-2">
-                        Are you sure you want to remove this transaction?
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <div>Date: {tx ? format(new Date(tx.date + "T00:00:00"), "PPP") : "-"}</div>
-                        <div>Memo: {tx?.memo ?? "-"}</div>
-                        <div>Amount: {tx ? formatCurrency(tx.amount) : "-"}</div>
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div>Loading...</div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setIsTxRemoveOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-destructive text-white"
-                onClick={() => {
-                  if (txRemoveAssetId && txRemoveTxId) {
-                    removeAssetTransaction(txRemoveAssetId, txRemoveTxId);
-                    toast.success("Transaction removed");
-                  }
-                  setIsTxRemoveOpen(false);
-                  setTxRemoveAssetId(null);
-                  setTxRemoveTxId(null);
-                }}
-              >
-                Remove Transaction
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Starting Balance Dialog */}
-        <Dialog open={isTxEditOpen} onOpenChange={setIsTxEditOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Edit Starting Balance</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <CurrencyInput value={txEditAmount ?? null} onChange={(v) => setTxEditAmount(v)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <DatePicker selected={txEditDate ?? undefined} onSelect={(d) => setTxEditDate(d)} placeholder="Pick a date" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => { setIsTxEditOpen(false); setTxEditAssetId(null); setTxEditTxId(null); }}>Cancel</Button>
-              <Button onClick={() => {
-                if (!txEditAssetId || !txEditTxId) return;
-                const asset = assets.find((x) => x.id === txEditAssetId);
-                if (!asset) return;
-                const amt = txEditAmount ?? 0;
-                const signed = asset.type === "Credit Card" ? -Math.abs(amt) : amt;
-                const dateIso = txEditDate ? txEditDate.toISOString() : (asset.enactDate ? (asset.enactDate.includes('T') ? asset.enactDate : `${asset.enactDate}T12:00:00`) : new Date().toISOString());
-                // update startingAmount on asset
-                updateAsset(txEditAssetId, { startingAmount: signed, currentAmount: undefined });
-                // update the transaction
-                updateAssetTransaction(txEditAssetId, txEditTxId, { amount: signed, date: dateIso, memo: "Starting balance" });
-                toast.success("Starting balance updated");
-                setIsTxEditOpen(false);
-                setTxEditAssetId(null);
-                setTxEditTxId(null);
-              }}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Remove confirmation dialog */}
-        <Dialog open={isRemoveOpen} onOpenChange={setIsRemoveOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Remove Account</DialogTitle>
-            </DialogHeader>
-            <div className="py-2">
-              Removing this account will permanently delete its transaction
-              history. This action cannot be undone.
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setIsRemoveOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-destructive text-white"
-                onClick={() => {
-                  if (removeTarget) {
-                    removeAsset(removeTarget);
-                    toast.success("Account removed");
-                  }
-                  setIsRemoveOpen(false);
-                }}
-              >
-                Remove Account
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Payment Dialog for Credit Cards */}
-        <Dialog open={isPayOpen || payTarget !== null} onOpenChange={(open) => {
-          if (!open) {
-            setPayTarget(null);
-            setPayAmount(null);
-            setPayFromAssetId(null);
-          }
-          setIsPayOpen(open);
-        }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Pay Credit Card - {assets.find((a) => a.id === payTarget)?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>From Account</Label>
-                <Select value={payFromAssetId ?? "__none"} onValueChange={(v) => setPayFromAssetId(v === "__none" ? null : v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">Select account</SelectItem>
-                    {assets.filter(x => x.type !== "Credit Card" && !x.closed).map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name} • {s.type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <DatePicker selected={payDate} onSelect={(d) => setPayDate(d)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => { setPayTarget(null); setIsPayOpen(false); }}>Cancel</Button>
-              <Button onClick={handleSubmitPayment}>Pay</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Transaction History Modal */}
-        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                Transaction History -{" "}
-                {assets.find((a) => a.id === historyAssetId)?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              {historyAssetId && (() => {
-                const asset = assets.find((a) => a.id === historyAssetId);
-                if (!asset) return null;
-
-                const transactions = calculateWalletTransactions(
-                  historyAssetId,
-                  asset,
-                  income,
-                  expenses,
-                  bills,
-                  subscriptions,
-                  tithes
-                );
-
-                if (transactions.length === 0) {
-                  return (
-                    <div className="text-center text-muted-foreground py-8">
-                      No transactions recorded for this account.
-                    </div>
-                  );
-                }
-
+      {/* Transaction remove confirmation dialog */}
+      <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove Transaction</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            {txRemoveAssetId && txRemoveTxId ? (
+              (() => {
+                const asset = assets.find((x) => x.id === txRemoveAssetId);
+                const tx = asset?.transactions?.find((u) => u.id === txRemoveTxId);
                 return (
-                  <ScrollArea className="h-96 w-full border rounded-lg">
-                    <div className="p-4 space-y-3">
-                      {transactions.map((tx, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground">
-                                {tx.description}
-                              </span>
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatDateSafe(tx.date)}
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <div
-                              className={`font-semibold flex items-center gap-1 ${tx.amount >= 0
-                                ? "text-success"
-                                : "text-destructive"
-                                }`}
-                            >
-                              <span>
-                                {tx.amount >= 0 ? "+" : ""}
-                                {formatCurrency(tx.amount)}
-                              </span>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Balance: {formatCurrency(tx.balance)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                  <div>
+                    <div className="mb-2">
+                      Are you sure you want to remove this transaction?
                     </div>
-                  </ScrollArea>
+                    <div className="text-sm text-muted-foreground">
+                      <div>Date: {tx ? format(new Date(tx.date + "T00:00:00"), "PPP") : "-"}</div>
+                      <div>Memo: {tx?.memo ?? "-"}</div>
+                      <div>Amount: {tx ? formatCurrency(tx.amount) : "-"}</div>
+                    </div>
+                  </div>
                 );
-              })()}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setIsHistoryOpen(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Interest Dialog for Checking/Savings */}
-        <Dialog
-          open={!!interestTarget}
-          onOpenChange={(open) => {
-            if (!open) setInterestTarget(null);
-          }}
-        >
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>
-                Apply Interest — {assets.find((a) => a.id === interestTarget)?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Interest Amount</Label>
-                <CurrencyInput
-                  value={interestAmount}
-                  onChange={(v) => setInterestAmount(v)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <DatePicker selected={interestDate} onSelect={(d) => setInterestDate(d)} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pre-filled with estimated monthly interest based on APY.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setInterestTarget(null)}>
-                Cancel
-              </Button>
-              <Button onClick={handleApplyInterest}>Apply Interest</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* APY Change Dialog */}
-        <Dialog open={isApyOpen} onOpenChange={setIsApyOpen}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>
-                Update APY — {assets.find((a) => a.id === apyTarget)?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>New APY Rate (%)</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="e.g., 4.5"
-                  value={apyNewRate}
-                  onChange={(e) => setApyNewRate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Effective Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      className="w-full justify-start text-left font-normal"
-                      variant="outline"
-                    >
-                      {apyDate
-                        ? format(parseDateSafe(apyDate), "PPP")
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={parseDateSafe(apyDate)}
-                      onSelect={(d) => {
-                        if (d) {
-                          setApyDate(d.toISOString().slice(0, 10));
-                        }
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setIsApyOpen(false);
-                  setApyTarget(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateAPY}>Update APY</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* APY History Dialog */}
-        <Dialog open={isApyHistoryOpen} onOpenChange={setIsApyHistoryOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                APY History — {assets.find((a) => a.id === apyHistoryTarget)?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              {apyHistoryTarget && (() => {
-                const asset = assets.find((a) => a.id === apyHistoryTarget);
-                if (!asset) return null;
-
-                const apyChanges = asset.interestRateChanges || [];
-                if (apyChanges.length === 0) {
-                  return (
-                    <div className="text-center text-muted-foreground py-8">
-                      No APY changes recorded.
-                    </div>
-                  );
+              })()
+            ) : (
+              <div>Loading...</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsTxRemoveOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-destructive text-white"
+              onClick={() => {
+                if (txRemoveAssetId && txRemoveTxId) {
+                  removeAssetTransaction(txRemoveAssetId, txRemoveTxId);
+                  toast.success("Transaction removed");
                 }
+                setIsTxRemoveOpen(false);
+                setTxRemoveAssetId(null);
+                setTxRemoveTxId(null);
+              }}
+            >
+              Remove Transaction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-                const sorted = [...apyChanges].sort(
-                  (a, b) => new Date(b.start).getTime() - new Date(a.start).getTime()
-                );
+      {/* Edit Starting Balance Dialog */}
+      <Dialog open={isTxEditOpen} onOpenChange={setIsTxEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Starting Balance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <CurrencyInput value={txEditAmount ?? null} onChange={(v) => setTxEditAmount(v)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <DatePicker selected={txEditDate ?? undefined} onSelect={(d) => setTxEditDate(d)} placeholder="Pick a date" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setIsTxEditOpen(false); setTxEditAssetId(null); setTxEditTxId(null); }}>Cancel</Button>
+            <Button onClick={() => {
+              if (!txEditAssetId || !txEditTxId) return;
+              const asset = assets.find((x) => x.id === txEditAssetId);
+              if (!asset) return;
+              const amt = txEditAmount ?? 0;
+              const signed = asset.type === "Credit Card" ? -Math.abs(amt) : amt;
+              const dateIso = txEditDate ? txEditDate.toISOString() : (asset.enactDate ? (asset.enactDate.includes('T') ? asset.enactDate : `${asset.enactDate}T12:00:00`) : new Date().toISOString());
+              // update startingAmount on asset
+              updateAsset(txEditAssetId, { startingAmount: signed, currentAmount: undefined });
+              // update the transaction
+              updateAssetTransaction(txEditAssetId, txEditTxId, { amount: signed, date: dateIso, memo: "Starting balance" });
+              toast.success("Starting balance updated");
+              setIsTxEditOpen(false);
+              setTxEditAssetId(null);
+              setTxEditTxId(null);
+            }}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
+      {/* Remove confirmation dialog */}
+      <Dialog open={isRemoveOpen} onOpenChange={setIsRemoveOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove Account</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            Removing this account will permanently delete its transaction
+            history. This action cannot be undone.
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsRemoveOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-destructive text-white"
+              onClick={() => {
+                if (removeTarget) {
+                  removeAsset(removeTarget);
+                  toast.success("Account removed");
+                }
+                setIsRemoveOpen(false);
+              }}
+            >
+              Remove Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Payment Dialog for Credit Cards */}
+      <Dialog open={isPayOpen || payTarget !== null} onOpenChange={(open) => {
+        if (!open) {
+          setPayTarget(null);
+          setPayAmount(null);
+          setPayFromAssetId(null);
+        }
+        setIsPayOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pay Credit Card - {assets.find((a) => a.id === payTarget)?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>From Account</Label>
+              <Select value={payFromAssetId ?? "__none"} onValueChange={(v) => setPayFromAssetId(v === "__none" ? null : v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Select account</SelectItem>
+                  {assets.filter(x => x.type !== "Credit Card" && !x.closed).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name} • {s.type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <DatePicker selected={payDate} onSelect={(d) => setPayDate(d)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setPayTarget(null); setIsPayOpen(false); }}>Cancel</Button>
+            <Button onClick={handleSubmitPayment}>Pay</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transaction History Modal */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Transaction History -{" "}
+              {assets.find((a) => a.id === historyAssetId)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {historyAssetId && (() => {
+              const asset = assets.find((a) => a.id === historyAssetId);
+              if (!asset) return null;
+
+              const transactions = calculateWalletTransactions(
+                historyAssetId,
+                asset,
+                income,
+                expenses,
+                bills,
+                subscriptions,
+                tithes
+              );
+
+              if (transactions.length === 0) {
                 return (
-                  <div className="space-y-3">
-                    {sorted.map((change, idx) => (
+                  <div className="text-center text-muted-foreground py-8">
+                    No transactions recorded for this account.
+                  </div>
+                );
+              }
+
+              return (
+                <ScrollArea className="h-96 w-full border rounded-lg">
+                  <div className="p-4 space-y-3">
+                    {transactions.map((tx, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground">
-                              {change.amount}%
+                            <span className="text-sm font-medium text-foreground">
+                              {tx.description}
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {formatDateSafe(change.start)}
-                            {change.end && ` to ${formatDateSafe(change.end)}`}
+                            {formatDateSafe(tx.date)}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <div
+                            className={`font-semibold flex items-center gap-1 ${tx.amount >= 0
+                              ? "text-success"
+                              : "text-destructive"
+                              }`}
+                          >
+                            <span>
+                              {tx.amount >= 0 ? "+" : ""}
+                              {formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Balance: {formatCurrency(tx.balance)}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                );
-              })()}
+                </ScrollArea>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Interest Dialog for Checking/Savings */}
+      <Dialog
+        open={!!interestTarget}
+        onOpenChange={(open) => {
+          if (!open) setInterestTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Apply Interest — {assets.find((a) => a.id === interestTarget)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Interest Amount</Label>
+              <CurrencyInput
+                value={interestAmount}
+                onChange={(v) => setInterestAmount(v)}
+              />
             </div>
-            <DialogFooter>
-              <Button onClick={() => setIsApyHistoryOpen(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <DatePicker selected={interestDate} onSelect={(d) => setInterestDate(d)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pre-filled with estimated monthly interest based on APY.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInterestTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApplyInterest}>Apply Interest</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* APY Change Dialog */}
+      <Dialog open={isApyOpen} onOpenChange={setIsApyOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Update APY — {assets.find((a) => a.id === apyTarget)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>New APY Rate (%)</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g., 4.5"
+                value={apyNewRate}
+                onChange={(e) => setApyNewRate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Effective Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    className="w-full justify-start text-left font-normal"
+                    variant="outline"
+                  >
+                    {apyDate
+                      ? format(parseDateSafe(apyDate), "PPP")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={parseDateSafe(apyDate)}
+                    onSelect={(d) => {
+                      if (d) {
+                        setApyDate(d.toISOString().slice(0, 10));
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsApyOpen(false);
+                setApyTarget(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateAPY}>Update APY</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* APY History Dialog */}
+      <Dialog open={isApyHistoryOpen} onOpenChange={setIsApyHistoryOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              APY History — {assets.find((a) => a.id === apyHistoryTarget)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {apyHistoryTarget && (() => {
+              const asset = assets.find((a) => a.id === apyHistoryTarget);
+              if (!asset) return null;
+
+              const apyChanges = asset.interestRateChanges || [];
+              if (apyChanges.length === 0) {
+                return (
+                  <div className="text-center text-muted-foreground py-8">
+                    No APY changes recorded.
+                  </div>
+                );
+              }
+
+              const sorted = [...apyChanges].sort(
+                (a, b) => new Date(b.start).getTime() - new Date(a.start).getTime()
+              );
+
+              return (
+                <div className="space-y-3">
+                  {sorted.map((change, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">
+                            {change.amount}%
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {formatDateSafe(change.start)}
+                          {change.end && ` to ${formatDateSafe(change.end)}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsApyHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

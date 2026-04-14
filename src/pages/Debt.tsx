@@ -15,7 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown } from "lucide-react";
+import { Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown, Heart } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -161,6 +161,23 @@ export default function Debt() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "The rich rule over the poor, and the borrower is servant to the lender. Owe nothing to anyone—except for your obligation to love one another."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 22:7 & Romans 13:8 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-destructive/10">
           <Landmark className="h-6 w-6 text-destructive" />

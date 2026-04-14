@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Plus, TrendingUp, ChevronDown, ChevronUp, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -212,6 +212,23 @@ export default function Investments() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Heart className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "It is more blessed to give than to receive. Those who plant generously will harvest generously."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Acts 20:35 & 2 Corinthians 9:6 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-success/10">
           <TrendingUp className="h-6 w-6 text-success" />
