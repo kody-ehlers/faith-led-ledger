@@ -1046,6 +1046,124 @@ export default function Bills() {
           })()}
         </CardContent>
       </Card>
+
+      {/* Edit Bill dialog (top-level so typing doesn't remount cards) */}
+      <Dialog
+        open={isEditOpen}
+        onOpenChange={(open) => {
+          setIsEditOpen(open);
+          if (!open) setEditing(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Bill</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={editing.name}
+                  onChange={(e) =>
+                    setEditing({ ...editing, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select
+                  value={editing.frequency}
+                  onValueChange={(val) =>
+                    setEditing({ ...editing, frequency: val as Frequency })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Biweekly">Biweekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input
+                  value={editing.notes || ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, notes: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editing.autopay ?? false}
+                  onCheckedChange={(checked) =>
+                    setEditing({ ...editing, autopay: checked })
+                  }
+                />
+                <Label>Autopay Enabled</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <DatePicker
+                  selected={new Date(editing.date)}
+                  onSelect={(d) =>
+                    setEditing({ ...editing, date: d.toISOString() })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={editing.assetId ?? "__external"}
+                  onValueChange={(v) =>
+                    setEditing({
+                      ...editing,
+                      assetId: v === "__external" ? undefined : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (!editing) return;
+                updateBill(editing.id, editing);
+                toast.success("Bill updated");
+                setIsEditOpen(false);
+                setEditing(null);
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
