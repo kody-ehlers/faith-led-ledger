@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PiggyBank, Plus, Percent, Trash2, Heart } from "lucide-react";
+import {  PiggyBank, Plus, Percent, Trash2, Heart, Church } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Savings() {
@@ -88,23 +88,6 @@ export default function Savings() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Scripture */}
-      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                "Good planning and hard work lead to prosperity, but hasty shortcuts lead to poverty."
-              </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 21:5 (NLT)</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <PiggyBank className="h-6 w-6 text-primary" />
@@ -116,6 +99,24 @@ export default function Savings() {
           </p>
         </div>
       </div>
+
+
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Good planning and hard work lead to prosperity, but hasty shortcuts lead to poverty."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 21:5 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary */}
       <div className="grid gap-4 md:grid-cols-3">

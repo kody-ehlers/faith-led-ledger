@@ -828,23 +828,6 @@ export default function Bills() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Scripture */}
-      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-full bg-accent/10">
-              <Church className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                "Here show me the coin used for the tax." When they handed him a Roman coin, he asked, "Whose picture and title are stamped on it?" "Caesar's," they replied. "Well, then," he said, "give to Caesar what belongs to Caesar, and give to God what belongs to God."
-              </p>
-              <p className="text-sm text-muted-foreground font-medium">Matthew 22:19-21 (NLT)</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-destructive/10">
           <svg
@@ -868,6 +851,24 @@ export default function Bills() {
           </p>
         </div>
       </div>
+
+
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Here show me the coin used for the tax." When they handed him a Roman coin, he asked, "Whose picture and title are stamped on it?" "Caesar's," they replied. "Well, then," he said, "give to Caesar what belongs to Caesar, and give to God what belongs to God."
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Matthew 22:19-21 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Monthly Summary Card */}
       <Card className="shadow-md">

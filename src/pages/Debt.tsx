@@ -15,7 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown, Heart } from "lucide-react";
+import {  Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown, Heart, Church } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -161,12 +161,23 @@ export default function Debt() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-full bg-destructive/10">
+          <Landmark className="h-6 w-6 text-destructive" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Debt</h2>
+          <p className="text-muted-foreground">Manage and pay down debts</p>
+        </div>
+      </div>
+
+
       {/* Scripture */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
@@ -177,16 +188,6 @@ export default function Debt() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-destructive/10">
-          <Landmark className="h-6 w-6 text-destructive" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Debt</h2>
-          <p className="text-muted-foreground">Manage and pay down debts</p>
-        </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
