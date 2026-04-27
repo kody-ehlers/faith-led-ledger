@@ -40,7 +40,7 @@ import {  History, Percent, SquarePen, Heart, TrashIcon, Church } from "lucide-r
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, income, expenses, bills, subscriptions, tithes, cardOrders, updateCardOrder } =
+  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, transferAssets, income, expenses, bills, subscriptions, tithes, cardOrders, updateCardOrder } =
     useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
@@ -119,6 +119,13 @@ export default function Wallet() {
   const [payAmount, setPayAmount] = useState<number | null>(null);
   const [payFromAssetId, setPayFromAssetId] = useState<string | null>(null);
   const [payDate, setPayDate] = useState<Date>(new Date());
+  // Transfer dialog state
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferFrom, setTransferFrom] = useState<string>("");
+  const [transferTo, setTransferTo] = useState<string>("");
+  const [transferAmount, setTransferAmount] = useState<string>("");
+  const [transferDate, setTransferDate] = useState<Date>(new Date());
+  const [transferMemo, setTransferMemo] = useState<string>("");
 
   const handleAdd = () => {
     if (!name.trim()) {
@@ -179,6 +186,29 @@ export default function Wallet() {
     setIsPayOpen(false);
     setPayAmount(null);
     setPayFromAssetId(null);
+  };
+
+  const handleTransfer = () => {
+    if (!transferFrom || !transferTo) {
+      toast.error("Select source and destination accounts");
+      return;
+    }
+    if (transferFrom === transferTo) {
+      toast.error("Source and destination must be different");
+      return;
+    }
+    const amount = Number(transferAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    transferAssets(transferFrom, transferTo, amount, transferDate.toISOString(), transferMemo || "Transfer");
+    toast.success(`Transferred ${formatCurrency(amount)}`);
+    setIsTransferOpen(false);
+    setTransferFrom("");
+    setTransferTo("");
+    setTransferAmount("");
+    setTransferMemo("");
   };
 
   const openHistory = (assetId: string) => {
@@ -446,75 +476,73 @@ export default function Wallet() {
                 </div>
               )}
 
-              {/* Only show transactions for Credit Card accounts */}
-              {a.type === "Credit Card" && (
-                <div className="mt-4">
-                  <div className="text-xs text-muted-foreground">
-                    Recent transactions
-                  </div>
-                  <div className="mt-2 space-y-1">
-                    {(a.transactions || [])
-                      .slice()
-                      .reverse()
-                      .slice(0, 5)
-                      .map((t) => (
-                        <div
-                          key={t.id}
-                          className="flex justify-between text-sm items-center"
-                        >
-                          <div>
-                            {formatDateSafe(t.date)} {t.memo ? `• ${t.memo}` : ""}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={
-                                t.amount >= 0
-                                  ? "text-success"
-                                  : "text-destructive"
-                              }
-                            >
-                              {formatCurrency(t.amount)}
-                            </div>
-                            {/* For starting balance, show Edit instead of Remove */}
-                            {(t.memo === "Starting balance" || t.memo === "Starting Balance") ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setTxEditAssetId(a.id);
-                                  setTxEditTxId(t.id);
-                                  // default amount: present positive value to user
-                                  const displayAmt = a.type === "Credit Card" ? Math.abs(t.amount) : t.amount;
-                                  setTxEditAmount(displayAmt);
-                                  // set txEditDate as Date object
-                                  const raw = t.date || a.enactDate || new Date().toISOString().slice(0, 10);
-                                  const parsed = raw.includes("T") ? new Date(raw) : new Date(raw + "T12:00:00");
-                                  setTxEditDate(parsed);
-                                  setIsTxEditOpen(true);
-                                }}
-                              >
-                                ✎
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive"
-                                onClick={() => {
-                                  setTxRemoveAssetId(a.id);
-                                  setTxRemoveTxId(t.id);
-                                  setIsTxRemoveOpen(true);
-                                }}
-                              >
-                                ✕
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+              {/* Show recent transactions for all accounts */}
+              <div className="mt-4">
+                <div className="text-xs text-muted-foreground">
+                  Recent transactions
                 </div>
-              )}
+                <div className="mt-2 space-y-1">
+                  {(a.transactions || [])
+                    .slice()
+                    .reverse()
+                    .slice(0, 5)
+                    .map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex justify-between text-sm items-center"
+                      >
+                        <div>
+                          {formatDateSafe(t.date)} {t.memo ? `• ${t.memo}` : ""}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={
+                              t.amount >= 0
+                                ? "text-success"
+                                : "text-destructive"
+                            }
+                          >
+                            {formatCurrency(t.amount)}
+                          </div>
+                          {/* For starting balance, show Edit instead of Remove */}
+                          {(t.memo === "Starting balance" || t.memo === "Starting Balance") ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setTxEditAssetId(a.id);
+                                setTxEditTxId(t.id);
+                                // default amount: present positive value to user
+                                const displayAmt = a.type === "Credit Card" ? Math.abs(t.amount) : t.amount;
+                                setTxEditAmount(displayAmt);
+                                // set txEditDate as Date object
+                                const raw = t.date || a.enactDate || new Date().toISOString().slice(0, 10);
+                                const parsed = raw.includes("T") ? new Date(raw) : new Date(raw + "T12:00:00");
+                                setTxEditDate(parsed);
+                                setIsTxEditOpen(true);
+                              }}
+                            >
+                              ✎
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => {
+                                setTxRemoveAssetId(a.id);
+                                setTxRemoveTxId(t.id);
+                                setIsTxRemoveOpen(true);
+                              }}
+                            >
+                              ✕
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
 
               <div className="mt-4 flex gap-2">
                 <Button
@@ -594,6 +622,14 @@ export default function Wallet() {
           </Card>
         )}
       />
+
+      {/* Transfer Button at Bottom */}
+      <div className="flex justify-center mt-6">
+        <Button onClick={() => setIsTransferOpen(true)} size="lg">
+          Transfer Money Between Accounts
+        </Button>
+      </div>
+
       {/* Transaction remove confirmation dialog */}
       <Dialog open={isTxRemoveOpen} onOpenChange={setIsTxRemoveOpen}>
         <DialogContent className="sm:max-w-md">
@@ -807,21 +843,57 @@ export default function Wallet() {
                             {formatDateSafe(tx.date)}
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <div
-                            className={`font-semibold flex items-center gap-1 ${tx.amount >= 0
-                              ? "text-success"
-                              : "text-destructive"
-                              }`}
-                          >
-                            <span>
-                              {tx.amount >= 0 ? "+" : ""}
-                              {formatCurrency(tx.amount)}
-                            </span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-end gap-1">
+                            <div
+                              className={`font-semibold flex items-center gap-1 ${tx.amount >= 0
+                                ? "text-success"
+                                : "text-destructive"
+                                }`}
+                            >
+                              <span>
+                                {tx.amount >= 0 ? "+" : ""}
+                                {formatCurrency(tx.amount)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Balance: {formatCurrency(tx.balance)}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Balance: {formatCurrency(tx.balance)}
-                          </div>
+                          {tx.type === "manual" && tx.id && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const assetTx = asset.transactions?.find(t => t.id === tx.id);
+                                  if (assetTx) {
+                                    setTxEditAssetId(historyAssetId);
+                                    setTxEditTxId(tx.id);
+                                    const displayAmt = asset.type === "Credit Card" ? Math.abs(assetTx.amount) : assetTx.amount;
+                                    setTxEditAmount(displayAmt);
+                                    const parsed = assetTx.date.includes("T") ? new Date(assetTx.date) : new Date(assetTx.date + "T12:00:00");
+                                    setTxEditDate(parsed);
+                                    setIsTxEditOpen(true);
+                                  }
+                                }}
+                              >
+                                ✎
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => {
+                                  setTxRemoveAssetId(historyAssetId);
+                                  setTxRemoveTxId(tx.id);
+                                  setIsTxRemoveOpen(true);
+                                }}
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -987,6 +1059,76 @@ export default function Wallet() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsApyHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Dialog */}
+      <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfer Money</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>From Account</Label>
+              <Select value={transferFrom} onValueChange={setTransferFrom}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.filter(a => !a.closed).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} • {a.type} • {formatCurrency(a.currentAmount ?? 0)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>To Account</Label>
+              <Select value={transferTo} onValueChange={setTransferTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select destination account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.filter(a => !a.closed).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} • {a.type} • {formatCurrency(a.currentAmount ?? 0)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <CurrencyInput
+                value={transferAmount === "" ? null : Number(transferAmount)}
+                onChange={(v) => setTransferAmount(v === null ? "" : String(v))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <DatePicker selected={transferDate} onSelect={setTransferDate} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Memo (Optional)</Label>
+              <Input
+                value={transferMemo}
+                onChange={(e) => setTransferMemo(e.target.value)}
+                placeholder="e.g., Monthly transfer"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsTransferOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleTransfer}>Transfer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -597,6 +597,7 @@ export interface WalletTransaction {
   description: string;
   type: "income" | "expense" | "bill" | "subscription" | "tithe" | "manual" | "interest" | "debt";
   balance: number; // running balance after this transaction
+  id?: string; // for manual transactions, the transaction id
 }
 
 /**
@@ -840,6 +841,7 @@ export const calculateWalletTransactions = (
         description: tx.memo || "Manual transaction",
         type: "manual",
         balance: 0,
+        id: tx.id,
       });
     }
   }

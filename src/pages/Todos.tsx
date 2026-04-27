@@ -119,7 +119,7 @@ export default function Todos() {
           To-Do
         </h1>
         <p className="text-muted-foreground mt-1">
-          A weekly checklist to keep your stewardship on track.
+          A personalized checklist to make budgeting easier.
         </p>
       </div>
 
@@ -132,9 +132,9 @@ export default function Todos() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "Commit your work to the Lord, and your plans will be established."
+                Commit your actions to the LORD, and your plans will succeed.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 16:3 (ESV)</p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 16:3 (NLT)</p>
             </div>
           </div>
         </CardContent>

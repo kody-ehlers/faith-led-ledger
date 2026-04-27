@@ -269,7 +269,13 @@ interface FinanceState {
     newRate: number,
     startDate: string
   ) => void;
-  // Subscriptions
+  transferAssets: (
+    fromAssetId: string,
+    toAssetId: string,
+    amount: number,
+    date: string,
+    memo?: string
+  ) => void;
   addSubscription: (entry: Omit<SubscriptionEntry, "id">) => void;
   removeSubscription: (id: string) => void;
   updateSubscription: (id: string, updates: Partial<SubscriptionEntry>) => void;
@@ -663,27 +669,58 @@ export const useFinanceStore = create<FinanceState>()(
           }),
         })),
       removeAssetTransaction: (assetId, txId) =>
-        set((state) => ({
-          assets: state.assets.map((a) => {
-            if (a.id !== assetId) return a;
-            const newTransactions = (a.transactions || []).filter(
-              (t) => t.id !== txId
-            );
-            const starting = a.startingAmount ?? 0;
-            const removedTx = (a.transactions || []).find((t) => t.id === txId);
-            const removedWasStarting =
-              removedTx &&
-              (removedTx.memo === "Starting balance" || removedTx.memo === "Starting Balance");
-            const newStarting = removedWasStarting ? 0 : starting;
-            const computed = newTransactions.reduce((s, t) => s + t.amount, newStarting);
-            return {
-              ...a,
-              transactions: newTransactions,
-              startingAmount: newStarting,
-              currentAmount: computed,
-            };
-          }),
-        })),
+        set((state) => {
+          const asset = state.assets.find((a) => a.id === assetId);
+          if (!asset) return state;
+          const tx = asset.transactions?.find((t) => t.id === txId);
+          if (!tx) return state;
+
+          let assetsToUpdate = [assetId];
+
+          // If it's a transfer, find and remove the paired transaction
+          if (tx.memo && tx.memo.startsWith("Transfer")) {
+            const isTo = tx.memo.includes(" to ");
+            const isFrom = tx.memo.includes(" from ");
+            if (isTo || isFrom) {
+              const otherAccountName = isTo
+                ? tx.memo.split(" to ")[1]
+                : tx.memo.split(" from ")[1];
+              const otherAsset = state.assets.find((a) => a.name === otherAccountName);
+              if (otherAsset) {
+                // Find the paired transaction
+                const baseId = tx.id.replace(/_out$|_in$/, "");
+                const pairedSuffix = tx.id.endsWith("_out") ? "_in" : "_out";
+                const pairedId = baseId + pairedSuffix;
+                const pairedTx = otherAsset.transactions?.find((t) => t.id === pairedId);
+                if (pairedTx) {
+                  assetsToUpdate.push(otherAsset.id);
+                }
+              }
+            }
+          }
+
+          return {
+            assets: state.assets.map((a) => {
+              if (!assetsToUpdate.includes(a.id)) return a;
+              const newTransactions = (a.transactions || []).filter(
+                (t) => t.id !== txId && !(tx.memo?.startsWith("Transfer") && t.id === (tx.id.replace(/_out$|_in$/, "") + (tx.id.endsWith("_out") ? "_in" : "_out")))
+              );
+              const starting = a.startingAmount ?? 0;
+              const removedTx = (a.transactions || []).find((t) => t.id === txId || (tx.memo?.startsWith("Transfer") && t.id === (tx.id.replace(/_out$|_in$/, "") + (tx.id.endsWith("_out") ? "_in" : "_out"))));
+              const removedWasStarting =
+                removedTx &&
+                (removedTx.memo === "Starting balance" || removedTx.memo === "Starting Balance");
+              const newStarting = removedWasStarting ? 0 : starting;
+              const computed = newTransactions.reduce((s, t) => s + t.amount, newStarting);
+              return {
+                ...a,
+                transactions: newTransactions,
+                startingAmount: newStarting,
+                currentAmount: computed,
+              };
+            }),
+          };
+        }),
       updateAssetCreditLimit: (assetId, newLimit, startDate) =>
         set((state) => ({
           assets: state.assets.map((a) => {
@@ -769,6 +806,51 @@ export const useFinanceStore = create<FinanceState>()(
             };
           }),
         })),
+
+      transferAssets: (fromAssetId, toAssetId, amount, date, memo = "Transfer") =>
+        set((state) => {
+          const fromAsset = state.assets.find((a) => a.id === fromAssetId);
+          const toAsset = state.assets.find((a) => a.id === toAssetId);
+          if (!fromAsset || !toAsset || fromAssetId === toAssetId) return state;
+
+          const transferMemo = memo || "Transfer";
+          const txId = crypto.randomUUID();
+
+          return {
+            assets: state.assets.map((a) => {
+              if (a.id === fromAssetId) {
+                // Subtract from source
+                const curr = a.currentAmount ?? 0;
+                const allowedOutflow = Math.min(amount, curr);
+                const newTx = {
+                  id: txId + "_out",
+                  date,
+                  amount: -allowedOutflow,
+                  memo: transferMemo + " to " + toAsset.name,
+                };
+                return {
+                  ...a,
+                  transactions: [...(a.transactions || []), newTx],
+                  currentAmount: curr - allowedOutflow,
+                };
+              } else if (a.id === toAssetId) {
+                // Add to destination
+                const newTx = {
+                  id: txId + "_in",
+                  date,
+                  amount,
+                  memo: transferMemo + " from " + fromAsset.name,
+                };
+                return {
+                  ...a,
+                  transactions: [...(a.transactions || []), newTx],
+                  currentAmount: (a.currentAmount ?? 0) + amount,
+                };
+              }
+              return a;
+            }),
+          };
+        }),
 
       addSubscription: (entry) =>
         set((state) => ({
