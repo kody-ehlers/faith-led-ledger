@@ -519,6 +519,46 @@ export default function Expenses() {
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2" align="start">
                 <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2 pb-2 border-b">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const now = new Date();
+                        setFilterDateRange({
+                          from: new Date(now.getFullYear(), now.getMonth(), 1),
+                          to: now,
+                        });
+                      }}
+                    >
+                      Month to Date
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const now = new Date();
+                        setFilterDateRange({
+                          from: new Date(now.getFullYear(), 0, 1),
+                          to: now,
+                        });
+                      }}
+                    >
+                      Year to Date
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const now = new Date();
+                        const from = new Date();
+                        from.setDate(now.getDate() - 30);
+                        setFilterDateRange({ from, to: now });
+                      }}
+                    >
+                      Last 30 Days
+                    </Button>
+                  </div>
                   <Calendar
                     mode="range"
                     selected={{ from: filterDateRange.from, to: filterDateRange.to }}
