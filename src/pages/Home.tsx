@@ -42,8 +42,12 @@ import {
   Calendar as CalendarIcon,
   Clock,
   Church,
+  ListChecks,
 } from "lucide-react";
 import CleanPieChart from "@/components/CleanPieChart";
+import { Link } from "react-router-dom";
+import { loadTodos, getNextTodo, type TodoItem } from "@/lib/todos";
+import { useEffect, useState as useReactState } from "react";
 
 export default function Home() {
   const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments } =
