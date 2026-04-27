@@ -611,7 +611,7 @@ export default function Wallet() {
                       Are you sure you want to remove this transaction?
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      <div>Date: {tx ? format(new Date(tx.date + "T00:00:00"), "PPP") : "-"}</div>
+                      <div>Date: {tx ? formatDateSafe(tx.date) : "-"}</div>
                       <div>Memo: {tx?.memo ?? "-"}</div>
                       <div>Amount: {tx ? formatCurrency(tx.amount) : "-"}</div>
                     </div>
