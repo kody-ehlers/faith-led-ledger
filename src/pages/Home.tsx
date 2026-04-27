@@ -330,7 +330,7 @@ export default function Home() {
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-red-500 text-foreground mb-2">
