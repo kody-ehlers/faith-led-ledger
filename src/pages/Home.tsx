@@ -41,6 +41,7 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
+  Church,
 } from "lucide-react";
 import CleanPieChart from "@/components/CleanPieChart";
 

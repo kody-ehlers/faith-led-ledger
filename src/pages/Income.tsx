@@ -46,7 +46,9 @@ import {
   Pause,
   Play,
   TrendingUp,
-  Settings,, Church } from "lucide-react";
+  Settings,
+  Church,
+} from "lucide-react";
 import { subDays, addDays, addMonths, addYears } from "date-fns";
 import { toast } from "sonner";
 import {
