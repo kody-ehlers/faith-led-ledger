@@ -33,6 +33,7 @@ import {
   SquarePen,
   Trash2,
   Calendar as CalendarIcon,
+  Church,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -162,15 +163,20 @@ export default function Tithe() {
       {/* Scripture Card */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
-          <div className="space-y-4">
-            <p className="text-lg italic text-foreground">
-              "Bring all the tithes into the storehouse so there will be enough
-              food in my Temple." says the LORD of Heaven's Armies, "I will open the windows of heaven for you.
-              I will pour out a blessing so great you won't have enough room to take it in! Try it! Put me to the test!"
-            </p>
-            <p className="text-sm text-muted-foreground font-medium">
-              Malachi 3:10 (NLT)
-            </p>
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                "Bring all the tithes into the storehouse so there will be enough
+                food in my Temple." says the LORD of Heaven's Armies, "I will open the windows of heaven for you.
+                I will pour out a blessing so great you won't have enough room to take it in! Try it! Put me to the test!"
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">
+                Malachi 3:10 (NLT)
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
