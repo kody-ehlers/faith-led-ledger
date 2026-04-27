@@ -328,6 +328,17 @@ export default function Home() {
   const [focusedMonth, setFocusedMonth] = useState<Date>(startOfMonth(now));
   const monthsToShow = [startOfMonth(focusedMonth)];
 
+  const [nextTodo, setNextTodo] = useState<TodoItem | null>(() => getNextTodo(loadTodos()));
+  useEffect(() => {
+    const refresh = () => setNextTodo(getNextTodo(loadTodos()));
+    window.addEventListener("todos-updated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("todos-updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Scripture */}
