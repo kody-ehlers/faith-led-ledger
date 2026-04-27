@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency } from "@/utils/calculations";
-import { Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import {  Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart, Church } from "lucide-react";
 import {
   startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, isBefore, isAfter,
 } from "date-fns";
@@ -202,12 +202,23 @@ export default function Budget() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-full bg-primary/10">
+          <Target className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Budget</h2>
+          <p className="text-muted-foreground">Set spending goals and track your progress</p>
+        </div>
+      </div>
+
+
       {/* Scripture */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
@@ -218,16 +229,6 @@ export default function Budget() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-primary/10">
-          <Target className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Budget</h2>
-          <p className="text-muted-foreground">Set spending goals and track your progress</p>
-        </div>
-      </div>
 
       {/* Month/Timeframe Selector */}
       <Card className="shadow-sm">

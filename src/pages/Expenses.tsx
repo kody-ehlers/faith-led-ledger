@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon } from "lucide-react";
+import {  Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
@@ -227,12 +227,23 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-full bg-destructive/10">
+          <ShoppingCart className="h-6 w-6 text-destructive" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Expenses</h2>
+          <p className="text-muted-foreground">Track your daily spending</p>
+        </div>
+      </div>
+
+
       {/* Scripture */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <ShoppingCart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
@@ -244,16 +255,6 @@ export default function Expenses() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-destructive/10">
-          <ShoppingCart className="h-6 w-6 text-destructive" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Expenses</h2>
-          <p className="text-muted-foreground">Track your daily spending</p>
-        </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">

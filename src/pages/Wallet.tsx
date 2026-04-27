@@ -36,7 +36,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Percent, SquarePen, Heart, TrashIcon } from "lucide-react";
+import {  History, Percent, SquarePen, Heart, TrashIcon, Church } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
@@ -221,23 +221,6 @@ export default function Wallet() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Scripture */}
-      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                Those who love money will never have enough. How meaningless to think that wealth brings true happiness!
-              </p>
-              <p className="text-sm text-muted-foreground font-medium">Ecclesiastes 5:10 (NLT)</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <svg
@@ -261,6 +244,24 @@ export default function Wallet() {
           </p>
         </div>
       </div>
+
+
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                Those who love money will never have enough. How meaningless to think that wealth brings true happiness!
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Ecclesiastes 5:10 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

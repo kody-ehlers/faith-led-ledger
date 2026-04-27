@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, SquarePen, Heart } from "lucide-react";
+import {  Trash2, SquarePen, Heart, Church } from "lucide-react";
 import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
@@ -881,23 +881,6 @@ export default function Subscriptions() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Scripture */}
-      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                So if we have enough food and clothing, let us be content.
-              </p>
-              <p className="text-sm text-muted-foreground font-medium">1 Timothy 6:8 (NLT)</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-primary/10">
           <svg
@@ -921,6 +904,24 @@ export default function Subscriptions() {
           </p>
         </div>
       </div>
+
+
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                So if we have enough food and clothing, let us be content.
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">1 Timothy 6:8 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Monthly Summary Card */}
       <Card className="shadow-md">

@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
+import { 
   Plus,
   Trash2,
   DollarSign,
@@ -46,8 +46,7 @@ import {
   Pause,
   Play,
   TrendingUp,
-  Settings,
-} from "lucide-react";
+  Settings,, Church } from "lucide-react";
 import { subDays, addDays, addMonths, addYears } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -694,23 +693,6 @@ export default function Income() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Scripture */}
-      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-full bg-accent/10">
-              <TrendingUp className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                Honor the Lord with your wealth and with the best part of everything you produce.
-              </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 3:9 (NLT)</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-full bg-success/10">
@@ -724,6 +706,24 @@ export default function Income() {
           </p>
         </div>
       </div>
+
+
+      {/* Scripture */}
+      <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-accent/10">
+              <Church className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg italic text-foreground mb-2">
+                Honor the Lord with your wealth and with the best part of everything you produce.
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 3:9 (NLT)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Income Over Past Year Bar Chart (moved from Home) */}
       <Card className="shadow-md">

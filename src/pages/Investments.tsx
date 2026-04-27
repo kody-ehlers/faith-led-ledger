@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, TrendingUp, ChevronDown, ChevronUp, Heart } from "lucide-react";
+import {  Trash2, Plus, TrendingUp, ChevronDown, ChevronUp, Heart, Church } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -212,12 +212,23 @@ export default function Investments() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-full bg-success/10">
+          <TrendingUp className="h-6 w-6 text-success" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Investments</h2>
+          <p className="text-muted-foreground">Track investments and earnings</p>
+        </div>
+      </div>
+
+
       {/* Scripture */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-red-500 text-foreground mb-2">
@@ -229,16 +240,6 @@ export default function Investments() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-success/10">
-          <TrendingUp className="h-6 w-6 text-success" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Investments</h2>
-          <p className="text-muted-foreground">Track investments and earnings</p>
-        </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
