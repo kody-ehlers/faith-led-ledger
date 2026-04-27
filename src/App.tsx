@@ -19,6 +19,7 @@ import Statistics from "./pages/Statistics";
 import Budget from "./pages/Budget";
 import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
+import Todos from "./pages/Todos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const AppRoutes = () => {
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/budget" element={<Budget />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/todos" element={<Todos />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
