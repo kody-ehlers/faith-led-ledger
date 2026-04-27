@@ -165,8 +165,8 @@ export default function Tithe() {
           <div className="space-y-4">
             <p className="text-lg italic text-foreground">
               "Bring all the tithes into the storehouse so there will be enough
-              food in my Temple. If you do, I will pour out a blessing so great
-              you won't have enough room to take it in!"
+              food in my Temple." says the LORD of Heaven's Armies, "I will open the windows of heaven for you.
+              I will pour out a blessing so great you won't have enough room to take it in! Try it! Put me to the test!"
             </p>
             <p className="text-sm text-muted-foreground font-medium">
               Malachi 3:10 (NLT)

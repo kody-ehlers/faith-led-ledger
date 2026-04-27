@@ -236,9 +236,10 @@ export default function Expenses() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "An unreliable person who promises a gift is like clouds and wind that bring no rain."
+                Don't love money; be satisfied with what you have. For God has said,
+                "I will never fail you. I will never abandon you."
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 25:14 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Hebrews 13:5 (NLT)</p>
             </div>
           </div>
         </CardContent>

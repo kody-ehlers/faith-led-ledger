@@ -230,7 +230,7 @@ export default function Wallet() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "Whoever loves money never has money enough. Whoever loves wealth is never satisfied with their income."
+                Those who love money will never have enough. How meaningless to think that wealth brings true happiness!
               </p>
               <p className="text-sm text-muted-foreground font-medium">Ecclesiastes 5:10 (NLT)</p>
             </div>

@@ -18,7 +18,7 @@ import {
 import { useFinanceStore } from "@/store/financeStore";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Heart } from "lucide-react";
+import { Church } from "lucide-react";
 
 export default function Settings() {
   const appName = useFinanceStore((state) => state.appName);
@@ -51,11 +51,12 @@ export default function Settings() {
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "If any of you lacks wisdom, you should ask God, who gives generously to all without finding fault, and it will be given to you."
+                If you need wisdom, ask our generous God, and he will give it to you.
+                He will not rebuke you for asking.
               </p>
               <p className="text-sm text-muted-foreground font-medium">James 1:5 (NLT)</p>
             </div>

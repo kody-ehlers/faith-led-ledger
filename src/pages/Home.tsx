@@ -333,10 +333,10 @@ export default function Home() {
               <Heart className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                "Honor the Lord with your wealth and with the best part of everything you produce."
+              <p className="text-lg italic text-red-500 text-foreground mb-2">
+                "No one can serve two masters. For you will hate one and love the other; you will be devoted to one and despise the other. You cannot serve God and be enslaved to money."
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 3:9-10 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Matthew 6:24 (NLT)</p>
             </div>
           </div>
         </CardContent>
@@ -507,7 +507,7 @@ export default function Home() {
                           <Tooltip key={d.toISOString()}>
                             <TooltipTrigger asChild>
                               <div className={`min-h-[80px] p-2 rounded border ${today ? "border-primary/50 bg-primary/5" :
-                                  muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
+                                muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
                                 } hover:shadow-sm`}>
                                 <div className="flex justify-between items-start">
                                   <div className={`text-sm font-medium ${muted ? "opacity-60" : ""} ${today ? "text-primary font-bold" : ""}`}>

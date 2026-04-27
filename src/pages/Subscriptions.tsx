@@ -890,9 +890,9 @@ export default function Subscriptions() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "Keep your desires in check and don't be consumed by things. Focus on what truly matters."
+                So if we have enough food and clothing, let us be content.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">1 Timothy 6:8-9 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">1 Timothy 6:8 (NLT)</p>
             </div>
           </div>
         </CardContent>

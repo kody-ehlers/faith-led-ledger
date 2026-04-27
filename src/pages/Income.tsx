@@ -703,9 +703,9 @@ export default function Income() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters, since you know that you will receive an inheritance from the Lord as a reward. It is the Lord Christ you are serving."
+                Honor the Lord with your wealth and with the best part of everything you produce.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Colossians 3:23-24 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 3:9 (NLT)</p>
             </div>
           </div>
         </CardContent>

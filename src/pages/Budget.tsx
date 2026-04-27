@@ -211,9 +211,9 @@ export default function Budget() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "The prudent see danger and take refuge, but the simple keep going and pay the penalty. The reward for humility and fear of the Lord is riches and honor and life."
+                The wise have wealth and luxury, but fools spend whatever they get.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 22:3, 15:33 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 21:20 (NLT)</p>
             </div>
           </div>
         </CardContent>

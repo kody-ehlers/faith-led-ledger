@@ -147,9 +147,10 @@ export default function Statistics() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "Get all the advice and instruction you can, so you will be wise the rest of your life. Many are the plans in a person's heart, but it is the Lord's purpose that prevails."
+                The godly may trip seven times, but they will get up again.
+                But one disaster is enough to overthrow the wicked.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 19:20 & 19:21 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Proverbs 24:16 (NLT)</p>
             </div>
           </div>
         </CardContent>

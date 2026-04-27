@@ -170,9 +170,9 @@ export default function Debt() {
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "The rich rule over the poor, and the borrower is servant to the lender. Owe nothing to anyone—except for your obligation to love one another."
+                The wicked borrow and never repay, but the godly are generous givers.
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Proverbs 22:7 & Romans 13:8 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Psalms 37:21 (NLT)</p>
             </div>
           </div>
         </CardContent>

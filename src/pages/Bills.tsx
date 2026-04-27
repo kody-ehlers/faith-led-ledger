@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, SquarePen, Heart } from "lucide-react";
+import { Trash2, SquarePen, Church } from "lucide-react";
 import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
@@ -833,13 +833,13 @@ export default function Bills() {
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-full bg-accent/10">
-              <Heart className="h-6 w-6 text-accent" />
+              <Church className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
               <p className="text-lg italic text-foreground mb-2">
-                "The wicked borrow and never repay, but the godly are generous with their gifts."
+                "Here show me the coin used for the tax." When they handed him a Roman coin, he asked, "Whose picture and title are stamped on it?" "Caesar's," they replied. "Well, then," he said, "give to Caesar what belongs to Caesar, and give to God what belongs to God."
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Psalm 37:21 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Matthew 22:19-21 (NLT)</p>
             </div>
           </div>
         </CardContent>

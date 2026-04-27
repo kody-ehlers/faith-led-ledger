@@ -220,10 +220,11 @@ export default function Investments() {
               <Heart className="h-6 w-6 text-accent" />
             </div>
             <div className="flex-1">
-              <p className="text-lg italic text-foreground mb-2">
-                "It is more blessed to give than to receive. Those who plant generously will harvest generously."
+              <p className="text-lg italic text-red-500 text-foreground mb-2">
+                "To those who use well what they are given, and they will have an abundance. But from those who
+                do nothing, even what little they have will be taken away."
               </p>
-              <p className="text-sm text-muted-foreground font-medium">Acts 20:35 & 2 Corinthians 9:6 (NLT)</p>
+              <p className="text-sm text-muted-foreground font-medium">Matthew 25:29 (NLT)</p>
             </div>
           </div>
         </CardContent>
