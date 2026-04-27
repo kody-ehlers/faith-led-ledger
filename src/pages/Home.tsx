@@ -42,8 +42,12 @@ import {
   Calendar as CalendarIcon,
   Clock,
   Church,
+  ListChecks,
 } from "lucide-react";
 import CleanPieChart from "@/components/CleanPieChart";
+import { Link } from "react-router-dom";
+import { loadTodos, getNextTodo, type TodoItem } from "@/lib/todos";
+import { useEffect } from "react";
 
 export default function Home() {
   const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments } =
@@ -324,6 +328,17 @@ export default function Home() {
   const [focusedMonth, setFocusedMonth] = useState<Date>(startOfMonth(now));
   const monthsToShow = [startOfMonth(focusedMonth)];
 
+  const [nextTodo, setNextTodo] = useState<TodoItem | null>(() => getNextTodo(loadTodos()));
+  useEffect(() => {
+    const refresh = () => setNextTodo(getNextTodo(loadTodos()));
+    window.addEventListener("todos-updated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("todos-updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Scripture */}
@@ -342,6 +357,29 @@ export default function Home() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Next Task */}
+      {nextTodo && (
+        <Link to="/todos" className="block">
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-md hover:shadow-lg transition-shadow">
+            <CardContent className="p-5 flex items-start gap-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <ListChecks className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Next task</p>
+                <p className="text-lg font-semibold mt-0.5 truncate">{nextTodo.title}</p>
+                <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
+                  {nextTodo.dueDate && (
+                    <span>Due {format(new Date(nextTodo.dueDate + "T00:00:00"), "MMM d, yyyy")}</span>
+                  )}
+                  {nextTodo.recurrence !== "None" && <span>· {nextTodo.recurrence}</span>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Net Worth */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
