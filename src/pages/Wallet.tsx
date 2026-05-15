@@ -36,12 +36,30 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {  History, Percent, SquarePen, Heart, TrashIcon, Church } from "lucide-react";
+import { History, Percent, SquarePen, Heart, TrashIcon, Church } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
-  const { assets, addAsset, removeAsset, updateAsset, removeAssetTransaction, addAssetTransaction, updateAssetTransaction, applyAssetInterest, updateAssetInterestRate, transferAssets, income, expenses, bills, subscriptions, tithes, cardOrders, updateCardOrder } =
-    useFinanceStore();
+  const {
+    assets,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    removeAssetTransaction,
+    addAssetTransaction,
+    updateAssetTransaction,
+    applyAssetInterest,
+    updateAssetInterestRate,
+    transferAssets,
+    income,
+    expenses,
+    bills,
+    subscriptions,
+    tithes,
+    cardOrders,
+    updateCardOrder,
+    walletEnabled,
+  } = useFinanceStore();
 
   // Helpers to normalize and parse date-only strings safely
   const normalizeDateOnly = (d?: string | null) => {
@@ -126,6 +144,26 @@ export default function Wallet() {
   const [transferAmount, setTransferAmount] = useState<string>("");
   const [transferDate, setTransferDate] = useState<Date>(new Date());
   const [transferMemo, setTransferMemo] = useState<string>("");
+
+  if (!walletEnabled) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <Card>
+          <CardHeader>
+            <CardTitle>Wallet Tracking Disabled</CardTitle>
+            <CardDescription>
+              Wallet tracking is currently turned off in Settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Enable wallet tracking in Settings to manage accounts and see net worth again.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleAdd = () => {
     if (!name.trim()) {

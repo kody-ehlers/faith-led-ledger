@@ -50,7 +50,7 @@ import { loadTodos, getNextTodo, type TodoItem } from "@/lib/todos";
 import { useEffect } from "react";
 
 export default function Home() {
-  const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments } =
+  const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments, walletEnabled } =
     useFinanceStore();
 
   const now = new Date();
@@ -105,6 +105,9 @@ export default function Home() {
 
   const totalSavingsMTD = monthlyIncomeMTD - monthlyExpensesMTD - titheMTD;
 
+  const totalMoneyInMTD = monthlyIncomeMTD;
+  const totalMoneyOutMTD = monthlyExpensesMTD;
+  const netFlowMTD = totalMoneyInMTD - totalMoneyOutMTD;
   const netWorth = calculateNetWorth(assets, debts);
 
   // ── Spending by Category (includes bills & subs) ──
@@ -381,21 +384,53 @@ export default function Home() {
         </Link>
       )}
 
-      {/* Net Worth */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-primary" />
-            Net Worth
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className={`text-5xl font-bold ${netWorth >= 0 ? "text-success" : "text-destructive"}`}>
-            {formatCurrency(netWorth)}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">Assets - Liabilities</p>
-        </CardContent>
-      </Card>
+      {/* Net Worth / Money Flow */}
+      {walletEnabled ? (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <DollarSign className="h-6 w-6 text-primary" />
+              Net Worth
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-5xl font-bold ${netWorth >= 0 ? "text-success" : "text-destructive"}`}>
+              {formatCurrency(netWorth)}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">Assets - Liabilities</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <DollarSign className="h-6 w-6 text-primary" />
+              Money In vs Money Out
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Total In (MTD)</p>
+                <p className="text-4xl font-bold text-success">{formatCurrency(totalMoneyInMTD)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Total Out (MTD)</p>
+                <p className="text-4xl font-bold text-destructive">{formatCurrency(totalMoneyOutMTD)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Net Flow</p>
+                <p className={`text-4xl font-bold ${netFlowMTD >= 0 ? "text-success" : "text-destructive"}`}>
+                  {formatCurrency(netFlowMTD)}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Showing income plus investment and savings interest against expenses, bills, subscriptions, and debt.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

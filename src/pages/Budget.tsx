@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -14,11 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/utils/calculations";
-import {  Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart, Church } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { calculatePostTaxIncomeForMonth, formatCurrency } from "@/utils/calculations";
+import { Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
 import {
   startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, isBefore, isAfter,
 } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function Budget() {
   const { expenses, bills, subscriptions, debts, income, tithes, expenseCategories } = useFinanceStore();
@@ -168,26 +171,88 @@ export default function Budget() {
     saveGoals(updated);
   };
 
-  // Estimated monthly income
-  const estimatedIncome = income.reduce((sum, inc) => {
-    if (inc.preTax) return sum;
-    if (inc.suspendedIndefinitely) return sum;
-    switch (inc.frequency) {
-      case "One-time": return sum;
-      case "Weekly": return sum + inc.amount * 4.33;
-      case "Biweekly": return sum + inc.amount * 2.17;
-      case "Monthly": return sum + inc.amount;
-      case "Bimonthly": return sum + inc.amount * 0.5;
-      case "Quarterly": return sum + inc.amount / 3;
-      case "Yearly": return sum + inc.amount / 12;
-      default: return sum + inc.amount;
+  const previousMonthKey = getMonthKey(subMonths(selectedDate, 1));
+  const previousMonthGoals = goals[previousMonthKey] || {};
+  const hasPreviousGoals = Object.keys(previousMonthGoals).length > 0;
+
+  const goalMonths = Object.keys(goals)
+    .filter((key) => key !== currentMonthKey && Object.keys(goals[key] || {}).length > 0)
+    .sort((a, b) => (a < b ? 1 : -1));
+
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyDialogCategory, setCopyDialogCategory] = useState<string | null>(null);
+  const [copyDialogMonth, setCopyDialogMonth] = useState<string>(goalMonths[0] || previousMonthKey);
+
+  useEffect(() => {
+    setCopyDialogMonth(goalMonths[0] || previousMonthKey);
+  }, [goalMonths.join(","), previousMonthKey]);
+
+  const formatMonthLabel = (monthKey: string) => {
+    const [year, month] = monthKey.split("-");
+    return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const copyGoalsFromMonth = (sourceMonthKey: string, category?: string) => {
+    if (timeframe !== "single") {
+      toast.error("Carry-over only works in single month view.");
+      return;
     }
-  }, 0);
+
+    const sourceGoals = goals[sourceMonthKey] || {};
+    if (!sourceGoals || Object.keys(sourceGoals).length === 0) {
+      toast.error("No goals found for the selected month.");
+      return;
+    }
+
+    const updatedCurrentGoals = { ...monthGoals };
+    if (category) {
+      if (!(category in sourceGoals)) {
+        toast.error("No saved goal for that category in the selected month.");
+        return;
+      }
+      updatedCurrentGoals[category] = sourceGoals[category];
+      toast.success(`Copied ${category} from ${formatMonthLabel(sourceMonthKey)}.`);
+    } else {
+      Object.assign(updatedCurrentGoals, sourceGoals);
+      toast.success(`Copied budgets from ${formatMonthLabel(sourceMonthKey)}.`);
+    }
+
+    saveGoals({
+      ...goals,
+      [currentMonthKey]: updatedCurrentGoals,
+    });
+  };
+
+  const monthlyIncome = calculatePostTaxIncomeForMonth(income, selectedDate);
 
   const totalBudgetGoals = Object.values(monthGoals).reduce((s, v) => s + v, 0);
   const totalCategorySpending = Object.values(categorySpending).reduce((s, v) => s + v, 0);
-  const potentialSavings = estimatedIncome - fixedCosts - titheMTD - totalBudgetGoals;
-  const actualSavings = estimatedIncome - fixedCosts - titheMTD - totalCategorySpending;
+  const potentialSavings = monthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
+  const actualSavings = monthlyIncome - fixedCosts - titheMTD - totalCategorySpending;
+
+  // Compute total budget goals across the selected date range (sum of each month's goals)
+  const getMonthKeysInRange = () => {
+    const keys: string[] = [];
+    let current = startOfMonth(dateRange.start);
+    while (!isAfter(current, dateRange.end)) {
+      keys.push(getMonthKey(current));
+      current = addMonths(current, 1);
+    }
+    return keys;
+  };
+
+  const monthKeysInRange = getMonthKeysInRange();
+  const totalBudgetGoalsRange = monthKeysInRange.reduce((sum, key) => {
+    const g = goals[key] || {};
+    return sum + Object.values(g).reduce((s, v) => s + v, 0);
+  }, 0);
+
+  // totalCategorySpending already sums spending across the dateRange
+  const totalSpentRange = totalCategorySpending;
+  const overUnderRange = totalSpentRange - totalBudgetGoalsRange; // positive = over, negative = under
 
   // Get all categories
   const allCategories = [...new Set([...expenseCategories, ...Object.keys(categorySpending), ...Object.keys(monthGoals)])].sort();
@@ -211,6 +276,8 @@ export default function Budget() {
           <p className="text-muted-foreground">Set spending goals and track your progress</p>
         </div>
       </div>
+
+
 
 
       {/* Scripture */}
@@ -293,10 +360,10 @@ export default function Budget() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Est. Monthly Income</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-success">{formatCurrency(estimatedIncome)}</p>
+            <p className="text-2xl font-bold text-success">{formatCurrency(monthlyIncome)}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -344,16 +411,45 @@ export default function Budget() {
 
       {/* Category Budgets */}
       <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Category Budgets</CardTitle>
-          <CardDescription>Set monthly spending limits for each category</CardDescription>
+        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <CardTitle>Category Budgets</CardTitle>
+            <CardDescription>Set monthly spending limits for each category</CardDescription>
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => {
+                    setCopyDialogCategory(null);
+                    setCopyDialogOpen(true);
+                  }}
+                  disabled={timeframe !== "single" || goalMonths.length === 0}
+                >
+                  <Copy className="mr-1 h-4 w-4" />
+                  Copy From another month
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="text-xs">
+                Copy all category goals from a previous month into this month.
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {allCategories.map((category) => {
             const spent = categorySpending[category] || 0;
-            const goal = monthGoals[category] || 0;
-            const percent = goal > 0 ? Math.min((spent / goal) * 100, 100) : 0;
-            const over = goal > 0 && spent > goal;
+
+            // Sum goals across the timeframe for this category
+            const goalRange = timeframe === "single"
+              ? (monthGoals[category] || 0)
+              : monthKeysInRange.reduce((s, key) => s + ((goals[key]?.[category]) || 0), 0);
+
+            const percent = goalRange > 0 ? Math.min((spent / goalRange) * 100, 100) : 0;
+            const over = goalRange > 0 && spent > goalRange;
 
             return (
               <div key={category} className="space-y-2">
@@ -362,20 +458,46 @@ export default function Budget() {
                     <span className="text-sm font-medium">{category}</span>
                     {over && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
                     <span className="text-sm text-muted-foreground">
-                      {formatCurrency(spent)} {goal > 0 ? `/ ${formatCurrency(goal)}` : ""}
+                      {formatCurrency(spent)} {"/"} {formatCurrency(goalRange)}
                     </span>
-                    <div className="w-28">
-                      <CurrencyInput
-                        value={goal || null}
-                        onChange={(v) => setGoal(category, v ?? 0)}
-                        placeholder="Goal"
-                      />
-                    </div>
+                    {timeframe === "single" && (
+                      <>
+                        <div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                onClick={() => {
+                                  setCopyDialogCategory(category);
+                                  setCopyDialogOpen(true);
+                                }}
+                                disabled={goalMonths.length === 0}
+                              >
+                                <Copy className="mr-1 h-4 w-4" />
+                                Copy From
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs">
+                              Copy this category's budget from another month.
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="w-28">
+                          <CurrencyInput
+                            value={(monthGoals[category] || 0) || null}
+                            onChange={(v) => setGoal(category, v ?? 0)}
+                            placeholder="Goal"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
-                {goal > 0 && (
+                {goalRange > 0 && (
                   <Progress
                     value={percent}
                     className={`h-2 ${over ? "[&>div]:bg-destructive" : "[&>div]:bg-success"}`}
@@ -384,6 +506,85 @@ export default function Budget() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Copy Budget Goals</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="space-y-3">
+              <p className="text-sm font-medium mb-1">Copy from month</p>
+              <Select
+                value={copyDialogMonth}
+                onValueChange={setCopyDialogMonth}
+                disabled={goalMonths.length === 0}
+              >
+                <SelectTrigger className="h-10 w-full text-sm">
+                  <SelectValue placeholder="Select source month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {goalMonths.map((monthKey) => (
+                    <SelectItem key={monthKey} value={monthKey}>
+                      {formatMonthLabel(monthKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {copyDialogCategory ? (
+              <p className="text-sm text-muted-foreground">
+                Copy only the <span className="font-medium">{copyDialogCategory}</span> category goal.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Copy all category goals from the selected month into this month.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="space-x-2">
+            <Button variant="outline" onClick={() => setCopyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                copyGoalsFromMonth(copyDialogMonth, copyDialogCategory || undefined);
+                setCopyDialogOpen(false);
+              }}
+              disabled={goalMonths.length === 0}
+            >
+              Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeframe Summary */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Timeframe Summary</CardTitle>
+          <CardDescription>Totals for the selected period</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Budgeted</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalBudgetGoalsRange)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{timeframe === "single" ? "This month" : `${monthKeysInRange.length} months total`}</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Spent</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalSpentRange)}</p>
+            </div>
+            <div className="flex-1 text-right">
+              <p className="text-sm text-muted-foreground">Over / Under</p>
+              <p className={`text-2xl font-bold ${overUnderRange > 0 ? "text-destructive" : "text-success"}`}>
+                {overUnderRange >= 0 ? `Over ${formatCurrency(Math.abs(overUnderRange))}` : `Under ${formatCurrency(Math.abs(overUnderRange))}`}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

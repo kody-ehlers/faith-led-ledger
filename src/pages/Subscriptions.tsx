@@ -1,5 +1,5 @@
 import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useFinanceStore, SubscriptionEntry } from "@/store/financeStore";
 import {
   Card,
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {  Trash2, SquarePen, Heart, Church } from "lucide-react";
+import { Trash2, SquarePen, Heart, Church } from "lucide-react";
 import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
@@ -55,6 +55,7 @@ export default function Subscriptions() {
     assets,
     cardOrders,
     updateCardOrder,
+    walletEnabled,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -90,7 +91,7 @@ export default function Subscriptions() {
       autopay,
       monthlyPrices: {},
       paidMonths: [],
-      assetId: assetId ?? undefined,
+      assetId: walletEnabled ? (assetId ?? undefined) : undefined,
     });
     toast.success("Subscription added");
     setName("");
@@ -1015,25 +1016,27 @@ export default function Subscriptions() {
               <Label>Autopay Enabled</Label>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Wallet</Label>
-              <Select
-                value={assetId ?? "__external"}
-                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__external">External Account</SelectItem>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} • {a.type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {walletEnabled && (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={assetId ?? "__external"}
+                  onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <Button className="w-full" onClick={handleAdd}>
@@ -1189,31 +1192,34 @@ export default function Subscriptions() {
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label>Wallet</Label>
-                <Select
-                  value={editing.assetId ?? "__external"}
-                  onValueChange={(v) => setEditing({ ...editing, assetId: v === "__external" ? undefined : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__external">External Account</SelectItem>
-                    {assets.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} • {a.type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {walletEnabled && (
+                <div className="space-y-2">
+                  <Label>Wallet</Label>
+                  <Select
+                    value={editing.assetId ?? "__external"}
+                    onValueChange={(v) => setEditing({ ...editing, assetId: v === "__external" ? undefined : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__external">External Account</SelectItem>
+                      {assets.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} • {a.type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button
                 onClick={() => {
                   if (editing) {
-                    updateSubscription(editing.id, editing);
+                    const updated = { ...editing, assetId: walletEnabled ? editing.assetId : undefined };
+                    updateSubscription(editing.id, updated);
                     toast.success("Subscription updated");
                     setIsEditOpen(false);
                     setEditing(null);

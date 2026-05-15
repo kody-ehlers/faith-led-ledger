@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import {
   calculateMonthlyExpenses,
@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import {  Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
@@ -50,12 +50,19 @@ export default function Expenses() {
     expenseCategories,
     addExpenseCategory,
     removeExpenseCategory,
+    walletEnabled,
   } = useFinanceStore();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [category, setCategory] = useState(expenseCategories[0] || "Other");
   const [type, setType] = useState<"need" | "want">("need");
   const [assetId, setAssetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!walletEnabled) {
+      setAssetId(null);
+    }
+  }, [walletEnabled]);
 
   // Date selection mode
   const [dateMode, setDateMode] = useState<"single" | "range">("single");
@@ -95,7 +102,7 @@ export default function Expenses() {
         category,
         type,
         date: singleDate.toISOString(),
-        assetId: assetId ?? undefined,
+        assetId: walletEnabled ? assetId ?? undefined : undefined,
       });
       toast.success("Expense added successfully");
     } else {
@@ -152,7 +159,7 @@ export default function Expenses() {
           category,
           type,
           date: segment.startDate.toISOString(),
-          assetId: assetId ?? undefined,
+          assetId: walletEnabled ? assetId ?? undefined : undefined,
           dateRangeStart: formatDateString(segment.startDate),
           dateRangeEnd: formatDateString(segment.endDate),
           rangeGroupId,
@@ -436,25 +443,27 @@ export default function Expenses() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Wallet</Label>
-              <Select
-                value={assetId ?? "__external"}
-                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__external">External Account</SelectItem>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} • {a.type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {walletEnabled && (
+              <div className="space-y-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={assetId ?? "__external"}
+                  onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <Button

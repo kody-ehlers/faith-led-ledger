@@ -15,7 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {  Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown, Heart, Church } from "lucide-react";
+import { Trash2, Plus, Landmark, ChevronDown, ChevronUp, TrendingDown, Heart, Church } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -60,6 +60,7 @@ export default function Debt() {
   const {
     debts, addDebt, updateDebt, removeDebt, addDebtPayment, assets, addAssetTransaction,
     cardOrders, updateCardOrder,
+    walletEnabled,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -92,7 +93,7 @@ export default function Debt() {
       termMonths: termMonths ? parseInt(termMonths) : undefined,
       dueDate: new Date().toISOString(),
       notes: notes.trim(),
-      assetId: assetId ?? undefined,
+      assetId: walletEnabled ? (assetId ?? undefined) : undefined,
       autopay,
     });
     toast.success("Debt added");
@@ -103,7 +104,7 @@ export default function Debt() {
   const openPay = (debtId: string, debtMinPayment: number) => {
     setPayFor(debtId);
     setPayAmount(debtMinPayment);
-    setPayAsset(assets.find((a) => a.type !== "Credit Card")?.id ?? null);
+    setPayAsset(walletEnabled ? (assets.find((a) => a.type !== "Credit Card")?.id ?? null) : null);
     setPayDate(new Date());
   };
 
@@ -111,7 +112,7 @@ export default function Debt() {
     if (!payFor) return;
     const amt = payAmount ?? 0;
     if (amt <= 0) { toast.error("Enter a valid amount"); return; }
-    if (!payAsset) { toast.error("Select a wallet account to pay from"); return; }
+    if (walletEnabled && !payAsset) { toast.error("Select a wallet account to pay from"); return; }
     const debt = debts.find((d) => d.id === payFor);
     if (!debt) return;
 
@@ -119,12 +120,14 @@ export default function Debt() {
     const interestPortion = parseFloat((debt.balance * monthlyRate).toFixed(2));
     const principalPortion = parseFloat(Math.max(0, amt - interestPortion).toFixed(2));
 
-    addAssetTransaction(payAsset, {
-      date: payDate.toISOString(),
-      amount: -amt,
-      memo: `Payment to ${debt.name}`,
-    });
-    addDebtPayment(payFor, amt, `Payment from wallet`, payDate.toISOString(), principalPortion, interestPortion);
+    if (walletEnabled && payAsset) {
+      addAssetTransaction(payAsset, {
+        date: payDate.toISOString(),
+        amount: -amt,
+        memo: `Payment to ${debt.name}`,
+      });
+    }
+    addDebtPayment(payFor, amt, walletEnabled && payAsset ? `Payment from wallet` : `Payment`, payDate.toISOString(), principalPortion, interestPortion);
     toast.success("Payment recorded");
     setPayFor(null);
   };
@@ -244,18 +247,20 @@ export default function Debt() {
                 <Switch checked={autopay} onCheckedChange={setAutopay} />
                 <Label>Autopay Enabled</Label>
               </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label>Default Payment Wallet</Label>
-                <Select value={assetId ?? "__external"} onValueChange={(v) => setAssetId(v === "__external" ? null : v)}>
-                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__external">External Account</SelectItem>
-                    {assets.filter((a) => a.type !== "Credit Card").map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {walletEnabled && (
+                <div className="md:col-span-2 space-y-2">
+                  <Label>Default Payment Wallet</Label>
+                  <Select value={assetId ?? "__external"} onValueChange={(v) => setAssetId(v === "__external" ? null : v)}>
+                    <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__external">External Account</SelectItem>
+                      {assets.filter((a) => a.type !== "Credit Card").map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <Button onClick={handleAdd} className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground">
               <Plus className="h-4 w-4 mr-2" />Add Debt
@@ -372,18 +377,20 @@ export default function Debt() {
             <DialogTitle>Pay Debt — {debts.find((d) => d.id === payFor)?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>From Wallet</Label>
-              <Select value={payAsset ?? "__none"} onValueChange={(v) => setPayAsset(v === "__none" ? null : v)}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">Choose</SelectItem>
-                  {assets.filter((a) => a.type !== "Credit Card").map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {walletEnabled && (
+              <div className="space-y-2">
+                <Label>From Wallet</Label>
+                <Select value={payAsset ?? "__none"} onValueChange={(v) => setPayAsset(v === "__none" ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Choose</SelectItem>
+                    {assets.filter((a) => a.type !== "Credit Card").map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Amount</Label>
               <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />

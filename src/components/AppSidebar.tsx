@@ -17,6 +17,7 @@ import {
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
 import { useState } from "react";
+import { useFinanceStore } from "@/store/financeStore";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -39,7 +40,12 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
+  const walletEnabled = useFinanceStore((state) => state.walletEnabled);
   const [hovered, setHovered] = useState<string | null>(null);
+
+  const visibleItems = walletEnabled
+    ? menuItems
+    : menuItems.filter((item) => item.title !== "Wallet");
 
   return (
     <nav
@@ -48,7 +54,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         collapsed ? "px-0" : "px-4"
       )}
     >
-      {menuItems.map((item) => (
+      {visibleItems.map((item) => (
         <div
           key={item.title}
           className="relative"

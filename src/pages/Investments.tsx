@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {  Trash2, Plus, TrendingUp, ChevronDown, ChevronUp, Heart, Church } from "lucide-react";
+import { Trash2, Plus, TrendingUp, ChevronDown, ChevronUp, Heart, Church } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/calculations";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -90,6 +90,7 @@ export default function Investments() {
     assets,
     cardOrders,
     updateCardOrder,
+    walletEnabled,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -129,7 +130,7 @@ export default function Investments() {
       frequency: autoDeposit ? frequency : "Monthly",
       date: autoDeposit ? date.toISOString() : new Date().toISOString(),
       notes: notes.trim(),
-      assetId: (autoDeposit ? assetId : null) ?? undefined,
+      assetId: walletEnabled && autoDeposit ? (assetId ?? undefined) : undefined,
       expectedReturnRate: expectedReturn ? parseFloat(expectedReturn) : undefined,
     });
 
@@ -319,16 +320,18 @@ export default function Investments() {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Fund From Wallet</Label>
-                    <Select value={assetId ?? "__external"} onValueChange={(v) => setAssetId(v === "__external" ? null : v)}>
-                      <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__external">External Account</SelectItem>
-                        {assets.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {walletEnabled && (
+                    <div className="space-y-2">
+                      <Label>Fund From Wallet</Label>
+                      <Select value={assetId ?? "__external"} onValueChange={(v) => setAssetId(v === "__external" ? null : v)}>
+                        <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__external">External Account</SelectItem>
+                          {assets.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name} • {a.type}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </>
               )}
             </div>

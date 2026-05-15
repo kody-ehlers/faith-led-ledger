@@ -19,6 +19,7 @@ import Statistics from "./pages/Statistics";
 import Budget from "./pages/Budget";
 import Settings from "./pages/Settings";
 import Wallet from "./pages/Wallet";
+import WalletReconciliation from "./pages/WalletReconciliation";
 import Todos from "./pages/Todos";
 import NotFound from "./pages/NotFound";
 
@@ -34,9 +35,10 @@ const AppRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/income" element={<Income />} />
         <Route path="/tithe" element={<Tithe />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/expenses" element={<Expenses />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/wallet/reconcile" element={<WalletReconciliation />} />
+        <Route path="/expenses" element={<Expenses />} />
         <Route path="/bills" element={<Bills />} />
         <Route path="/savings" element={<Savings />} />
         <Route path="/investments" element={<Investments />} />

@@ -6,13 +6,13 @@ export interface IncomeEntry {
   source: string;
   amount: number;
   frequency:
-    | "One-time"
-    | "Weekly"
-    | "Biweekly"
-    | "Monthly"
-    | "Bimonthly"
-    | "Quarterly"
-    | "Yearly";
+  | "One-time"
+  | "Weekly"
+  | "Biweekly"
+  | "Monthly"
+  | "Bimonthly"
+  | "Quarterly"
+  | "Yearly";
   preTax: boolean;
   date: string;
   notes: string;
@@ -205,6 +205,7 @@ interface FinanceState {
   investments: InvestmentEntry[];
   appName: string;
   timezone: string;
+  walletEnabled: boolean;
   expenseCategories: string[];
   cardOrders: Record<string, string[]>;
 
@@ -287,7 +288,7 @@ interface FinanceState {
     comment?: string | null
   ) => void;
   renewSubscription: (id: string) => void;
-  
+
   // Bills
   addBill: (entry: Omit<BillEntry, "id">) => void;
   removeBill: (id: string) => void;
@@ -300,22 +301,23 @@ interface FinanceState {
     comment?: string | null
   ) => void;
   renewBill: (id: string) => void;
-  
+
   // Investments
   addInvestment: (entry: Omit<InvestmentEntry, "id" | "moneyEarned" | "earningsHistory" | "contributedMonths">) => void;
   removeInvestment: (id: string) => void;
   updateInvestment: (id: string, updates: Partial<InvestmentEntry>) => void;
   addEarnings: (investmentId: string, amount: number, description?: string) => void;
   recordContribution: (investmentId: string, month: string) => void;
-  
+
   // Expense Categories
   addExpenseCategory: (category: string) => void;
   removeExpenseCategory: (category: string) => void;
-  
+
   // Settings
   updateAppName: (name: string) => void;
   updateCardOrder: (page: string, order: string[]) => void;
   updateTimezone: (tz: string) => void;
+  updateWalletEnabled: (enabled: boolean) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -332,6 +334,7 @@ export const useFinanceStore = create<FinanceState>()(
       investments: [],
       appName: "My Finances",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      walletEnabled: true,
       expenseCategories: [
         "Groceries",
         "Dining",
@@ -384,12 +387,12 @@ export const useFinanceStore = create<FinanceState>()(
           income: state.income.map((i) =>
             i.id === id
               ? {
-                  ...i,
-                  suspendedFrom: from,
-                  suspendedTo: to,
-                  suspendedIndefinitely: indefinite,
-                  suspendedNote: comment,
-                }
+                ...i,
+                suspendedFrom: from,
+                suspendedTo: to,
+                suspendedIndefinitely: indefinite,
+                suspendedNote: comment,
+              }
               : i
           ),
         })),
@@ -399,12 +402,12 @@ export const useFinanceStore = create<FinanceState>()(
           income: state.income.map((i) =>
             i.id === id
               ? {
-                  ...i,
-                  suspendedFrom: undefined,
-                  suspendedTo: undefined,
-                  suspendedIndefinitely: false,
-                  suspendedNote: undefined,
-                }
+                ...i,
+                suspendedFrom: undefined,
+                suspendedTo: undefined,
+                suspendedIndefinitely: false,
+                suspendedNote: undefined,
+              }
               : i
           ),
         })),
@@ -418,7 +421,7 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => {
           const expenseToRemove = state.expenses.find((e) => e.id === id);
           const newExpenses = state.expenses.filter((e) => e.id !== id);
-          
+
           // If expense had an assetId, remove the corresponding wallet transaction
           if (expenseToRemove?.assetId) {
             const asset = state.assets.find((a) => a.id === expenseToRemove.assetId);
@@ -426,19 +429,19 @@ export const useFinanceStore = create<FinanceState>()(
               // Find the transaction that matches this expense
               // Look for a transaction with memo pattern "Expense: {expense.name}" or just matching date/amount
               const matchingTxIndex = asset.transactions.findIndex((tx) => {
-                const memoMatches = tx.memo?.includes(expenseToRemove.name) || 
-                                    tx.memo?.includes("Expense:");
-                const dateMatches = tx.date === expenseToRemove.date || 
-                                    tx.date.startsWith(expenseToRemove.date.slice(0, 10));
+                const memoMatches = tx.memo?.includes(expenseToRemove.name) ||
+                  tx.memo?.includes("Expense:");
+                const dateMatches = tx.date === expenseToRemove.date ||
+                  tx.date.startsWith(expenseToRemove.date.slice(0, 10));
                 const amountMatches = tx.amount === -expenseToRemove.amount;
                 return memoMatches && dateMatches && amountMatches;
               });
-              
+
               if (matchingTxIndex !== -1) {
                 const newTransactions = asset.transactions.filter((_, idx) => idx !== matchingTxIndex);
                 const starting = asset.startingAmount ?? 0;
                 const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
-                
+
                 return {
                   expenses: newExpenses,
                   assets: state.assets.map((a) => {
@@ -455,7 +458,7 @@ export const useFinanceStore = create<FinanceState>()(
               }
             }
           }
-          
+
           return { expenses: newExpenses };
         }),
 
@@ -521,20 +524,20 @@ export const useFinanceStore = create<FinanceState>()(
           debts: state.debts.map((d) =>
             d.id === debtId
               ? {
-                  ...d,
-                  balance: Math.max(0, d.balance - (principalPortion ?? amount)),
-                  paymentHistory: [
-                    ...(d.paymentHistory || []),
-                    {
-                      id: crypto.randomUUID(),
-                      date: date || new Date().toISOString(),
-                      amount,
-                      principalPortion,
-                      interestPortion,
-                      memo,
-                    },
-                  ],
-                }
+                ...d,
+                balance: Math.max(0, d.balance - (principalPortion ?? amount)),
+                paymentHistory: [
+                  ...(d.paymentHistory || []),
+                  {
+                    id: crypto.randomUUID(),
+                    date: date || new Date().toISOString(),
+                    amount,
+                    principalPortion,
+                    interestPortion,
+                    memo,
+                  },
+                ],
+              }
               : d
           ),
         })),
@@ -575,40 +578,40 @@ export const useFinanceStore = create<FinanceState>()(
                   : asset.startingAmount ?? 0,
               transactions:
                 asset.type === "Credit Card" &&
-                (asset.startingAmount ?? 0) !== 0
+                  (asset.startingAmount ?? 0) !== 0
                   ? [
-                      {
-                        id: crypto.randomUUID(),
-                        date: asset.enactDate
-                          ? `${asset.enactDate}T12:00:00`
-                          : new Date().toISOString(),
-                        amount: -Math.abs(asset.startingAmount ?? 0),
-                        memo: "Starting balance",
-                      },
-                    ]
+                    {
+                      id: crypto.randomUUID(),
+                      date: asset.enactDate
+                        ? `${asset.enactDate}T12:00:00`
+                        : new Date().toISOString(),
+                      amount: -Math.abs(asset.startingAmount ?? 0),
+                      memo: "Starting balance",
+                    },
+                  ]
                   : [],
               creditLimitChanges: asset.creditLimit
                 ? [
-                    {
-                      amount: asset.creditLimit,
-                      start:
-                        asset.enactDate ??
-                        new Date().toISOString().slice(0, 10),
-                      end: null,
-                    },
-                  ]
+                  {
+                    amount: asset.creditLimit,
+                    start:
+                      asset.enactDate ??
+                      new Date().toISOString().slice(0, 10),
+                    end: null,
+                  },
+                ]
                 : [],
               interestRate: asset.interestRate ?? undefined,
               interestRateChanges: asset.interestRate
                 ? [
-                    {
-                      amount: asset.interestRate,
-                      start:
-                        asset.enactDate ??
-                        new Date().toISOString().slice(0, 10),
-                      end: null,
-                    },
-                  ]
+                  {
+                    amount: asset.interestRate,
+                    start:
+                      asset.enactDate ??
+                      new Date().toISOString().slice(0, 10),
+                    end: null,
+                  },
+                ]
                 : [],
               interestHistory: asset.interestHistory ?? [],
               closed: false,
@@ -887,12 +890,12 @@ export const useFinanceStore = create<FinanceState>()(
           subscriptions: state.subscriptions.map((s) =>
             s.id === id
               ? {
-                  ...s,
-                  cancelledFrom: from,
-                  cancelledTo: to,
-                  cancelledIndefinitely: indefinite,
-                  cancelledNote: comment,
-                }
+                ...s,
+                cancelledFrom: from,
+                cancelledTo: to,
+                cancelledIndefinitely: indefinite,
+                cancelledNote: comment,
+              }
               : s
           ),
         })),
@@ -902,12 +905,12 @@ export const useFinanceStore = create<FinanceState>()(
           subscriptions: state.subscriptions.map((s) =>
             s.id === id
               ? {
-                  ...s,
-                  cancelledFrom: undefined,
-                  cancelledTo: undefined,
-                  cancelledIndefinitely: false,
-                  cancelledNote: undefined,
-                }
+                ...s,
+                cancelledFrom: undefined,
+                cancelledTo: undefined,
+                cancelledIndefinitely: false,
+                cancelledNote: undefined,
+              }
               : s
           ),
         })),
@@ -947,12 +950,12 @@ export const useFinanceStore = create<FinanceState>()(
           bills: state.bills.map((b) =>
             b.id === id
               ? {
-                  ...b,
-                  cancelledFrom: from,
-                  cancelledTo: to,
-                  cancelledIndefinitely: indefinite,
-                  cancelledNote: comment,
-                }
+                ...b,
+                cancelledFrom: from,
+                cancelledTo: to,
+                cancelledIndefinitely: indefinite,
+                cancelledNote: comment,
+              }
               : b
           ),
         })),
@@ -962,12 +965,12 @@ export const useFinanceStore = create<FinanceState>()(
           bills: state.bills.map((b) =>
             b.id === id
               ? {
-                  ...b,
-                  cancelledFrom: undefined,
-                  cancelledTo: undefined,
-                  cancelledIndefinitely: false,
-                  cancelledNote: undefined,
-                }
+                ...b,
+                cancelledFrom: undefined,
+                cancelledTo: undefined,
+                cancelledIndefinitely: false,
+                cancelledNote: undefined,
+              }
               : b
           ),
         })),
@@ -1003,18 +1006,18 @@ export const useFinanceStore = create<FinanceState>()(
           investments: state.investments.map((inv) =>
             inv.id === investmentId
               ? {
-                  ...inv,
-                  moneyEarned: (inv.moneyEarned || 0) + amount,
-                  earningsHistory: [
-                    ...(inv.earningsHistory || []),
-                    {
-                      id: crypto.randomUUID(),
-                      date: new Date().toISOString(),
-                      amount,
-                      description,
-                    },
-                  ],
-                }
+                ...inv,
+                moneyEarned: (inv.moneyEarned || 0) + amount,
+                earningsHistory: [
+                  ...(inv.earningsHistory || []),
+                  {
+                    id: crypto.randomUUID(),
+                    date: new Date().toISOString(),
+                    amount,
+                    description,
+                  },
+                ],
+              }
               : inv
           ),
         })),
@@ -1024,16 +1027,16 @@ export const useFinanceStore = create<FinanceState>()(
           investments: state.investments.map((inv) =>
             inv.id === investmentId
               ? {
-                  ...inv,
-                  contributedMonths: [
-                    ...(inv.contributedMonths || []),
-                    month,
-                  ].filter((v, i, a) => a.indexOf(v) === i),
-                }
+                ...inv,
+                contributedMonths: [
+                  ...(inv.contributedMonths || []),
+                  month,
+                ].filter((v, i, a) => a.indexOf(v) === i),
+              }
               : inv
           ),
         })),
-      
+
       updateAppName: (name) =>
         set(() => ({
           appName: name,
@@ -1042,6 +1045,11 @@ export const useFinanceStore = create<FinanceState>()(
       updateTimezone: (tz) =>
         set(() => ({
           timezone: tz,
+        })),
+
+      updateWalletEnabled: (enabled) =>
+        set(() => ({
+          walletEnabled: enabled,
         })),
 
       addExpenseCategory: (category) =>

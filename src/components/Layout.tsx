@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import clsx from "clsx";
@@ -15,6 +16,90 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const appName = useFinanceStore((state) => state.appName);
+  const walletEnabled = useFinanceStore((state) => state.walletEnabled);
+  const income = useFinanceStore((state) => state.income);
+  const expenses = useFinanceStore((state) => state.expenses);
+  const bills = useFinanceStore((state) => state.bills);
+  const subscriptions = useFinanceStore((state) => state.subscriptions);
+  const investments = useFinanceStore((state) => state.investments);
+  const debts = useFinanceStore((state) => state.debts);
+  const navigate = useNavigate();
+
+  const reconciliationItems = useMemo(() => {
+    if (!walletEnabled) return [];
+
+    const items: Array<{ id: string; title: string; type: string; path: string }> = [];
+
+    items.push(
+      ...income
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.source,
+          type: "Income",
+          path: "/income",
+        }))
+    );
+
+    items.push(
+      ...expenses
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.name,
+          type: "Expense",
+          path: "/expenses",
+        }))
+    );
+
+    items.push(
+      ...bills
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.name,
+          type: "Bill",
+          path: "/bills",
+        }))
+    );
+
+    items.push(
+      ...subscriptions
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.name,
+          type: "Subscription",
+          path: "/subscriptions",
+        }))
+    );
+
+    items.push(
+      ...investments
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.name,
+          type: "Investment",
+          path: "/investments",
+        }))
+    );
+
+    items.push(
+      ...debts
+        .filter((entry) => !entry.assetId)
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.name,
+          type: "Debt",
+          path: "/debt",
+        }))
+    );
+
+    return items;
+  }, [walletEnabled, income, expenses, bills, subscriptions, investments, debts]);
+
+  const hasReconciliation = reconciliationItems.length > 0;
 
   const toggleTheme = () => {
     document.documentElement.classList.toggle("dark");
@@ -78,6 +163,19 @@ export function Layout({ children }: LayoutProps) {
 
           <ErrorBoundary>
             <main data-main-content className="flex-1 p-6 overflow-auto mt-16">
+              {hasReconciliation && (
+                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-semibold">Wallet reconciliation ready</p>
+                      <p className="text-sm text-amber-900/80">
+                        {reconciliationItems.length} item{reconciliationItems.length === 1 ? "" : "s"} need a wallet account assigned.
+                      </p>
+                    </div>
+                    <Button variant="outline" onClick={() => navigate("/wallet/reconcile")}>Review items</Button>
+                  </div>
+                </div>
+              )}
               {children}
             </main>
           </ErrorBoundary>

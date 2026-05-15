@@ -1,5 +1,5 @@
 import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useFinanceStore, BillEntry } from "@/store/financeStore";
 import {
   Card,
@@ -55,6 +55,7 @@ export default function Bills() {
     assets,
     cardOrders,
     updateCardOrder,
+    walletEnabled,
   } = useFinanceStore();
 
   const [name, setName] = useState("");
@@ -65,6 +66,12 @@ export default function Bills() {
   const [variablePrice, setVariablePrice] = useState(false);
   const [autopay, setAutopay] = useState(false);
   const [assetId, setAssetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!walletEnabled) {
+      setAssetId(null);
+    }
+  }, [walletEnabled]);
 
   // Editing
   const [editing, setEditing] = useState<BillEntry | null>(null);
@@ -954,25 +961,27 @@ export default function Bills() {
               <Label>Autopay Enabled</Label>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Wallet</Label>
-              <Select
-                value={assetId ?? "__external"}
-                onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__external">External Account</SelectItem>
-                  {assets.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} • {a.type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {walletEnabled && (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={assetId ?? "__external"}
+                  onValueChange={(v) => setAssetId(v === "__external" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__external">External Account</SelectItem>
+                    {assets.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} • {a.type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <div className="mt-4">
             <Button onClick={handleAdd} className="w-full">
@@ -1124,30 +1133,32 @@ export default function Bills() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Wallet</Label>
-                <Select
-                  value={editing.assetId ?? "__external"}
-                  onValueChange={(v) =>
-                    setEditing({
-                      ...editing,
-                      assetId: v === "__external" ? undefined : v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__external">External Account</SelectItem>
-                    {assets.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} • {a.type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {walletEnabled && (
+                <div className="space-y-2">
+                  <Label>Wallet</Label>
+                  <Select
+                    value={editing.assetId ?? "__external"}
+                    onValueChange={(v) =>
+                      setEditing({
+                        ...editing,
+                        assetId: v === "__external" ? undefined : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__external">External Account</SelectItem>
+                      {assets.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} • {a.type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>

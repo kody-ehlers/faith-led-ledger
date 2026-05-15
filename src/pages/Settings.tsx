@@ -18,7 +18,7 @@ import {
 import { useFinanceStore } from "@/store/financeStore";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Church, Bug, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Church, Bug, Plus, Trash2, CheckCircle2, Circle, Settings as SettingsIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface BugItem {
@@ -37,6 +37,8 @@ export default function Settings() {
   const updateTimezone = useFinanceStore((state) => state.updateTimezone);
   const [localAppName, setLocalAppName] = useState(appName);
   const [localTimezone, setLocalTimezone] = useState(timezone);
+  const walletEnabled = useFinanceStore((state) => state.walletEnabled);
+  const updateWalletEnabled = useFinanceStore((state) => state.updateWalletEnabled);
 
   const [bugs, setBugs] = useState<BugItem[]>(() => {
     try {
@@ -110,6 +112,18 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-3 rounded-full bg-muted/10">
+          <SettingsIcon className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Settings</h2>
+          <p className="text-muted-foreground">
+            App preferences and integrations
+          </p>
+        </div>
+      </div>
+
       {/* Scripture */}
       <Card className="border-2 border-accent/20 bg-gradient-to-br from-accent/5 to-transparent shadow-lg">
         <CardContent className="p-6">
@@ -128,25 +142,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-full bg-muted/10">
-          <svg
-            className="h-6 w-6 text-muted-foreground"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Settings</h2>
-          <p className="text-muted-foreground">
-            App preferences and integrations
-          </p>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>App Name</CardTitle>
@@ -163,6 +158,27 @@ export default function Settings() {
             />
           </div>
           <Button onClick={handleSave}>Save Changes</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Wallet Tracking</CardTitle>
+          <CardDescription>Enable or disable wallet/net worth tracking.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-3">
+            <Checkbox
+              checked={walletEnabled}
+              onCheckedChange={(checked) => updateWalletEnabled(Boolean(checked))}
+            />
+            <div>
+              <p className="font-medium">Enable Wallet Tracking</p>
+              <p className="text-sm text-muted-foreground">
+                When disabled, the app will hide wallet accounts and net worth, and focus on total money in vs total money out.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -251,11 +267,10 @@ export default function Settings() {
                   </button>
                   <div className="flex-1 min-w-0">
                     <p
-                      className={`text-sm ${
-                        bug.fixed
-                          ? "line-through text-muted-foreground"
-                          : "text-foreground"
-                      }`}
+                      className={`text-sm ${bug.fixed
+                        ? "line-through text-muted-foreground"
+                        : "text-foreground"
+                        }`}
                     >
                       {bug.text}
                     </p>

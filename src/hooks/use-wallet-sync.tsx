@@ -24,11 +24,13 @@ export function useWalletSync() {
     bills,
     subscriptions,
     addAssetTransaction,
+    walletEnabled,
   } = useFinanceStore();
 
   const hasRun = useRef(false);
 
   useEffect(() => {
+    if (!walletEnabled) return;
     if (hasRun.current) return;
     hasRun.current = true;
 
@@ -78,7 +80,7 @@ export function useWalletSync() {
     // Sync bills: subtract from linked wallet for paid months
     for (const bill of bills) {
       if (!bill.assetId) continue;
-      
+
       let billSync = synced.bills.find((b) => b.id === bill.id);
       if (!billSync) {
         billSync = { id: bill.id, months: [] };
@@ -107,7 +109,7 @@ export function useWalletSync() {
     // Sync subscriptions: subtract from linked wallet for paid months
     for (const sub of subscriptions) {
       if (!sub.assetId) continue;
-      
+
       let subSync = synced.subscriptions.find((s) => s.id === sub.id);
       if (!subSync) {
         subSync = { id: sub.id, months: [] };
@@ -134,5 +136,5 @@ export function useWalletSync() {
 
     // Save updated sync state
     localStorage.setItem(SYNC_KEY, JSON.stringify(synced));
-  }, [income, expenses, bills, subscriptions, addAssetTransaction]);
+  }, [income, expenses, bills, subscriptions, addAssetTransaction, walletEnabled]);
 }

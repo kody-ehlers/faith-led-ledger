@@ -1,5 +1,5 @@
 import { formatMonthlyLabel, formatWeekOfLabel, formatMonthOfLabel } from "@/utils/formatDate";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import {
   calculateMonthlyIncome,
@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { 
+import {
   Plus,
   Trash2,
   DollarSign,
@@ -77,6 +77,7 @@ export default function Income() {
     suspendIncome,
     resumeIncome,
     assets,
+    walletEnabled,
   } = useFinanceStore();
 
   type Frequency =
@@ -96,6 +97,13 @@ export default function Income() {
   const [assetId, setAssetId] = useState<string | null>(null);
   const [applyRetroactive, setApplyRetroactive] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!walletEnabled) {
+      setAssetId(null);
+      setApplyRetroactive(false);
+    }
+  }, [walletEnabled]);
   const [showOneTimeList, setShowOneTimeList] = useState(false);
 
   const [editingIncome, setEditingIncome] = useState<(typeof income)[0] | null>(
@@ -116,7 +124,7 @@ export default function Income() {
       frequency,
       preTax: false, // Always after-tax now
       date: date.toISOString(),
-      assetId: assetId ?? undefined,
+      assetId: walletEnabled ? assetId ?? undefined : undefined,
       notes: notes.trim(),
     });
 
@@ -972,30 +980,32 @@ export default function Income() {
             </div>
 
             {/* Wallet */}
-            <div className="space-y-2 md:col-span-2">
-              <Label>Wallet</Label>
-              <Select
-                value={assetId ?? "__none"}
-                onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">No Wallet Selected</SelectItem>
-                  {assets
-                    .filter((a) => a.type !== "Credit Card" && !a.closed)
-                    .map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} • {a.type}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {walletEnabled && (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={assetId ?? "__none"}
+                  onValueChange={(v) => setAssetId(v === "__none" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No Wallet Selected</SelectItem>
+                    {assets
+                      .filter((a) => a.type !== "Credit Card" && !a.closed)
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} • {a.type}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Apply Retroactive Toggle */}
-            {assetId && frequency !== "One-time" && (
+            {walletEnabled && assetId && frequency !== "One-time" && (
               <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
                 <Switch
                   checked={applyRetroactive}
@@ -1134,32 +1144,34 @@ export default function Income() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Wallet</Label>
-                <Select
-                  value={editingIncome.assetId ?? "__none"}
-                  onValueChange={(v) =>
-                    setEditingIncome({
-                      ...editingIncome,
-                      assetId: v === "__none" ? null : v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">No Wallet Selected</SelectItem>
-                    {assets
-                      .filter((a) => a.type !== "Credit Card" && !a.closed)
-                      .map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name} • {a.type}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {walletEnabled && (
+                <div className="space-y-2">
+                  <Label>Wallet</Label>
+                  <Select
+                    value={editingIncome.assetId ?? "__none"}
+                    onValueChange={(v) =>
+                      setEditingIncome({
+                        ...editingIncome,
+                        assetId: v === "__none" ? null : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">No Wallet Selected</SelectItem>
+                      {assets
+                        .filter((a) => a.type !== "Credit Card" && !a.closed)
+                        .map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} • {a.type}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
