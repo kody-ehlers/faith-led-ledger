@@ -574,6 +574,9 @@ export default function Home() {
                         const billsTotal = billsList.reduce((s, it) => s + it.amount, 0);
                         const titheList = getTithesForDay(d);
                         const titheTotal = titheList.reduce((s, t) => s + t.amount, 0);
+                        const dayRevenue = incomeTotal;
+                        const dayCost = expensesTotal + subsTotal + billsTotal + titheTotal + debtPaymentsTotal;
+                        const dayNet = dayRevenue - dayCost;
                         const muted = !isSameMonth(d, mStart);
                         const today = isToday(d);
 
@@ -595,15 +598,12 @@ export default function Home() {
                                       📅 {formatCurrency(dateRangeExpenses.reduce((s, r) => s + r.amount, 0))}
                                     </div>
                                   )}
-                                  {incomeTotal > 0 && (
-                                    <div className="text-success font-semibold text-sm">+{formatCurrency(incomeTotal)}</div>
-                                  )}
-                                  {expensesTotal + subsTotal + billsTotal + titheTotal + debtPaymentsTotal > 0 && (
-                                    <div className="text-destructive font-semibold text-sm">
-                                      -{formatCurrency(expensesTotal + subsTotal + billsTotal + titheTotal + debtPaymentsTotal)}
+                                  {(incomeTotal !== 0 || dayCost !== 0) && (
+                                    <div className={`text-sm font-semibold ${dayNet >= 0 ? "text-success" : "text-destructive"}`}>
+                                      {dayNet >= 0 ? "+" : ""}{formatCurrency(dayNet)}
                                     </div>
                                   )}
-                                  {incomeTotal === 0 && expensesTotal + subsTotal + billsTotal + debtPaymentsTotal === 0 && dateRangeExpenses.length === 0 && (
+                                  {incomeTotal === 0 && dayCost === 0 && dateRangeExpenses.length === 0 && (
                                     <div className="text-sm text-muted-foreground">No activity</div>
                                   )}
                                 </div>
@@ -611,10 +611,20 @@ export default function Home() {
                             </TooltipTrigger>
                             <TooltipContent className="w-80">
                               <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <Label className="text-sm">{format(d, "PPP")}</Label>
-                                  <div className="text-sm">
-                                    Net: {formatCurrency(incomeTotal - (expensesTotal + subsTotal + billsTotal))}
+                                <div className="grid grid-cols-3 gap-3 py-2 text-sm">
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-1">Revenue</div>
+                                    <div className="font-semibold text-success">{formatCurrency(dayRevenue)}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-1">Cost</div>
+                                    <div className="font-semibold text-destructive">{formatCurrency(dayCost)}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-1">Profit</div>
+                                    <div className={`font-semibold ${dayNet >= 0 ? "text-success" : "text-destructive"}`}>
+                                      {dayNet >= 0 ? "+" : ""}{formatCurrency(dayNet)}
+                                    </div>
                                   </div>
                                 </div>
                                 <div>

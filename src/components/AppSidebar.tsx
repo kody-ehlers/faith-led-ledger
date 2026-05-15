@@ -13,6 +13,7 @@ import {
   Target,
   Settings,
   ListChecks,
+  Bug,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
@@ -36,6 +37,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
     { title: "Debt", url: "/debt", icon: Landmark },
     { title: "Statistics", url: "/statistics", icon: BarChart3 },
     { title: "Budget", url: "/budget", icon: Target },
+    { title: "DevOps", url: "/devops", icon: Bug },
     { title: "To-Do", url: "/todos", icon: ListChecks },
     { title: "Settings", url: "/settings", icon: Settings },
   ];

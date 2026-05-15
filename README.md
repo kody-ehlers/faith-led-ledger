@@ -1,75 +1,124 @@
-# Welcome to your Lovable project
+# Faith-Led Ledger
 
-## TODO
+A local React + Tauri finance app built with Vite, TypeScript, Tailwind CSS, and Zustand.
 
-## Project info
+## Windows Setup
 
-**URL**: https://lovable.dev/projects/ba5a6a34-4206-46fb-9a41-ec1ab444cbab
+### Prerequisites
 
-## How can I edit this code?
+- Git
+- Node.js 18+ (recommended 20+)
+- pnpm
+- Rust toolchain
+- Visual Studio 2022 / Build Tools with "Desktop development with C++"
 
-There are several ways of editing your application.
+### Install prerequisites on Windows
 
-**Use Lovable**
+1. Install Git:
+   - https://git-scm.com/download/win
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ba5a6a34-4206-46fb-9a41-ec1ab444cbab) and start prompting.
+2. Install Node.js:
+   - https://nodejs.org/
+   - Use the LTS or current release.
 
-Changes made via Lovable will be committed automatically to this repo.
+3. Install pnpm:
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```powershell
+npm install -g pnpm
 ```
 
-**Edit a file directly in GitHub**
+4. Install Rust and Cargo:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```powershell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-**Use GitHub Codespaces**
+5. Install Visual Studio Build Tools:
+   - Install the "Desktop development with C++" workload.
+   - Ensure MSVC, Windows SDK, and C++ CMake tools are selected.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Clone the repository
 
-## What technologies are used for this project?
+```powershell
+git clone <YOUR_REPO_URL>
+cd faith-led-ledger
+```
 
-This project is built with:
+## Install dependencies
+
+```powershell
+pnpm install
+```
+
+## Run in development mode
+
+```powershell
+pnpm dev
+```
+
+This starts the Vite development server for the web app.
+
+## Run the desktop app in development mode
+
+```powershell
+pnpm tauri dev
+```
+
+This opens the Tauri desktop app and reloads on changes.
+
+## Build the web production bundle
+
+```powershell
+pnpm build
+```
+
+The output is placed in `dist/`.
+
+## Build the Windows installer
+
+```powershell
+pnpm tauri build
+```
+
+This command builds the Tauri desktop application and creates a Windows installer.
+
+If you need a specific target, you can also run:
+
+```powershell
+pnpm tauri build --target x86_64-pc-windows-msvc
+```
+
+## Useful commands
+
+- `pnpm dev` — start Vite development server
+- `pnpm build` — build production web assets
+- `pnpm tauri dev` — launch the desktop app in dev mode
+- `pnpm tauri build` — package the Windows desktop app installer
+- `pnpm lint` — run ESLint
+
+## Notes
+
+- This repo uses `pnpm` because it includes `pnpm-lock.yaml`.
+- `src-tauri/` contains the Tauri native configuration and Rust integration.
+- Use PowerShell on Windows for the commands above.
+
+## Troubleshooting
+
+- If `pnpm` is not found, confirm it is installed globally and restart your terminal.
+- If `cargo` is not found, ensure the Rust toolchain is installed and added to your PATH.
+- If Tauri build fails on Windows, verify Visual Studio Build Tools and the Windows SDK are installed.
+
+---
+
+## Project technologies
 
 - Vite
-- TypeScript
 - React
-- shadcn-ui
+- TypeScript
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ba5a6a34-4206-46fb-9a41-ec1ab444cbab) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Tauri
+- Zustand
+- Radix UI
+- React Router
+- date-fns
+- Recharts

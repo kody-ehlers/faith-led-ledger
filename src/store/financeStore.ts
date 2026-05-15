@@ -41,6 +41,14 @@ export interface ExpenseEntry {
   rangeGroupId?: string | null;
 }
 
+export interface ExpenseTemplate {
+  id: string;
+  name: string;
+  category: string;
+  type: "need" | "want";
+  assetId?: string | null;
+}
+
 export interface TithePayment {
   id: string;
   amount: number;
@@ -224,6 +232,10 @@ interface FinanceState {
 
   addExpense: (entry: Omit<ExpenseEntry, "id">) => void;
   removeExpense: (id: string) => void;
+  updateExpense: (id: string, updates: Partial<ExpenseEntry>) => void;
+  savedExpenseTemplates: ExpenseTemplate[];
+  addExpenseTemplate: (template: Omit<ExpenseTemplate, "id">) => void;
+  removeExpenseTemplate: (id: string) => void;
 
   addTithe: (tithe: Omit<TithePayment, "id">) => void;
   markTitheGiven: (id: string) => void;
@@ -326,6 +338,7 @@ export const useFinanceStore = create<FinanceState>()(
       cardOrders: {},
       income: [],
       expenses: [],
+      savedExpenseTemplates: [],
       tithes: [],
       savings: [],
       debts: [],
@@ -461,6 +474,25 @@ export const useFinanceStore = create<FinanceState>()(
 
           return { expenses: newExpenses };
         }),
+
+      updateExpense: (id, updates) =>
+        set((state) => ({
+          expenses: state.expenses.map((e) =>
+            e.id === id ? { ...e, ...updates } : e
+          ),
+        })),
+
+      addExpenseTemplate: (template) =>
+        set((state) => ({
+          savedExpenseTemplates: [
+            ...state.savedExpenseTemplates,
+            { ...template, id: crypto.randomUUID() },
+          ],
+        })),
+      removeExpenseTemplate: (id) =>
+        set((state) => ({
+          savedExpenseTemplates: state.savedExpenseTemplates.filter((t) => t.id !== id),
+        })),
 
       addTithe: (tithe) =>
         set((state) => ({

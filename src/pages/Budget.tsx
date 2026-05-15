@@ -227,10 +227,15 @@ export default function Budget() {
   };
 
   const monthlyIncome = calculatePostTaxIncomeForMonth(income, selectedDate);
+  const recurringMonthlyIncome = calculatePostTaxIncomeForMonth(
+    income.filter((item) => item.frequency !== "One-time"),
+    selectedDate
+  );
 
   const totalBudgetGoals = Object.values(monthGoals).reduce((s, v) => s + v, 0);
   const totalCategorySpending = Object.values(categorySpending).reduce((s, v) => s + v, 0);
   const potentialSavings = monthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
+  const projectedSavings = recurringMonthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
   const actualSavings = monthlyIncome - fixedCosts - titheMTD - totalCategorySpending;
 
   // Compute total budget goals across the selected date range (sum of each month's goals)
@@ -592,17 +597,19 @@ export default function Budget() {
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Monthly Savings Projection</CardTitle>
-          <CardDescription>How meeting your budget goals impacts savings over time</CardDescription>
+          <CardDescription>
+            How meeting your budget goals impacts savings from recurring income.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {potentialSavings > 0 ? (
+          {projectedSavings > 0 ? (
             <div className="grid gap-4 md:grid-cols-3">
               {[3, 6, 12].map((months) => (
                 <Card key={months} className="bg-muted/30">
                   <CardContent className="pt-4 text-center">
                     <p className="text-sm text-muted-foreground">{months} Months</p>
                     <p className="text-2xl font-bold text-success mt-1">
-                      {formatCurrency(potentialSavings * months)}
+                      {formatCurrency(projectedSavings * months)}
                     </p>
                   </CardContent>
                 </Card>
@@ -610,7 +617,7 @@ export default function Budget() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Your projected expenses exceed income. Try lowering some category budgets to see savings potential.
+              Recurring monthly income does not cover these goals. One-time income is excluded from this longer-term projection.
             </p>
           )}
         </CardContent>

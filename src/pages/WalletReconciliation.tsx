@@ -1,9 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useFinanceStore } from "@/store/financeStore";
 import { ArrowRight, CheckCircle2, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 export default function WalletReconciliation() {
     const walletEnabled = useFinanceStore((state) => state.walletEnabled);
@@ -13,6 +21,43 @@ export default function WalletReconciliation() {
     const subscriptions = useFinanceStore((state) => state.subscriptions);
     const investments = useFinanceStore((state) => state.investments);
     const debts = useFinanceStore((state) => state.debts);
+
+    const assets = useFinanceStore((state) => state.assets);
+    const updateIncome = useFinanceStore((state) => state.updateIncome);
+    const updateExpense = useFinanceStore((state) => state.updateExpense);
+    const updateBill = useFinanceStore((state) => state.updateBill);
+    const updateSubscription = useFinanceStore((state) => state.updateSubscription);
+    const updateInvestment = useFinanceStore((state) => state.updateInvestment);
+    const updateDebt = useFinanceStore((state) => state.updateDebt);
+    const [selectedWallets, setSelectedWallets] = useState<Record<string, string>>({});
+
+    const assignAsset = (item: { id: string; title: string; type: string }, assetId: string) => {
+        switch (item.type) {
+            case "Income":
+                updateIncome(item.id, { assetId });
+                break;
+            case "Expense":
+                updateExpense(item.id, { assetId });
+                break;
+            case "Bill":
+                updateBill(item.id, { assetId });
+                break;
+            case "Subscription":
+                updateSubscription(item.id, { assetId });
+                break;
+            case "Investment":
+                updateInvestment(item.id, { assetId });
+                break;
+            case "Debt":
+                updateDebt(item.id, { assetId });
+                break;
+        }
+
+        setSelectedWallets((prev) => ({ ...prev, [item.id]: assetId }));
+        toast.success(
+            `${item.title} assigned to ${assets.find((a) => a.id === assetId)?.name ?? "wallet"}.`
+        );
+    };
 
     const items = useMemo(() => {
         if (!walletEnabled) return [];
@@ -105,14 +150,11 @@ export default function WalletReconciliation() {
             ) : items.length === 0 ? (
                 <Card>
                     <CardHeader>
-                        <CardTitle>All set</CardTitle>
+                        <CardTitle>All Set!</CardTitle>
                         <CardDescription>No outstanding items require wallet assignment.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">
-                                Every tracked item is already assigned to a wallet account.
-                            </p>
                             <Link to="/wallet">
                                 <Button variant="outline">View Wallet</Button>
                             </Link>
@@ -124,20 +166,43 @@ export default function WalletReconciliation() {
                     <CardHeader>
                         <CardTitle>{items.length} item{items.length === 1 ? "" : "s"} to reconcile</CardTitle>
                         <CardDescription>
-                            Click an item to open its page and assign a wallet account.
+                            Assign a wallet account directly from this list, or open the item for more details.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {items.map((item) => (
-                            <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                            <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
                                 <div>
                                     <p className="font-semibold">{item.title}</p>
                                     <p className="text-xs text-muted-foreground">{item.type}</p>
                                 </div>
-                                <Link to={item.path} className="flex items-center gap-2">
-                                    <Button variant="outline" size="sm">Open</Button>
-                                    <ArrowRight className="h-4 w-4" />
-                                </Link>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <Select
+                                        value={selectedWallets[item.id] ?? "__none"}
+                                        onValueChange={(value) => {
+                                            if (value && value !== "__none") {
+                                                assignAsset(item, value);
+                                            }
+                                        }}
+                                        className="w-full sm:w-60"
+                                    >
+                                        <SelectTrigger className="h-10 text-sm">
+                                            <SelectValue placeholder="Assign wallet" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none">Choose wallet</SelectItem>
+                                            {assets.map((asset) => (
+                                                <SelectItem key={asset.id} value={asset.id}>
+                                                    {asset.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Link to={item.path} className="flex items-center gap-2">
+                                        <Button variant="outline" size="sm">Open</Button>
+                                        <ArrowRight className="h-4 w-4" />
+                                    </Link>
+                                </div>
                             </div>
                         ))}
                     </CardContent>

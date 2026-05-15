@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
+import type { ExpenseTemplate } from "@/store/financeStore";
 import {
   calculateMonthlyExpenses,
   calculateCategoryTotals,
@@ -50,6 +51,9 @@ export default function Expenses() {
     expenseCategories,
     addExpenseCategory,
     removeExpenseCategory,
+    savedExpenseTemplates,
+    addExpenseTemplate,
+    removeExpenseTemplate,
     walletEnabled,
   } = useFinanceStore();
   const [name, setName] = useState("");
@@ -57,6 +61,7 @@ export default function Expenses() {
   const [category, setCategory] = useState(expenseCategories[0] || "Other");
   const [type, setType] = useState<"need" | "want">("need");
   const [assetId, setAssetId] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("__none");
 
   useEffect(() => {
     if (!walletEnabled) {
@@ -172,6 +177,7 @@ export default function Expenses() {
     setAmount(null);
     setCategory(expenseCategories[0] || "Other");
     setType("need");
+    setSelectedTemplateId("__none");
   };
 
   const handleAddCategory = () => {
@@ -201,6 +207,31 @@ export default function Expenses() {
   const handleRemoveExpense = (id: string) => {
     removeExpense(id);
     toast.success("Expense removed");
+  };
+
+  const handleLoadTemplate = (template: ExpenseTemplate) => {
+    setSelectedTemplateId(template.id);
+    setName(template.name);
+    setCategory(template.category);
+    setType(template.type);
+    setAssetId(template.assetId ?? null);
+  };
+
+  const handleSaveTemplate = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      toast.error("Fill in a name to save as a template.");
+      return;
+    }
+
+    addExpenseTemplate({
+      name: trimmedName,
+      category,
+      type,
+      assetId: assetId ?? undefined,
+    });
+    setSelectedTemplateId("__none");
+    toast.success("Expense template saved.");
   };
 
   const now = new Date();
@@ -319,6 +350,37 @@ export default function Expenses() {
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="off"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expenseTemplate">Template</Label>
+              <div className="flex gap-2">
+                <Select value={selectedTemplateId} onValueChange={(value) => {
+                  if (value === "__none") {
+                    setSelectedTemplateId(value);
+                    return;
+                  }
+                  const template = savedExpenseTemplates.find((t) => t.id === value);
+                  if (template) {
+                    handleLoadTemplate(template);
+                  }
+                }}>
+                  <SelectTrigger id="expenseTemplate">
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No template</SelectItem>
+                    {savedExpenseTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name} • {template.category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
+                  Save template
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -475,6 +537,44 @@ export default function Expenses() {
           </Button>
         </CardContent>
       </Card>
+
+      {savedExpenseTemplates.length > 0 && (
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Saved Expense Templates</CardTitle>
+            <CardDescription>Quickly populate common expenses by name and category.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {savedExpenseTemplates.map((template) => (
+              <div key={template.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold text-foreground">{template.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {template.category} • {template.type === "need" ? "Need" : "Want"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleLoadTemplate(template)}
+                  >
+                    Use
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeExpenseTemplate(template.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Category Breakdown */}
       {Object.keys(categoryTotals).length > 0 && (
