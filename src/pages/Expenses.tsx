@@ -422,35 +422,44 @@ export default function Expenses() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expenseTemplate">Template</Label>
-              <div className="flex gap-2">
-                <Select value={selectedTemplateId} onValueChange={(value) => {
-                  if (value === "__none") {
-                    setSelectedTemplateId(value);
-                    return;
-                  }
-                  const template = savedExpenseTemplates.find((t) => t.id === value);
-                  if (template) {
-                    handleLoadTemplate(template);
-                  }
-                }}>
-                  <SelectTrigger id="expenseTemplate">
-                    <SelectValue placeholder="Select template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">No template</SelectItem>
-                    {savedExpenseTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name} • {template.category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
-                  Save template
-                </Button>
-              </div>
+            <div className="space-y-2 md:col-span-2">
+              <Collapsible open={templateOpen} onOpenChange={setTemplateOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span>Templates {savedExpenseTemplates.length > 0 ? `(${savedExpenseTemplates.length})` : ""}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${templateOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="flex gap-2">
+                    <Select value={selectedTemplateId} onValueChange={(value) => {
+                      if (value === "__none") {
+                        setSelectedTemplateId(value);
+                        return;
+                      }
+                      const template = savedExpenseTemplates.find((t) => t.id === value);
+                      if (template) {
+                        handleLoadTemplate(template);
+                      }
+                    }}>
+                      <SelectTrigger id="expenseTemplate">
+                        <SelectValue placeholder="Select template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No template</SelectItem>
+                        {savedExpenseTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name} • {template.category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
+                      Save template
+                    </Button>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <div className="space-y-2">
@@ -550,7 +559,7 @@ export default function Expenses() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...expenseCategories].sort((a, b) => a.localeCompare(b)).map((cat) => (
+                  {expenseCategories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
