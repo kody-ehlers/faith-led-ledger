@@ -911,26 +911,19 @@ export default function Expenses() {
 
             <div className="space-y-2">
               <Label>Existing Categories</Label>
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {expenseCategories.map((cat) => (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between p-2 rounded-lg border border-border"
-                  >
-                    <span className="text-sm">{cat}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemoveCategory(cat)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+              <div className="max-h-64 overflow-y-auto">
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleCategoryDragEnd}>
+                  <SortableContext items={expenseCategories} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {expenseCategories.map((cat) => (
+                        <SortableCategoryRow key={cat} cat={cat} onRemove={handleRemoveCategory} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
               <p className="text-xs text-muted-foreground">
-                Removing a category won't delete existing expenses in that category.
+                Drag to reorder. Removing a category won't delete existing expenses in that category.
               </p>
             </div>
           </div>
