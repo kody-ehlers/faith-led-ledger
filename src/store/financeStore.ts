@@ -1097,6 +1097,16 @@ export const useFinanceStore = create<FinanceState>()(
           expenseCategories: state.expenseCategories.filter((c) => c !== category),
         })),
 
+      reorderExpenseCategories: (order) =>
+        set((state) => {
+          const existing = new Set(state.expenseCategories);
+          const next = order.filter((c) => existing.has(c));
+          for (const c of state.expenseCategories) {
+            if (!next.includes(c)) next.push(c);
+          }
+          return { expenseCategories: next };
+        }),
+
       updateCardOrder: (page, order) =>
         set((state) => ({
           cardOrders: { ...state.cardOrders, [page]: order },
