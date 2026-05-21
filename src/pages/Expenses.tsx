@@ -108,6 +108,7 @@ export default function Expenses() {
     expenseCategories,
     addExpenseCategory,
     removeExpenseCategory,
+    reorderExpenseCategories,
     savedExpenseTemplates,
     addExpenseTemplate,
     removeExpenseTemplate,
