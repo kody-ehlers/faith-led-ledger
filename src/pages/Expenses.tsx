@@ -139,6 +139,18 @@ export default function Expenses() {
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = expenseCategories.indexOf(String(active.id));
+    const newIndex = expenseCategories.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    reorderExpenseCategories(arrayMove(expenseCategories, oldIndex, newIndex));
+  };
 
   // Recent expenses filter
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date; to: Date }>({
