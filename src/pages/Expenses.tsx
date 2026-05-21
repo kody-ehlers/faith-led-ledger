@@ -38,9 +38,66 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church, ChevronDown, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableCategoryRow({ cat, onRemove }: { cat: string; onRemove: (c: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-2 rounded-lg border border-border bg-card"
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted/60"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <span className="text-sm">{cat}</span>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+        onClick={() => onRemove(cat)}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
 
 export default function Expenses() {
   const {
@@ -51,6 +108,7 @@ export default function Expenses() {
     expenseCategories,
     addExpenseCategory,
     removeExpenseCategory,
+    reorderExpenseCategories,
     savedExpenseTemplates,
     addExpenseTemplate,
     removeExpenseTemplate,
@@ -81,6 +139,18 @@ export default function Expenses() {
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = expenseCategories.indexOf(String(active.id));
+    const newIndex = expenseCategories.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    reorderExpenseCategories(arrayMove(expenseCategories, oldIndex, newIndex));
+  };
 
   // Recent expenses filter
   const [filterDateRange, setFilterDateRange] = useState<{ from: Date; to: Date }>({
@@ -352,35 +422,44 @@ export default function Expenses() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expenseTemplate">Template</Label>
-              <div className="flex gap-2">
-                <Select value={selectedTemplateId} onValueChange={(value) => {
-                  if (value === "__none") {
-                    setSelectedTemplateId(value);
-                    return;
-                  }
-                  const template = savedExpenseTemplates.find((t) => t.id === value);
-                  if (template) {
-                    handleLoadTemplate(template);
-                  }
-                }}>
-                  <SelectTrigger id="expenseTemplate">
-                    <SelectValue placeholder="Select template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">No template</SelectItem>
-                    {savedExpenseTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name} • {template.category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
-                  Save template
-                </Button>
-              </div>
+            <div className="space-y-2 md:col-span-2">
+              <Collapsible open={templateOpen} onOpenChange={setTemplateOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span>Templates {savedExpenseTemplates.length > 0 ? `(${savedExpenseTemplates.length})` : ""}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${templateOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="flex gap-2">
+                    <Select value={selectedTemplateId} onValueChange={(value) => {
+                      if (value === "__none") {
+                        setSelectedTemplateId(value);
+                        return;
+                      }
+                      const template = savedExpenseTemplates.find((t) => t.id === value);
+                      if (template) {
+                        handleLoadTemplate(template);
+                      }
+                    }}>
+                      <SelectTrigger id="expenseTemplate">
+                        <SelectValue placeholder="Select template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No template</SelectItem>
+                        {savedExpenseTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name} • {template.category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
+                      Save template
+                    </Button>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <div className="space-y-2">
@@ -480,7 +559,7 @@ export default function Expenses() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...expenseCategories].sort((a, b) => a.localeCompare(b)).map((cat) => (
+                  {expenseCategories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
@@ -832,26 +911,19 @@ export default function Expenses() {
 
             <div className="space-y-2">
               <Label>Existing Categories</Label>
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {expenseCategories.map((cat) => (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between p-2 rounded-lg border border-border"
-                  >
-                    <span className="text-sm">{cat}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemoveCategory(cat)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+              <div className="max-h-64 overflow-y-auto">
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleCategoryDragEnd}>
+                  <SortableContext items={expenseCategories} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {expenseCategories.map((cat) => (
+                        <SortableCategoryRow key={cat} cat={cat} onRemove={handleRemoveCategory} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
               <p className="text-xs text-muted-foreground">
-                Removing a category won't delete existing expenses in that category.
+                Drag to reorder. Removing a category won't delete existing expenses in that category.
               </p>
             </div>
           </div>

@@ -324,6 +324,7 @@ interface FinanceState {
   // Expense Categories
   addExpenseCategory: (category: string) => void;
   removeExpenseCategory: (category: string) => void;
+  reorderExpenseCategories: (order: string[]) => void;
 
   // Settings
   updateAppName: (name: string) => void;
@@ -1095,6 +1096,16 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           expenseCategories: state.expenseCategories.filter((c) => c !== category),
         })),
+
+      reorderExpenseCategories: (order) =>
+        set((state) => {
+          const existing = new Set(state.expenseCategories);
+          const next = order.filter((c) => existing.has(c));
+          for (const c of state.expenseCategories) {
+            if (!next.includes(c)) next.push(c);
+          }
+          return { expenseCategories: next };
+        }),
 
       updateCardOrder: (page, order) =>
         set((state) => ({
