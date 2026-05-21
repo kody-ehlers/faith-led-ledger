@@ -324,6 +324,7 @@ interface FinanceState {
   // Expense Categories
   addExpenseCategory: (category: string) => void;
   removeExpenseCategory: (category: string) => void;
+  reorderExpenseCategories: (order: string[]) => void;
 
   // Settings
   updateAppName: (name: string) => void;
