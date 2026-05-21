@@ -184,9 +184,8 @@ export default function WalletReconciliation() {
                                                 assignAsset(item, value);
                                             }
                                         }}
-                                        className="w-full sm:w-60"
                                     >
-                                        <SelectTrigger className="h-10 text-sm">
+                                        <SelectTrigger className="h-10 text-sm w-full sm:w-60">
                                             <SelectValue placeholder="Assign wallet" />
                                         </SelectTrigger>
                                         <SelectContent>
