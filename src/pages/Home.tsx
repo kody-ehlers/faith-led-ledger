@@ -320,10 +320,16 @@ export default function Home() {
   const getBillsForDay = (day: Date) => {
     const list: { name: string; amount: number }[] = [];
     bills.forEach((b) => {
-      const billDay = new Date(b.date).getDate();
-      if (billDay === day.getDate() && isSameMonth(day, now)) {
-        list.push({ name: b.name, amount: b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount });
-      }
+      const start = new Date(b.date);
+      if (start.getDate() !== day.getDate()) return;
+      const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+      const startOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      if (dayOnly < startOnly) return;
+      const dayMonthKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}`;
+      list.push({
+        name: b.name,
+        amount: b.variablePrice ? (b.monthlyPrices?.[dayMonthKey] || b.amount) : b.amount,
+      });
     });
     return list;
   };
