@@ -35,6 +35,7 @@ export default function DatePicker({
         <Calendar
           mode="single"
           selected={selected ?? undefined}
+          defaultMonth={selected ?? new Date()}
           onSelect={(d) => {
             if (d) {
               onSelect(d);
