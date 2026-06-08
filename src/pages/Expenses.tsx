@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
 import type { ExpenseTemplate } from "@/store/financeStore";
 import {
-  calculateMonthlyExpenses,
   calculateCategoryTotals,
   formatCurrency,
 } from "@/utils/calculations";
@@ -38,14 +37,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church, ChevronDown, GripVertical } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { format } from "date-fns";
 import {
   DndContext,
   closestCenter,
@@ -139,7 +133,6 @@ export default function Expenses() {
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
-  const [templateOpen, setTemplateOpen] = useState(false);
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
@@ -422,45 +415,6 @@ export default function Expenses() {
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Collapsible open={templateOpen} onOpenChange={setTemplateOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
-                    <span>Templates {savedExpenseTemplates.length > 0 ? `(${savedExpenseTemplates.length})` : ""}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${templateOpen ? "rotate-180" : ""}`} />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-2">
-                  <div className="flex gap-2">
-                    <Select value={selectedTemplateId} onValueChange={(value) => {
-                      if (value === "__none") {
-                        setSelectedTemplateId(value);
-                        return;
-                      }
-                      const template = savedExpenseTemplates.find((t) => t.id === value);
-                      if (template) {
-                        handleLoadTemplate(template);
-                      }
-                    }}>
-                      <SelectTrigger id="expenseTemplate">
-                        <SelectValue placeholder="Select template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">No template</SelectItem>
-                        {savedExpenseTemplates.map((template) => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name} • {template.category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="secondary" onClick={handleSaveTemplate} className="min-w-[140px]">
-                      Save template
-                    </Button>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="expenseAmount">
@@ -608,6 +562,14 @@ export default function Expenses() {
           </div>
 
           <Button
+            variant="secondary"
+            onClick={handleSaveTemplate}
+            className="w-full md:w-auto"
+          >
+            Save template
+          </Button>
+
+          <Button
             onClick={handleAddExpense}
             className="w-full bg-destructive hover:bg-destructive/90"
           >
@@ -624,33 +586,64 @@ export default function Expenses() {
             <CardDescription>Quickly populate common expenses by name and category.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {savedExpenseTemplates.map((template) => (
-              <div key={template.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="font-semibold text-foreground">{template.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {template.category} • {template.type === "need" ? "Need" : "Want"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLoadTemplate(template)}
-                  >
-                    Use
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => removeExpenseTemplate(template.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+              <div className="space-y-2">
+                <Label htmlFor="savedExpenseTemplate">Load template</Label>
+                <Select value={selectedTemplateId} onValueChange={(value) => {
+                  if (value === "__none") {
+                    setSelectedTemplateId(value);
+                    return;
+                  }
+                  const template = savedExpenseTemplates.find((t) => t.id === value);
+                  if (template) {
+                    handleLoadTemplate(template);
+                  }
+                }}>
+                  <SelectTrigger id="savedExpenseTemplate">
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No template</SelectItem>
+                    {savedExpenseTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name} • {template.category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedTemplateId !== "__none") {
+                      const template = savedExpenseTemplates.find((t) => t.id === selectedTemplateId);
+                      if (template) handleLoadTemplate(template);
+                    }
+                  }}
+                  disabled={selectedTemplateId === "__none"}
+                >
+                  Use selected
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    if (selectedTemplateId !== "__none") {
+                      removeExpenseTemplate(selectedTemplateId);
+                      setSelectedTemplateId("__none");
+                    }
+                  }}
+                  disabled={selectedTemplateId === "__none"}
+                >
+                  Delete selected
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
