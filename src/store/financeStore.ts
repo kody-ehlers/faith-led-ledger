@@ -6,13 +6,13 @@ export interface IncomeEntry {
   source: string;
   amount: number;
   frequency:
-  | "One-time"
-  | "Weekly"
-  | "Biweekly"
-  | "Monthly"
-  | "Bimonthly"
-  | "Quarterly"
-  | "Yearly";
+    | "One-time"
+    | "Weekly"
+    | "Biweekly"
+    | "Monthly"
+    | "Bimonthly"
+    | "Quarterly"
+    | "Yearly";
   preTax: boolean;
   date: string;
   notes: string;
@@ -57,7 +57,13 @@ export interface TithePayment {
   assetId?: string | null;
 }
 
-export type RecurringFrequency = "Weekly" | "Biweekly" | "Monthly" | "Bimonthly" | "Quarterly" | "Yearly";
+export type RecurringFrequency =
+  | "Weekly"
+  | "Biweekly"
+  | "Monthly"
+  | "Bimonthly"
+  | "Quarterly"
+  | "Yearly";
 
 export interface SubscriptionEntry {
   id: string;
@@ -226,7 +232,7 @@ interface FinanceState {
     from: string,
     to?: string | null,
     indefinite?: boolean,
-    comment?: string | null
+    comment?: string | null,
   ) => void;
   resumeIncome: (id: string) => void;
 
@@ -249,45 +255,52 @@ interface FinanceState {
   addDebt: (debt: Omit<DebtEntry, "id">) => void;
   updateDebt: (id: string, updates: Partial<DebtEntry>) => void;
   removeDebt: (id: string) => void;
-  addDebtPayment: (debtId: string, amount: number, memo?: string, date?: string, principalPortion?: number, interestPortion?: number) => void;
+  addDebtPayment: (
+    debtId: string,
+    amount: number,
+    memo?: string,
+    date?: string,
+    principalPortion?: number,
+    interestPortion?: number,
+  ) => void;
   // Assets
   addAsset: (
-    asset: Omit<LiquidAsset, "id" | "currentAmount" | "transactions">
+    asset: Omit<LiquidAsset, "id" | "currentAmount" | "transactions">,
   ) => void;
   updateAsset: (id: string, updates: Partial<LiquidAsset>) => void;
   removeAsset: (id: string) => void;
   addAssetTransaction: (
     assetId: string,
-    tx: { date: string; amount: number; memo?: string }
+    tx: { date: string; amount: number; memo?: string },
   ) => void;
   updateAssetTransaction: (
     assetId: string,
     txId: string,
-    updates: Partial<{ date: string; amount: number; memo?: string }>
+    updates: Partial<{ date: string; amount: number; memo?: string }>,
   ) => void;
   removeAssetTransaction: (assetId: string, txId: string) => void;
   updateAssetCreditLimit: (
     assetId: string,
     newLimit: number,
-    startDate: string
+    startDate: string,
   ) => void;
   applyAssetInterest: (
     assetId: string,
     amount: number,
     memo?: string,
-    date?: string
+    date?: string,
   ) => void;
   updateAssetInterestRate: (
     assetId: string,
     newRate: number,
-    startDate: string
+    startDate: string,
   ) => void;
   transferAssets: (
     fromAssetId: string,
     toAssetId: string,
     amount: number,
     date: string,
-    memo?: string
+    memo?: string,
   ) => void;
   addSubscription: (entry: Omit<SubscriptionEntry, "id">) => void;
   removeSubscription: (id: string) => void;
@@ -297,7 +310,7 @@ interface FinanceState {
     from: string,
     to?: string | null,
     indefinite?: boolean,
-    comment?: string | null
+    comment?: string | null,
   ) => void;
   renewSubscription: (id: string) => void;
 
@@ -310,15 +323,25 @@ interface FinanceState {
     from: string,
     to?: string | null,
     indefinite?: boolean,
-    comment?: string | null
+    comment?: string | null,
   ) => void;
   renewBill: (id: string) => void;
 
   // Investments
-  addInvestment: (entry: Omit<InvestmentEntry, "id" | "moneyEarned" | "earningsHistory" | "contributedMonths">) => void;
+  addInvestment: (
+    entry: Omit<
+      InvestmentEntry,
+      "id" | "moneyEarned" | "earningsHistory" | "contributedMonths"
+    >,
+  ) => void;
   removeInvestment: (id: string) => void;
   updateInvestment: (id: string, updates: Partial<InvestmentEntry>) => void;
-  addEarnings: (investmentId: string, amount: number, description?: string) => void;
+  addEarnings: (
+    investmentId: string,
+    amount: number,
+    description?: string,
+    date?: string,
+  ) => void;
   recordContribution: (investmentId: string, month: string) => void;
 
   // Expense Categories
@@ -386,7 +409,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateIncome: (id, updates) =>
         set((state) => ({
           income: state.income.map((i) =>
-            i.id === id ? { ...i, ...updates } : i
+            i.id === id ? { ...i, ...updates } : i,
           ),
         })),
 
@@ -395,19 +418,19 @@ export const useFinanceStore = create<FinanceState>()(
         from,
         to = null,
         indefinite = false,
-        comment = undefined
+        comment = undefined,
       ) =>
         set((state) => ({
           income: state.income.map((i) =>
             i.id === id
               ? {
-                ...i,
-                suspendedFrom: from,
-                suspendedTo: to,
-                suspendedIndefinitely: indefinite,
-                suspendedNote: comment,
-              }
-              : i
+                  ...i,
+                  suspendedFrom: from,
+                  suspendedTo: to,
+                  suspendedIndefinitely: indefinite,
+                  suspendedNote: comment,
+                }
+              : i,
           ),
         })),
 
@@ -416,13 +439,13 @@ export const useFinanceStore = create<FinanceState>()(
           income: state.income.map((i) =>
             i.id === id
               ? {
-                ...i,
-                suspendedFrom: undefined,
-                suspendedTo: undefined,
-                suspendedIndefinitely: false,
-                suspendedNote: undefined,
-              }
-              : i
+                  ...i,
+                  suspendedFrom: undefined,
+                  suspendedTo: undefined,
+                  suspendedIndefinitely: false,
+                  suspendedNote: undefined,
+                }
+              : i,
           ),
         })),
 
@@ -438,23 +461,32 @@ export const useFinanceStore = create<FinanceState>()(
 
           // If expense had an assetId, remove the corresponding wallet transaction
           if (expenseToRemove?.assetId) {
-            const asset = state.assets.find((a) => a.id === expenseToRemove.assetId);
+            const asset = state.assets.find(
+              (a) => a.id === expenseToRemove.assetId,
+            );
             if (asset?.transactions) {
               // Find the transaction that matches this expense
               // Look for a transaction with memo pattern "Expense: {expense.name}" or just matching date/amount
               const matchingTxIndex = asset.transactions.findIndex((tx) => {
-                const memoMatches = tx.memo?.includes(expenseToRemove.name) ||
+                const memoMatches =
+                  tx.memo?.includes(expenseToRemove.name) ||
                   tx.memo?.includes("Expense:");
-                const dateMatches = tx.date === expenseToRemove.date ||
+                const dateMatches =
+                  tx.date === expenseToRemove.date ||
                   tx.date.startsWith(expenseToRemove.date.slice(0, 10));
                 const amountMatches = tx.amount === -expenseToRemove.amount;
                 return memoMatches && dateMatches && amountMatches;
               });
 
               if (matchingTxIndex !== -1) {
-                const newTransactions = asset.transactions.filter((_, idx) => idx !== matchingTxIndex);
+                const newTransactions = asset.transactions.filter(
+                  (_, idx) => idx !== matchingTxIndex,
+                );
                 const starting = asset.startingAmount ?? 0;
-                const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
+                const computed = newTransactions.reduce(
+                  (s, t) => s + t.amount,
+                  starting,
+                );
 
                 return {
                   expenses: newExpenses,
@@ -479,7 +511,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateExpense: (id, updates) =>
         set((state) => ({
           expenses: state.expenses.map((e) =>
-            e.id === id ? { ...e, ...updates } : e
+            e.id === id ? { ...e, ...updates } : e,
           ),
         })),
 
@@ -492,7 +524,9 @@ export const useFinanceStore = create<FinanceState>()(
         })),
       removeExpenseTemplate: (id) =>
         set((state) => ({
-          savedExpenseTemplates: state.savedExpenseTemplates.filter((t) => t.id !== id),
+          savedExpenseTemplates: state.savedExpenseTemplates.filter(
+            (t) => t.id !== id,
+          ),
         })),
 
       addTithe: (tithe) =>
@@ -503,13 +537,13 @@ export const useFinanceStore = create<FinanceState>()(
       markTitheGiven: (id) =>
         set((state) => ({
           tithes: state.tithes.map((t) =>
-            t.id === id ? { ...t, given: true } : t
+            t.id === id ? { ...t, given: true } : t,
           ),
         })),
       updateTithe: (id, updates) =>
         set((state) => ({
           tithes: state.tithes.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
+            t.id === id ? { ...t, ...updates } : t,
           ),
         })),
 
@@ -526,7 +560,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateSavings: (id, updates) =>
         set((state) => ({
           savings: state.savings.map((s) =>
-            s.id === id ? { ...s, ...updates } : s
+            s.id === id ? { ...s, ...updates } : s,
           ),
         })),
 
@@ -537,13 +571,21 @@ export const useFinanceStore = create<FinanceState>()(
 
       addDebt: (debt) =>
         set((state) => ({
-          debts: [...state.debts, { ...debt, id: crypto.randomUUID(), originalBalance: debt.balance, paymentHistory: [] }],
+          debts: [
+            ...state.debts,
+            {
+              ...debt,
+              id: crypto.randomUUID(),
+              originalBalance: debt.balance,
+              paymentHistory: [],
+            },
+          ],
         })),
 
       updateDebt: (id, updates) =>
         set((state) => ({
           debts: state.debts.map((d) =>
-            d.id === id ? { ...d, ...updates } : d
+            d.id === id ? { ...d, ...updates } : d,
           ),
         })),
 
@@ -552,26 +594,36 @@ export const useFinanceStore = create<FinanceState>()(
           debts: state.debts.filter((d) => d.id !== id),
         })),
 
-      addDebtPayment: (debtId, amount, memo = "", date, principalPortion, interestPortion) =>
+      addDebtPayment: (
+        debtId,
+        amount,
+        memo = "",
+        date,
+        principalPortion,
+        interestPortion,
+      ) =>
         set((state) => ({
           debts: state.debts.map((d) =>
             d.id === debtId
               ? {
-                ...d,
-                balance: Math.max(0, d.balance - (principalPortion ?? amount)),
-                paymentHistory: [
-                  ...(d.paymentHistory || []),
-                  {
-                    id: crypto.randomUUID(),
-                    date: date || new Date().toISOString(),
-                    amount,
-                    principalPortion,
-                    interestPortion,
-                    memo,
-                  },
-                ],
-              }
-              : d
+                  ...d,
+                  balance: Math.max(
+                    0,
+                    d.balance - (principalPortion ?? amount),
+                  ),
+                  paymentHistory: [
+                    ...(d.paymentHistory || []),
+                    {
+                      id: crypto.randomUUID(),
+                      date: date || new Date().toISOString(),
+                      amount,
+                      principalPortion,
+                      interestPortion,
+                      memo,
+                    },
+                  ],
+                }
+              : d,
           ),
         })),
 
@@ -604,47 +656,47 @@ export const useFinanceStore = create<FinanceState>()(
               startingAmount:
                 asset.type === "Credit Card"
                   ? -Math.abs(asset.startingAmount ?? 0)
-                  : asset.startingAmount ?? 0,
+                  : (asset.startingAmount ?? 0),
               currentAmount:
                 asset.type === "Credit Card"
                   ? -Math.abs(asset.startingAmount ?? 0)
-                  : asset.startingAmount ?? 0,
+                  : (asset.startingAmount ?? 0),
               transactions:
                 asset.type === "Credit Card" &&
-                  (asset.startingAmount ?? 0) !== 0
+                (asset.startingAmount ?? 0) !== 0
                   ? [
-                    {
-                      id: crypto.randomUUID(),
-                      date: asset.enactDate
-                        ? `${asset.enactDate}T12:00:00`
-                        : new Date().toISOString(),
-                      amount: -Math.abs(asset.startingAmount ?? 0),
-                      memo: "Starting balance",
-                    },
-                  ]
+                      {
+                        id: crypto.randomUUID(),
+                        date: asset.enactDate
+                          ? `${asset.enactDate}T12:00:00`
+                          : new Date().toISOString(),
+                        amount: -Math.abs(asset.startingAmount ?? 0),
+                        memo: "Starting balance",
+                      },
+                    ]
                   : [],
               creditLimitChanges: asset.creditLimit
                 ? [
-                  {
-                    amount: asset.creditLimit,
-                    start:
-                      asset.enactDate ??
-                      new Date().toISOString().slice(0, 10),
-                    end: null,
-                  },
-                ]
+                    {
+                      amount: asset.creditLimit,
+                      start:
+                        asset.enactDate ??
+                        new Date().toISOString().slice(0, 10),
+                      end: null,
+                    },
+                  ]
                 : [],
               interestRate: asset.interestRate ?? undefined,
               interestRateChanges: asset.interestRate
                 ? [
-                  {
-                    amount: asset.interestRate,
-                    start:
-                      asset.enactDate ??
-                      new Date().toISOString().slice(0, 10),
-                    end: null,
-                  },
-                ]
+                    {
+                      amount: asset.interestRate,
+                      start:
+                        asset.enactDate ??
+                        new Date().toISOString().slice(0, 10),
+                      end: null,
+                    },
+                  ]
                 : [],
               interestHistory: asset.interestHistory ?? [],
               closed: false,
@@ -655,7 +707,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateAsset: (id, updates) =>
         set((state) => ({
           assets: state.assets.map((a) =>
-            a.id === id ? { ...a, ...updates } : a
+            a.id === id ? { ...a, ...updates } : a,
           ),
         })),
 
@@ -693,10 +745,13 @@ export const useFinanceStore = create<FinanceState>()(
           assets: state.assets.map((a) => {
             if (a.id !== assetId) return a;
             const newTransactions = (a.transactions || []).map((t) =>
-              t.id === txId ? { ...t, ...(updates as any) } : t
+              t.id === txId ? { ...t, ...(updates as any) } : t,
             );
             const starting = a.startingAmount ?? 0;
-            const computed = newTransactions.reduce((s, t) => s + t.amount, starting);
+            const computed = newTransactions.reduce(
+              (s, t) => s + t.amount,
+              starting,
+            );
             return {
               ...a,
               transactions: newTransactions,
@@ -721,13 +776,17 @@ export const useFinanceStore = create<FinanceState>()(
               const otherAccountName = isTo
                 ? tx.memo.split(" to ")[1]
                 : tx.memo.split(" from ")[1];
-              const otherAsset = state.assets.find((a) => a.name === otherAccountName);
+              const otherAsset = state.assets.find(
+                (a) => a.name === otherAccountName,
+              );
               if (otherAsset) {
                 // Find the paired transaction
                 const baseId = tx.id.replace(/_out$|_in$/, "");
                 const pairedSuffix = tx.id.endsWith("_out") ? "_in" : "_out";
                 const pairedId = baseId + pairedSuffix;
-                const pairedTx = otherAsset.transactions?.find((t) => t.id === pairedId);
+                const pairedTx = otherAsset.transactions?.find(
+                  (t) => t.id === pairedId,
+                );
                 if (pairedTx) {
                   assetsToUpdate.push(otherAsset.id);
                 }
@@ -739,15 +798,33 @@ export const useFinanceStore = create<FinanceState>()(
             assets: state.assets.map((a) => {
               if (!assetsToUpdate.includes(a.id)) return a;
               const newTransactions = (a.transactions || []).filter(
-                (t) => t.id !== txId && !(tx.memo?.startsWith("Transfer") && t.id === (tx.id.replace(/_out$|_in$/, "") + (tx.id.endsWith("_out") ? "_in" : "_out")))
+                (t) =>
+                  t.id !== txId &&
+                  !(
+                    tx.memo?.startsWith("Transfer") &&
+                    t.id ===
+                      tx.id.replace(/_out$|_in$/, "") +
+                        (tx.id.endsWith("_out") ? "_in" : "_out")
+                  ),
               );
               const starting = a.startingAmount ?? 0;
-              const removedTx = (a.transactions || []).find((t) => t.id === txId || (tx.memo?.startsWith("Transfer") && t.id === (tx.id.replace(/_out$|_in$/, "") + (tx.id.endsWith("_out") ? "_in" : "_out"))));
+              const removedTx = (a.transactions || []).find(
+                (t) =>
+                  t.id === txId ||
+                  (tx.memo?.startsWith("Transfer") &&
+                    t.id ===
+                      tx.id.replace(/_out$|_in$/, "") +
+                        (tx.id.endsWith("_out") ? "_in" : "_out")),
+              );
               const removedWasStarting =
                 removedTx &&
-                (removedTx.memo === "Starting balance" || removedTx.memo === "Starting Balance");
+                (removedTx.memo === "Starting balance" ||
+                  removedTx.memo === "Starting Balance");
               const newStarting = removedWasStarting ? 0 : starting;
-              const computed = newTransactions.reduce((s, t) => s + t.amount, newStarting);
+              const computed = newTransactions.reduce(
+                (s, t) => s + t.amount,
+                newStarting,
+              );
               return {
                 ...a,
                 transactions: newTransactions,
@@ -766,7 +843,7 @@ export const useFinanceStore = create<FinanceState>()(
               : [];
             const newStart = startDate;
             const kept = prev.filter(
-              (c) => new Date(c.start) < new Date(newStart + "T12:00:00")
+              (c) => new Date(c.start) < new Date(newStart + "T12:00:00"),
             );
             if (kept.length > 0) {
               const last = kept[kept.length - 1];
@@ -819,7 +896,7 @@ export const useFinanceStore = create<FinanceState>()(
               : [];
             const newStart = startDate;
             const kept = prev.filter(
-              (c) => new Date(c.start) < new Date(newStart + "T12:00:00")
+              (c) => new Date(c.start) < new Date(newStart + "T12:00:00"),
             );
             if (kept.length > 0) {
               const last = kept[kept.length - 1];
@@ -843,7 +920,13 @@ export const useFinanceStore = create<FinanceState>()(
           }),
         })),
 
-      transferAssets: (fromAssetId, toAssetId, amount, date, memo = "Transfer") =>
+      transferAssets: (
+        fromAssetId,
+        toAssetId,
+        amount,
+        date,
+        memo = "Transfer",
+      ) =>
         set((state) => {
           const fromAsset = state.assets.find((a) => a.id === fromAssetId);
           const toAsset = state.assets.find((a) => a.id === toAssetId);
@@ -908,7 +991,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateSubscription: (id, updates) =>
         set((state) => ({
           subscriptions: state.subscriptions.map((s) =>
-            s.id === id ? { ...s, ...updates } : s
+            s.id === id ? { ...s, ...updates } : s,
           ),
         })),
 
@@ -917,19 +1000,19 @@ export const useFinanceStore = create<FinanceState>()(
         from,
         to = null,
         indefinite = false,
-        comment = undefined
+        comment = undefined,
       ) =>
         set((state) => ({
           subscriptions: state.subscriptions.map((s) =>
             s.id === id
               ? {
-                ...s,
-                cancelledFrom: from,
-                cancelledTo: to,
-                cancelledIndefinitely: indefinite,
-                cancelledNote: comment,
-              }
-              : s
+                  ...s,
+                  cancelledFrom: from,
+                  cancelledTo: to,
+                  cancelledIndefinitely: indefinite,
+                  cancelledNote: comment,
+                }
+              : s,
           ),
         })),
 
@@ -938,13 +1021,13 @@ export const useFinanceStore = create<FinanceState>()(
           subscriptions: state.subscriptions.map((s) =>
             s.id === id
               ? {
-                ...s,
-                cancelledFrom: undefined,
-                cancelledTo: undefined,
-                cancelledIndefinitely: false,
-                cancelledNote: undefined,
-              }
-              : s
+                  ...s,
+                  cancelledFrom: undefined,
+                  cancelledTo: undefined,
+                  cancelledIndefinitely: false,
+                  cancelledNote: undefined,
+                }
+              : s,
           ),
         })),
 
@@ -968,7 +1051,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateBill: (id, updates) =>
         set((state) => ({
           bills: state.bills.map((b) =>
-            b.id === id ? { ...b, ...updates } : b
+            b.id === id ? { ...b, ...updates } : b,
           ),
         })),
 
@@ -977,19 +1060,19 @@ export const useFinanceStore = create<FinanceState>()(
         from,
         to = null,
         indefinite = false,
-        comment = undefined
+        comment = undefined,
       ) =>
         set((state) => ({
           bills: state.bills.map((b) =>
             b.id === id
               ? {
-                ...b,
-                cancelledFrom: from,
-                cancelledTo: to,
-                cancelledIndefinitely: indefinite,
-                cancelledNote: comment,
-              }
-              : b
+                  ...b,
+                  cancelledFrom: from,
+                  cancelledTo: to,
+                  cancelledIndefinitely: indefinite,
+                  cancelledNote: comment,
+                }
+              : b,
           ),
         })),
 
@@ -998,13 +1081,13 @@ export const useFinanceStore = create<FinanceState>()(
           bills: state.bills.map((b) =>
             b.id === id
               ? {
-                ...b,
-                cancelledFrom: undefined,
-                cancelledTo: undefined,
-                cancelledIndefinitely: false,
-                cancelledNote: undefined,
-              }
-              : b
+                  ...b,
+                  cancelledFrom: undefined,
+                  cancelledTo: undefined,
+                  cancelledIndefinitely: false,
+                  cancelledNote: undefined,
+                }
+              : b,
           ),
         })),
 
@@ -1030,28 +1113,33 @@ export const useFinanceStore = create<FinanceState>()(
       updateInvestment: (id, updates) =>
         set((state) => ({
           investments: state.investments.map((inv) =>
-            inv.id === id ? { ...inv, ...updates } : inv
+            inv.id === id ? { ...inv, ...updates } : inv,
           ),
         })),
 
-      addEarnings: (investmentId, amount, description = "") =>
+      addEarnings: (
+        investmentId,
+        amount,
+        description = "",
+        date = new Date().toISOString(),
+      ) =>
         set((state) => ({
           investments: state.investments.map((inv) =>
             inv.id === investmentId
               ? {
-                ...inv,
-                moneyEarned: (inv.moneyEarned || 0) + amount,
-                earningsHistory: [
-                  ...(inv.earningsHistory || []),
-                  {
-                    id: crypto.randomUUID(),
-                    date: new Date().toISOString(),
-                    amount,
-                    description,
-                  },
-                ],
-              }
-              : inv
+                  ...inv,
+                  moneyEarned: (inv.moneyEarned || 0) + amount,
+                  earningsHistory: [
+                    ...(inv.earningsHistory || []),
+                    {
+                      id: crypto.randomUUID(),
+                      date,
+                      amount,
+                      description,
+                    },
+                  ],
+                }
+              : inv,
           ),
         })),
 
@@ -1060,13 +1148,13 @@ export const useFinanceStore = create<FinanceState>()(
           investments: state.investments.map((inv) =>
             inv.id === investmentId
               ? {
-                ...inv,
-                contributedMonths: [
-                  ...(inv.contributedMonths || []),
-                  month,
-                ].filter((v, i, a) => a.indexOf(v) === i),
-              }
-              : inv
+                  ...inv,
+                  contributedMonths: [
+                    ...(inv.contributedMonths || []),
+                    month,
+                  ].filter((v, i, a) => a.indexOf(v) === i),
+                }
+              : inv,
           ),
         })),
 
@@ -1094,7 +1182,9 @@ export const useFinanceStore = create<FinanceState>()(
 
       removeExpenseCategory: (category) =>
         set((state) => ({
-          expenseCategories: state.expenseCategories.filter((c) => c !== category),
+          expenseCategories: state.expenseCategories.filter(
+            (c) => c !== category,
+          ),
         })),
 
       reorderExpenseCategories: (order) =>
@@ -1114,6 +1204,6 @@ export const useFinanceStore = create<FinanceState>()(
     }),
     {
       name: "finance-storage",
-    }
-  )
+    },
+  ),
 );

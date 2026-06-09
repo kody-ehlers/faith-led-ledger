@@ -24,7 +24,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { addDays, addMonths, addYears, format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
@@ -67,15 +68,55 @@ function buildGrowthProjection(
 ): GrowthRow[] {
   const rows: GrowthRow[] = [];
   let balance = currentValue;
-  const monthlyRate = annualReturnRate / 100 / 12;
+  const monthlyFactor = Math.exp(annualReturnRate / 100 / 12);
   for (let i = 1; i <= months; i++) {
-    const earnings = balance * monthlyRate;
+    const earnings = balance * (monthlyFactor - 1);
     balance += earnings + monthlyContribution;
     rows.push({
       month: i,
       contribution: monthlyContribution,
       earnings: parseFloat(earnings.toFixed(2)),
       balance: parseFloat(balance.toFixed(2)),
+    });
+  }
+  return rows;
+}
+
+function getRecurringContributionDates(
+  startDate: Date,
+  frequency: Frequency
+): Date[] {
+  const dates: Date[] = [];
+  const now = new Date();
+  let current = new Date(startDate);
+
+  while (current <= now) {
+    dates.push(new Date(current));
+
+    if (frequency === "Weekly") current = addDays(current, 7);
+    else if (frequency === "Biweekly") current = addDays(current, 14);
+    else if (frequency === "Monthly") current = addMonths(current, 1);
+    else if (frequency === "Bimonthly") current = addMonths(current, 2);
+    else if (frequency === "Quarterly") current = addMonths(current, 3);
+    else if (frequency === "Yearly") current = addYears(current, 1);
+    else current = addMonths(current, 1);
+  }
+
+  return dates;
+}
+
+function buildAnnualProjection(monthlyRows: GrowthRow[]): GrowthRow[] {
+  const rows: GrowthRow[] = [];
+  for (let i = 0; i < monthlyRows.length; i += 12) {
+    const yearRows = monthlyRows.slice(i, i + 12);
+    if (yearRows.length === 0) break;
+    rows.push({
+      month: i / 12 + 1,
+      contribution: yearRows.reduce((sum, row) => sum + row.contribution, 0),
+      earnings: parseFloat(
+        yearRows.reduce((sum, row) => sum + row.earnings, 0).toFixed(2)
+      ),
+      balance: yearRows[yearRows.length - 1].balance,
     });
   }
   return rows;
@@ -118,6 +159,7 @@ export default function Investments() {
 
   // Growth projection dialog
   const [projectionTarget, setProjectionTarget] = useState<string | null>(null);
+  const [projectionYears, setProjectionYears] = useState<number>(10);
 
   const handleAdd = () => {
     if (!name.trim()) { toast.error("Please provide a name"); return; }
@@ -140,6 +182,23 @@ export default function Investments() {
       const newInv = state.investments[state.investments.length - 1];
       if (newInv) {
         state.addEarnings(newInv.id, -initAmount, "Initial contribution");
+      }
+    }
+
+    // Backfill historical auto contributions if start date is in the past.
+    if (autoDeposit && contributionAmount && contributionAmount > 0) {
+      const state = useFinanceStore.getState();
+      const newInv = state.investments[state.investments.length - 1];
+      if (newInv) {
+        const contributionDates = getRecurringContributionDates(date, frequency);
+        contributionDates.forEach((contributionDate) => {
+          state.addEarnings(
+            newInv.id,
+            -contributionAmount,
+            "Auto contribution",
+            contributionDate.toISOString()
+          );
+        });
       }
     }
 
@@ -191,13 +250,16 @@ export default function Investments() {
   const projTable = useMemo(() => {
     if (!projInv) return [];
     const currentValue = getInvestmentValue(projInv);
+    const months = Math.max(1, projectionYears) * 12;
     return buildGrowthProjection(
       currentValue,
       projInv.contributionAmount,
       projInv.expectedReturnRate || 7,
-      120
+      months
     );
-  }, [projInv]);
+  }, [projInv, projectionYears]);
+
+  const annualProjTable = useMemo(() => buildAnnualProjection(projTable), [projTable]);
 
   // Contribution preview
   const contribPreview = useMemo(() => {
@@ -206,8 +268,7 @@ export default function Investments() {
     if (!inv) return null;
     const currentVal = getInvestmentValue(inv);
     const rate = inv.expectedReturnRate || 7;
-    const monthlyRate = rate / 100 / 12;
-    const projectedEarnings1yr = (currentVal + contributionAmount2) * monthlyRate * 12;
+    const projectedEarnings1yr = (currentVal + contributionAmount2) * (Math.exp(rate / 100) - 1);
     return { currentVal, newVal: currentVal + contributionAmount2, projectedEarnings1yr };
   }, [contributionTarget, contributionAmount2, investments]);
 
@@ -505,33 +566,82 @@ export default function Investments() {
                   <span className="font-semibold">{projInv.expectedReturnRate || 7}%</span>
                 </div>
               </div>
-              {projTable.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  10-year projection • Final value: <strong className="text-success">{formatCurrency(projTable[projTable.length - 1].balance)}</strong>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Projection horizon</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={projectionYears}
+                    onChange={(e) => {
+                      const years = parseInt(e.target.value, 10);
+                      setProjectionYears(Number.isNaN(years) ? 1 : years);
+                    }}
+                    className="mt-2 w-full"
+                  />
                 </div>
-              )}
-              <ScrollArea className="h-[400px] border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Contribution</TableHead>
-                      <TableHead>Earnings</TableHead>
-                      <TableHead>Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {projTable.filter((_, i) => i % 12 === 11 || i === 0).map((row) => (
-                      <TableRow key={row.month}>
-                        <TableCell>{row.month} ({(row.month / 12).toFixed(1)} yr)</TableCell>
-                        <TableCell>{formatCurrency(row.contribution)}</TableCell>
-                        <TableCell className="text-success">{formatCurrency(row.earnings)}</TableCell>
-                        <TableCell className="font-semibold">{formatCurrency(row.balance)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                {projTable.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {projectionYears}-year projection • Final value: <strong className="text-success">{formatCurrency(projTable[projTable.length - 1].balance)}</strong>
+                  </div>
+                )}
+              </div>
+              <Tabs defaultValue="monthly" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="annual">Annual</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="monthly">
+                  <ScrollArea className="h-[400px] border rounded-lg">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-20 bg-background/95 backdrop-blur">
+                        <TableRow>
+                          <TableHead>Month</TableHead>
+                          <TableHead>Deposit</TableHead>
+                          <TableHead>Interest</TableHead>
+                          <TableHead>Ending Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {projTable.map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell>Month {row.month}</TableCell>
+                            <TableCell>{formatCurrency(row.contribution)}</TableCell>
+                            <TableCell className="text-success">{formatCurrency(row.earnings)}</TableCell>
+                            <TableCell className="font-semibold">{formatCurrency(row.balance)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="annual">
+                  <ScrollArea className="h-[400px] border rounded-lg">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-20 bg-background/95 backdrop-blur">
+                        <TableRow>
+                          <TableHead>Year</TableHead>
+                          <TableHead>Deposit</TableHead>
+                          <TableHead>Interest</TableHead>
+                          <TableHead>Ending Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {annualProjTable.map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell>Year {row.month}</TableCell>
+                            <TableCell>{formatCurrency(row.contribution)}</TableCell>
+                            <TableCell className="text-success">{formatCurrency(row.earnings)}</TableCell>
+                            <TableCell className="font-semibold">{formatCurrency(row.balance)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
           <DialogFooter>
