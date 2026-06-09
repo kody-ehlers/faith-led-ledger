@@ -983,7 +983,7 @@ export const calculateWalletTransactions = (
 };
 
 // Helper: check if a date is suspended/cancelled
-const dateIsSuspended = (
+export const dateIsSuspended = (
   date: Date,
   suspendedFrom: string | undefined,
   suspendedTo: string | null | undefined,

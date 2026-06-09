@@ -123,6 +123,7 @@ export default function Debt() {
     const monthlyRate = debt.interestRate / 100 / 12;
     const interestPortion = parseFloat((debt.balance * monthlyRate).toFixed(2));
     const principalPortion = parseFloat(Math.max(0, amt - interestPortion).toFixed(2));
+    const feePortion = payFee ?? 0;
 
     if (walletEnabled && payAsset) {
       addAssetTransaction(payAsset, {
