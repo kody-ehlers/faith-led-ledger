@@ -997,7 +997,7 @@ const dateIsSuspended = (
     const to = new Date(suspendedTo);
     return !isAfter(date, to);
   }
-  return false;
+  return true;
 };
 
 /**
