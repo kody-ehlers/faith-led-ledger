@@ -301,7 +301,7 @@ export default function Income() {
         const to = new Date(entry.suspendedTo);
         return now <= to;
       }
-      return false;
+      return true;
     };
 
     // Suspend dialog state
