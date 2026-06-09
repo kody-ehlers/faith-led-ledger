@@ -203,6 +203,7 @@ export interface DebtEntry {
     amount: number;
     principalPortion?: number;
     interestPortion?: number;
+    feePortion?: number;
     memo?: string;
   }>;
 }
@@ -262,6 +263,7 @@ interface FinanceState {
     date?: string,
     principalPortion?: number,
     interestPortion?: number,
+    feePortion?: number,
   ) => void;
   // Assets
   addAsset: (
@@ -348,6 +350,12 @@ interface FinanceState {
   addExpenseCategory: (category: string) => void;
   removeExpenseCategory: (category: string) => void;
   reorderExpenseCategories: (order: string[]) => void;
+  bulkUpdateExpenseCategory: (
+    fromCategory: string,
+    toCategory: string,
+    from?: string | null,
+    to?: string | null,
+  ) => void;
 
   // Settings
   updateAppName: (name: string) => void;
@@ -515,6 +523,37 @@ export const useFinanceStore = create<FinanceState>()(
           ),
         })),
 
+      bulkUpdateExpenseCategory: (
+        fromCategory,
+        toCategory,
+        from = null,
+        to = null,
+      ) =>
+        set((state) => {
+          const parseDateOnly = (s) => {
+            if (!s) return null;
+            const iso = s.slice(0, 10);
+            const parts = iso.split("-").map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return null;
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+          };
+          const fromDate = parseDateOnly(from);
+          const toDate = parseDateOnly(to);
+          const updated = state.expenses.map((e) => {
+            if (e.category !== fromCategory) return e;
+            const ed = new Date(e.date);
+            const eOnly = new Date(
+              ed.getFullYear(),
+              ed.getMonth(),
+              ed.getDate(),
+            );
+            if (fromDate && eOnly < fromDate) return e;
+            if (toDate && eOnly > toDate) return e;
+            return { ...e, category: toCategory };
+          });
+          return { expenses: updated };
+        }),
+
       addExpenseTemplate: (template) =>
         set((state) => ({
           savedExpenseTemplates: [
@@ -601,6 +640,7 @@ export const useFinanceStore = create<FinanceState>()(
         date,
         principalPortion,
         interestPortion,
+        feePortion,
       ) =>
         set((state) => ({
           debts: state.debts.map((d) =>
@@ -609,7 +649,8 @@ export const useFinanceStore = create<FinanceState>()(
                   ...d,
                   balance: Math.max(
                     0,
-                    d.balance - (principalPortion ?? amount),
+                    d.balance -
+                      (principalPortion ?? amount - (feePortion ?? 0)),
                   ),
                   paymentHistory: [
                     ...(d.paymentHistory || []),
@@ -619,6 +660,7 @@ export const useFinanceStore = create<FinanceState>()(
                       amount,
                       principalPortion,
                       interestPortion,
+                      feePortion,
                       memo,
                     },
                   ],

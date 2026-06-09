@@ -25,7 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, subDays } from "date-fns";
+import { format, subDays, isAfter } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency } from "@/utils/calculations";
+import { formatCurrency, getRecurringOccurrencesInMonth } from "@/utils/calculations";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
@@ -147,21 +147,8 @@ export default function Subscriptions() {
     const currentYear = now.getFullYear().toString();
     const startDate = new Date(entry.date);
 
-    // Check if this subscription has a due date this month based on frequency
-    let isDueThisMonth = false;
-    const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-
-    if (entry.frequency === "Monthly") {
-      isDueThisMonth = true;
-    } else if (entry.frequency === "Weekly" || entry.frequency === "Biweekly") {
-      isDueThisMonth = true; // always has occurrences each month
-    } else if (entry.frequency === "Yearly") {
-      isDueThisMonth = startDate.getMonth() === now.getMonth();
-    } else if (entry.frequency === "Quarterly") {
-      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-    } else if (entry.frequency === "Bimonthly") {
-      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-    }
+    const occurrencesThisMonth = getRecurringOccurrencesInMonth(startDate, entry.frequency, now);
+    const isDueThisMonth = occurrencesThisMonth.length > 0;
 
     // Check if paid for current iteration based on frequency
     let isPaidCurrentIteration = false;
@@ -176,15 +163,7 @@ export default function Subscriptions() {
     if (!isPaidCurrentIteration && entry.autopay) {
       try {
         const today = new Date();
-        if (entry.frequency === "Monthly" || entry.frequency === "Bimonthly") {
-          const day = new Date(entry.date).getDate();
-          const due = new Date(today.getFullYear(), today.getMonth(), day);
-          if (due.getTime() <= today.getTime() && isDueThisMonth) isPaidCurrentIteration = true;
-        } else if (entry.frequency === "Yearly") {
-          const d = new Date(entry.date);
-          const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
-          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
-        }
+        isPaidCurrentIteration = occurrencesThisMonth.some((occ) => !isAfter(occ, today));
       } catch {
         // ignore parse errors
       }
@@ -854,29 +833,12 @@ export default function Subscriptions() {
         }
       }
 
-      // Check if due this month
       const startDate = new Date(s.date);
-      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+      const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
+      if (occurrences.length === 0) return sum;
 
-      let isDueThisMonth = false;
-      if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") {
-        isDueThisMonth = true;
-      } else if (s.frequency === "Yearly") {
-        isDueThisMonth = startDate.getMonth() === now.getMonth();
-      } else if (s.frequency === "Quarterly") {
-        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-      } else if (s.frequency === "Bimonthly") {
-        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-      }
-
-      if (!isDueThisMonth) return sum;
-
-      // Get the amount for this subscription
-      if (s.variablePrice) {
-        return sum + (s.monthlyPrices?.[currentMonth] ?? 0);
-      } else {
-        return sum + s.amount;
-      }
+      const amountForMonth = s.variablePrice ? s.monthlyPrices?.[currentMonth] ?? s.amount : s.amount;
+      return sum + amountForMonth * occurrences.length;
     }, 0);
   }, [subscriptions]);
 
@@ -1055,12 +1017,8 @@ export default function Subscriptions() {
             const now = new Date();
             const thisMonthSubs = subscriptions.filter((s) => {
               const startDate = new Date(s.date);
-              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-              if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") return true;
-              if (s.frequency === "Yearly") return startDate.getMonth() === now.getMonth();
-              if (s.frequency === "Quarterly") return monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-              if (s.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-              return true;
+              const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
+              return occurrences.length > 0;
             });
             const ordered = getOrdered(thisMonthSubs, cardOrders["subs-this"]);
             return ordered.length === 0 ? (
@@ -1088,12 +1046,8 @@ export default function Subscriptions() {
             const now = new Date();
             const otherSubs = subscriptions.filter((s) => {
               const startDate = new Date(s.date);
-              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-              if (s.frequency === "Monthly" || s.frequency === "Weekly" || s.frequency === "Biweekly") return false;
-              if (s.frequency === "Yearly") return startDate.getMonth() !== now.getMonth();
-              if (s.frequency === "Quarterly") return monthsSinceStart < 0 || monthsSinceStart % 3 !== 0;
-              if (s.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
-              return false;
+              const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
+              return occurrences.length === 0;
             });
             const ordered = getOrdered(otherSubs, cardOrders["subs-other"]);
             return ordered.length === 0 ? (

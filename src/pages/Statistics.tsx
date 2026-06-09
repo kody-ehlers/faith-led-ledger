@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
-import { formatCurrency } from "@/utils/calculations";
+import { startOfMonth, endOfMonth, subMonths, startOfYear, format, addMonths, isAfter } from "date-fns";
+import { formatCurrency, dateIsSuspended } from "@/utils/calculations";
 import CleanPieChart from "@/components/CleanPieChart";
 import {  Heart, Church } from "lucide-react";
 
@@ -49,19 +49,43 @@ export default function Statistics() {
   });
 
   const billsInPeriod = bills.reduce((sum, b) => {
-    return sum + (b.paidMonths || []).filter((pm) => {
-      const [y, m] = pm.split("-").map(Number);
-      const d = new Date(y, m - 1, 15);
-      return d >= start && d <= end;
-    }).reduce((s, pm) => s + (b.variablePrice ? (b.monthlyPrices?.[pm] || b.amount) : b.amount), 0);
+    // sum bill occurrences in the range (paidMonths, autopay, or monthly occurrences)
+    const monthKeys: string[] = [];
+    let m = startOfMonth(start);
+    while (!isAfter(m, end)) { monthKeys.push(format(m, "yyyy-MM")); m = addMonths(m, 1); }
+    let total = 0;
+    monthKeys.forEach((mk) => {
+      const [y, mm] = mk.split("-").map(Number);
+      // representative date for this month
+      const reprDate = new Date(y, mm - 1, Math.min(15, new Date(b.date).getDate()));
+      if (dateIsSuspended(reprDate, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) return;
+      if (b.paidMonths?.includes(mk)) {
+        total += b.variablePrice ? (b.monthlyPrices?.[mk] || b.amount) : b.amount;
+      } else if (b.autopay) {
+        const due = new Date(y, mm - 1, new Date(b.date).getDate());
+        if (due >= start && due <= end) total += b.amount;
+      }
+    });
+    return sum + total;
   }, 0);
 
   const subsInPeriod = subscriptions.reduce((sum, s) => {
-    return sum + (s.paidMonths || []).filter((pm) => {
-      const [y, m] = pm.split("-").map(Number);
-      const d = new Date(y, m - 1, 15);
-      return d >= start && d <= end;
-    }).reduce((s2, pm) => s2 + (s.variablePrice ? (s.monthlyPrices?.[pm] || s.amount) : s.amount), 0);
+    const monthKeys: string[] = [];
+    let m = startOfMonth(start);
+    while (!isAfter(m, end)) { monthKeys.push(format(m, "yyyy-MM")); m = addMonths(m, 1); }
+    let total = 0;
+    monthKeys.forEach((mk) => {
+      const [y, mm] = mk.split("-").map(Number);
+      const reprDate = new Date(y, mm - 1, Math.min(15, new Date(s.date).getDate()));
+      if (dateIsSuspended(reprDate, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) return;
+      if (s.paidMonths?.includes(mk)) {
+        total += s.variablePrice ? (s.monthlyPrices?.[mk] || s.amount) : s.amount;
+      } else if (s.autopay) {
+        const due = new Date(y, mm - 1, new Date(s.date).getDate());
+        if (due >= start && due <= end) total += s.amount;
+      }
+    });
+    return sum + total;
   }, 0);
 
   const debtPaymentsInPeriod = debts.reduce((sum, d) => {
@@ -101,6 +125,12 @@ export default function Statistics() {
       .reduce((s, e) => s + e.amount, 0);
   }, 0);
 
+  const investmentContributionsInPeriod = investments.reduce((sum, inv) => {
+    return sum + (inv.earningsHistory || [])
+      .filter((e) => e.amount < 0 && new Date(e.date) >= start && new Date(e.date) <= end)
+      .reduce((s, e) => s + Math.abs(e.amount), 0);
+  }, 0);
+
   const savingsInterestInPeriod = savings.reduce((sum, s) => {
     return sum + (s.interestHistory || [])
       .filter((h) => new Date(h.date) >= start && new Date(h.date) <= end)
@@ -109,8 +139,8 @@ export default function Statistics() {
 
   const totalMoneyIn = incomeInPeriod + investmentEarningsInPeriod + savingsInterestInPeriod;
   const expenseTotal = expensesInPeriod.reduce((s, e) => s + e.amount, 0);
-  const totalMoneyOut = expenseTotal + billsInPeriod + subsInPeriod + debtPaymentsInPeriod + titheInPeriod;
-  const netSavings = Math.max(0, totalMoneyIn - totalMoneyOut);
+  const totalMoneyOut = expenseTotal + billsInPeriod + subsInPeriod + debtPaymentsInPeriod + titheInPeriod + investmentContributionsInPeriod;
+  const netSavings = totalMoneyIn - totalMoneyOut;
 
   const overallData = [
     { name: "Money Out", value: totalMoneyOut },
@@ -127,6 +157,8 @@ export default function Statistics() {
   if (billsInPeriod > 0) expensesByCategory["Bills"] = billsInPeriod;
   if (debtPaymentsInPeriod > 0) expensesByCategory["Debt Payments"] = debtPaymentsInPeriod;
   if (titheInPeriod > 0) expensesByCategory["Tithe"] = titheInPeriod;
+
+  if (investmentContributionsInPeriod > 0) expensesByCategory["Investments"] = investmentContributionsInPeriod;
 
   const expenseData = Object.entries(expensesByCategory)
     .map(([name, value]) => ({ name, value }))

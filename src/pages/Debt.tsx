@@ -76,6 +76,8 @@ export default function Debt() {
   // Payment dialog state
   const [payFor, setPayFor] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
+  const [payInterest, setPayInterest] = useState<number | null>(null);
+  const [payFee, setPayFee] = useState<number | null>(0);
   const [payAsset, setPayAsset] = useState<string | null>(null);
   const [payDate, setPayDate] = useState<Date>(new Date());
 
@@ -104,6 +106,8 @@ export default function Debt() {
   const openPay = (debtId: string, debtMinPayment: number) => {
     setPayFor(debtId);
     setPayAmount(debtMinPayment);
+    setPayInterest(null);
+    setPayFee(0);
     setPayAsset(walletEnabled ? (assets.find((a) => a.type !== "Credit Card")?.id ?? null) : null);
     setPayDate(new Date());
   };
@@ -127,7 +131,15 @@ export default function Debt() {
         memo: `Payment to ${debt.name}`,
       });
     }
-    addDebtPayment(payFor, amt, walletEnabled && payAsset ? `Payment from wallet` : `Payment`, payDate.toISOString(), principalPortion, interestPortion);
+    addDebtPayment(
+      payFor,
+      amt,
+      walletEnabled && payAsset ? `Payment from wallet` : `Payment`,
+      payDate.toISOString(),
+      principalPortion,
+      interestPortion,
+      feePortion,
+    );
     toast.success("Payment recorded");
     setPayFor(null);
   };
@@ -142,6 +154,12 @@ export default function Debt() {
   const totalPaid = debts.reduce(
     (sum, d) => sum + (d.paymentHistory || []).reduce((s, p) => s + p.amount, 0), 0
   );
+  const totalPrincipalPaid = debts.reduce(
+    (sum, d) => sum + (d.paymentHistory || []).reduce((s, p) => s + (p.principalPortion || 0), 0), 0
+  );
+  const totalInterestPaid = debts.reduce(
+    (sum, d) => sum + (d.paymentHistory || []).reduce((s, p) => s + (p.interestPortion || 0), 0), 0
+  );
 
   // Payment preview for the pay dialog
   const payPreview = useMemo(() => {
@@ -149,11 +167,13 @@ export default function Debt() {
     const debt = debts.find((d) => d.id === payFor);
     if (!debt) return null;
     const monthlyRate = debt.interestRate / 100 / 12;
-    const interestPortion = debt.balance * monthlyRate;
-    const principalPortion = Math.max(0, payAmount - interestPortion);
+    const computedInterest = debt.balance * monthlyRate;
+    const interestPortion = payInterest != null ? payInterest : computedInterest;
+    const feePortion = payFee ?? 0;
+    const principalPortion = Math.max(0, payAmount - interestPortion - feePortion);
     const newBalance = Math.max(0, debt.balance - principalPortion);
-    return { interestPortion, principalPortion, newBalance };
-  }, [payFor, payAmount, debts]);
+    return { interestPortion, principalPortion, feePortion, newBalance };
+  }, [payFor, payAmount, payInterest, payFee, debts]);
 
   // Amortization table for selected debt
   const amortDebt = debts.find((d) => d.id === amortTarget);
@@ -193,7 +213,7 @@ export default function Debt() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-md">
           <CardHeader><CardTitle>Total Owed</CardTitle><CardDescription>All debts combined</CardDescription></CardHeader>
           <CardContent><p className="text-3xl font-bold text-destructive">{formatCurrency(totalDebt)}</p></CardContent>
@@ -203,8 +223,12 @@ export default function Debt() {
           <CardContent><p className="text-3xl font-bold text-success">{formatCurrency(totalPaid)}</p></CardContent>
         </Card>
         <Card className="shadow-md">
-          <CardHeader><CardTitle>Monthly Minimums</CardTitle><CardDescription>Combined minimum payments</CardDescription></CardHeader>
-          <CardContent><p className="text-3xl font-bold text-foreground">{formatCurrency(totalMinPayments)}</p></CardContent>
+          <CardHeader><CardTitle>Principal Paid</CardTitle><CardDescription>Amount reduced from balances</CardDescription></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-foreground">{formatCurrency(totalPrincipalPaid)}</p></CardContent>
+        </Card>
+        <Card className="shadow-md">
+          <CardHeader><CardTitle>Interest Paid</CardTitle><CardDescription>Cost of borrowing</CardDescription></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-destructive">{formatCurrency(totalInterestPaid)}</p></CardContent>
         </Card>
       </div>
 
@@ -337,9 +361,9 @@ export default function Debt() {
                           <div key={p.id} className="flex justify-between text-xs">
                             <div className="flex flex-col">
                               <span className="text-muted-foreground">{format(new Date(p.date), "MMM d, yyyy")}</span>
-                              {(p.principalPortion !== undefined || p.interestPortion !== undefined) && (
+                              {(p.principalPortion !== undefined || p.interestPortion !== undefined || p.feePortion !== undefined) && (
                                 <span className="text-muted-foreground">
-                                  P: {formatCurrency(p.principalPortion ?? 0)} / I: {formatCurrency(p.interestPortion ?? 0)}
+                                  P: {formatCurrency(p.principalPortion ?? 0)} / I: {formatCurrency(p.interestPortion ?? 0)} / F: {formatCurrency(p.feePortion ?? 0)}
                                 </span>
                               )}
                             </div>
@@ -395,6 +419,20 @@ export default function Debt() {
               <Label>Amount</Label>
               <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Interest Portion</Label>
+                <CurrencyInput
+                  value={payInterest}
+                  onChange={(v) => setPayInterest(v)}
+                  placeholder="Auto-calc"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fees / Other</Label>
+                <CurrencyInput value={payFee} onChange={(v) => setPayFee(v)} />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Payment Date</Label>
               <DatePicker selected={payDate} onSelect={(d) => setPayDate(d)} />
@@ -412,6 +450,10 @@ export default function Debt() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Goes to Principal:</span>
                     <span className="text-success">{formatCurrency(payPreview.principalPortion)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Goes to Fees:</span>
+                    <span className="text-foreground">{formatCurrency(payPreview.feePortion)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="font-semibold">New Balance:</span>

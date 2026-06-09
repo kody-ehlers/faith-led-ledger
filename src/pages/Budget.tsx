@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 
 export default function Budget() {
-  const { expenses, bills, subscriptions, debts, income, tithes, expenseCategories } = useFinanceStore();
+  const { expenses, bills, subscriptions, debts, income, tithes, expenseCategories, investments } = useFinanceStore();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [timeframe, setTimeframe] = useState("single");
@@ -64,12 +64,96 @@ export default function Budget() {
 
   // Calculate spending per category
   const categorySpending: Record<string, number> = {};
+  const isInRange = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return !isBefore(d, dateRange.start) && !isAfter(d, dateRange.end);
+  };
+
   expenses.forEach((e) => {
     const d = new Date(e.date);
     if (!isBefore(d, dateRange.start) && !isAfter(d, dateRange.end)) {
       categorySpending[e.category] = (categorySpending[e.category] || 0) + e.amount;
     }
   });
+
+  const investmentContributionsInRange = investments.reduce((sum, inv) => {
+    return sum + (inv.earningsHistory || [])
+      .filter((e) => e.amount < 0 && isInRange(e.date))
+      .reduce((s, e) => s + Math.abs(e.amount), 0);
+  }, 0);
+  if (investmentContributionsInRange > 0) {
+    categorySpending["Investments"] = (categorySpending["Investments"] || 0) + investmentContributionsInRange;
+  }
+
+  const debtPaymentsInRange = debts.reduce((sum, d) => {
+    return sum + (d.paymentHistory || [])
+      .filter((p) => isInRange(p.date))
+      .reduce((s, p) => s + p.amount, 0);
+  }, 0);
+  if (debtPaymentsInRange > 0) {
+    categorySpending["Debt Payments"] = (categorySpending["Debt Payments"] || 0) + debtPaymentsInRange;
+  }
+
+  const billSpendingInRange = bills.reduce((sum, b) => {
+    let total = 0;
+    let month = startOfMonth(dateRange.start);
+    while (!isAfter(month, dateRange.end)) {
+      const monthKey = getMonthKey(month);
+      if (b.paidMonths?.includes(monthKey)) {
+        total += b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
+      } else if (b.autopay) {
+        const dueDay = new Date(b.date).getDate();
+        const dueDate = new Date(month.getFullYear(), month.getMonth(), dueDay);
+        if (dueDate >= dateRange.start && dueDate <= dateRange.end) {
+          total += b.amount;
+        }
+      }
+      month = addMonths(month, 1);
+    }
+    return sum + total;
+  }, 0);
+  if (billSpendingInRange > 0) {
+    categorySpending["Bills"] = (categorySpending["Bills"] || 0) + billSpendingInRange;
+  }
+
+  const subscriptionSpendingInRange = subscriptions.reduce((sum, s) => {
+    let total = 0;
+    let month = startOfMonth(dateRange.start);
+    while (!isAfter(month, dateRange.end)) {
+      const monthKey = getMonthKey(month);
+      if (s.paidMonths?.includes(monthKey)) {
+        total += s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
+      } else if (s.autopay) {
+        const dueDay = new Date(s.date).getDate();
+        const dueDate = new Date(month.getFullYear(), month.getMonth(), dueDay);
+        if (dueDate >= dateRange.start && dueDate <= dateRange.end) {
+          total += s.amount;
+        }
+      }
+      month = addMonths(month, 1);
+    }
+    return sum + total;
+  }, 0);
+  if (subscriptionSpendingInRange > 0) {
+    categorySpending["Subscriptions"] = (categorySpending["Subscriptions"] || 0) + subscriptionSpendingInRange;
+  }
+
+  const titheSpendingInRange = tithes
+    .filter((t) => isInRange(t.date))
+    .reduce((sum, t) => sum + t.amount, 0);
+  if (titheSpendingInRange > 0) {
+    categorySpending["Tithe"] = (categorySpending["Tithe"] || 0) + titheSpendingInRange;
+  }
+
+  const getMonthKeysInRange = () => {
+    const keys: string[] = [];
+    let current = startOfMonth(dateRange.start);
+    while (!isAfter(current, dateRange.end)) {
+      keys.push(getMonthKey(current));
+      current = addMonths(current, 1);
+    }
+    return keys;
+  };
 
   // Calculate fixed monthly costs
   const calculateFixedCosts = () => {
@@ -104,56 +188,52 @@ export default function Budget() {
         return sum;
       }, 0);
 
-      totalDebt = debts.reduce((sum, d) =>
-        sum + (d.paymentHistory || []).filter((p) => p.date.startsWith(currentMonthKey)).reduce((s, p) => s + p.amount, 0), 0);
-
+      totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
       totalTithe = tithes.filter((t) => t.date.startsWith(currentMonthKey)).reduce((sum, t) => sum + t.amount, 0);
     } else {
       // Average across months in range
-      let monthCount = 0;
-      let currentMonth = new Date(dateRange.start);
+      const monthKeys = getMonthKeysInRange();
 
-      while (!isAfter(currentMonth, dateRange.end)) {
-        monthCount++;
-        const monthKey = getMonthKey(currentMonth);
-
-        totalBills += bills.reduce((sum, b) => {
+      totalBills = bills.reduce((sum, b) => {
+        return sum + monthKeys.reduce((monthSum, monthKey) => {
           if (b.paidMonths?.includes(monthKey)) {
-            return sum + (b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount);
+            return monthSum + (b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount);
           }
           if (b.autopay) {
-            const day = new Date(b.date).getDate();
-            const due = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-            if (!isAfter(due, currentMonth)) return sum + b.amount;
+            const [year, month] = monthKey.split("-").map(Number);
+            const due = new Date(year, month - 1, new Date(b.date).getDate());
+            if (!isAfter(due, new Date(year, month - 1, 1))) {
+              return monthSum + b.amount;
+            }
           }
-          return sum;
+          return monthSum;
         }, 0);
+      }, 0);
 
-        totalSubs += subscriptions.reduce((sum, s) => {
+      totalSubs = subscriptions.reduce((sum, s) => {
+        return sum + monthKeys.reduce((monthSum, monthKey) => {
           if (s.paidMonths?.includes(monthKey)) {
-            return sum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
+            return monthSum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
           }
           if (s.autopay) {
-            const day = new Date(s.date).getDate();
-            const due = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-            if (!isAfter(due, currentMonth)) return sum + s.amount;
+            const [year, month] = monthKey.split("-").map(Number);
+            const due = new Date(year, month - 1, new Date(s.date).getDate());
+            if (!isAfter(due, new Date(year, month - 1, 1))) {
+              return monthSum + s.amount;
+            }
           }
-          return sum;
+          return monthSum;
         }, 0);
+      }, 0);
 
-        totalDebt += debts.reduce((sum, d) =>
-          sum + (d.paymentHistory || []).filter((p) => p.date.startsWith(monthKey)).reduce((s, p) => s + p.amount, 0), 0);
-
-        totalTithe += tithes.filter((t) => t.date.startsWith(monthKey)).reduce((sum, t) => sum + t.amount, 0);
-
-        currentMonth = addMonths(currentMonth, 1);
-      }
+      totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
+      totalTithe = tithes.reduce((sum, t) => {
+        return sum + (monthKeys.some((monthKey) => t.date.startsWith(monthKey)) ? t.amount : 0);
+      }, 0) / monthKeys.length;
 
       // Average across months
-      totalBills /= monthCount;
-      totalSubs /= monthCount;
-      totalDebt /= monthCount;
-      totalTithe /= monthCount;
+      totalBills /= monthKeys.length;
+      totalSubs /= monthKeys.length;
     }
 
     return { totalBills, totalSubs, totalDebt, totalTithe };
@@ -181,11 +261,12 @@ export default function Budget() {
 
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copyDialogCategory, setCopyDialogCategory] = useState<string | null>(null);
-  const [copyDialogMonth, setCopyDialogMonth] = useState<string>(goalMonths[0] || previousMonthKey);
+  const firstGoalMonth = goalMonths[0] || previousMonthKey;
+  const [copyDialogMonth, setCopyDialogMonth] = useState<string>(firstGoalMonth);
 
   useEffect(() => {
-    setCopyDialogMonth(goalMonths[0] || previousMonthKey);
-  }, [goalMonths.join(","), previousMonthKey]);
+    setCopyDialogMonth(firstGoalMonth);
+  }, [firstGoalMonth]);
 
   const formatMonthLabel = (monthKey: string) => {
     const [year, month] = monthKey.split("-");
@@ -236,19 +317,10 @@ export default function Budget() {
   const totalCategorySpending = Object.values(categorySpending).reduce((s, v) => s + v, 0);
   const potentialSavings = monthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
   const projectedSavings = recurringMonthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
-  const actualSavings = monthlyIncome - fixedCosts - titheMTD - totalCategorySpending;
+  const actualSpendingAboveMinDebt = Math.max(0, totalCategorySpending - debtPaymentsMTD);
+  const actualSavings = monthlyIncome - fixedCosts - titheMTD - actualSpendingAboveMinDebt;
 
   // Compute total budget goals across the selected date range (sum of each month's goals)
-  const getMonthKeysInRange = () => {
-    const keys: string[] = [];
-    let current = startOfMonth(dateRange.start);
-    while (!isAfter(current, dateRange.end)) {
-      keys.push(getMonthKey(current));
-      current = addMonths(current, 1);
-    }
-    return keys;
-  };
-
   const monthKeysInRange = getMonthKeysInRange();
   const totalBudgetGoalsRange = monthKeysInRange.reduce((sum, key) => {
     const g = goals[key] || {};
@@ -260,7 +332,16 @@ export default function Budget() {
   const overUnderRange = totalSpentRange - totalBudgetGoalsRange; // positive = over, negative = under
 
   // Get all categories
-  const allCategories = [...new Set([...expenseCategories, ...Object.keys(categorySpending), ...Object.keys(monthGoals)])].sort();
+  const allCategories = [...new Set([
+    ...expenseCategories,
+    ...Object.keys(categorySpending),
+    ...Object.keys(monthGoals),
+    "Investments",
+    "Debt Payments",
+    "Bills",
+    "Subscriptions",
+    "Tithe",
+  ])].sort();
 
   const handlePreviousMonth = () => {
     setSelectedDate((prev) => subMonths(prev, 1));

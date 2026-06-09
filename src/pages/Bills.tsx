@@ -25,7 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, subDays } from "date-fns";
+import { format, subDays, isAfter } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency } from "@/utils/calculations";
+import { formatCurrency, getRecurringOccurrencesInMonth } from "@/utils/calculations";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
@@ -154,17 +154,8 @@ export default function Bills() {
     const startDate = new Date(entry.date);
     const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
 
-    let isDueThisMonth = false;
-    if (entry.frequency === "Monthly" || entry.frequency === "Weekly" || entry.frequency === "Biweekly") {
-      isDueThisMonth = true;
-    } else if (entry.frequency === "Yearly") {
-      isDueThisMonth = startDate.getMonth() === now.getMonth();
-    } else if (entry.frequency === "Quarterly") {
-      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-    } else if (entry.frequency === "Bimonthly") {
-      isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-    }
-
+    const occurrencesThisMonth = getRecurringOccurrencesInMonth(startDate, entry.frequency, now);
+    const isDueThisMonth = occurrencesThisMonth.length > 0;
     let isPaidCurrentIteration = false;
 
     if (entry.frequency === "Yearly") {
@@ -190,15 +181,7 @@ export default function Bills() {
     if (!isPaidCurrentIteration && entry.autopay) {
       try {
         const today = new Date();
-        if (entry.frequency === "Monthly" || entry.frequency === "Bimonthly") {
-          const day = new Date(entry.date).getDate();
-          const due = new Date(today.getFullYear(), today.getMonth(), day);
-          if (due.getTime() <= today.getTime() && isDueThisMonth) isPaidCurrentIteration = true;
-        } else if (entry.frequency === "Yearly") {
-          const d = new Date(entry.date);
-          const due = new Date(today.getFullYear(), d.getMonth(), d.getDate());
-          if (due.getTime() <= today.getTime()) isPaidCurrentIteration = true;
-        }
+        isPaidCurrentIteration = occurrencesThisMonth.some((occ) => !isAfter(occ, today));
       } catch {
         // ignore
       }
@@ -807,29 +790,13 @@ export default function Bills() {
         }
       }
 
-      // Check if due this month
+      // Check if this bill has one or more occurrences in the current month
       const startDate = new Date(b.date);
-      const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+      const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
+      if (occurrences.length === 0) return sum;
 
-      let isDueThisMonth = false;
-      if (b.frequency === "Monthly" || b.frequency === "Weekly" || b.frequency === "Biweekly") {
-        isDueThisMonth = true;
-      } else if (b.frequency === "Yearly") {
-        isDueThisMonth = startDate.getMonth() === now.getMonth();
-      } else if (b.frequency === "Quarterly") {
-        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-      } else if (b.frequency === "Bimonthly") {
-        isDueThisMonth = monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-      }
-
-      if (!isDueThisMonth) return sum;
-
-      // Get the amount for this bill
-      if (b.variablePrice) {
-        return sum + (b.monthlyPrices?.[currentMonth] ?? 0);
-      } else {
-        return sum + b.amount;
-      }
+      const amount = b.variablePrice ? b.monthlyPrices?.[currentMonth] ?? b.amount : b.amount;
+      return sum + amount * occurrences.length;
     }, 0);
   }, [bills]);
 
@@ -1001,12 +968,8 @@ export default function Bills() {
             const now = new Date();
             const thisMonthBills = bills.filter((b) => {
               const startDate = new Date(b.date);
-              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-              if (b.frequency === "Monthly" || b.frequency === "Weekly" || b.frequency === "Biweekly") return true;
-              if (b.frequency === "Yearly") return startDate.getMonth() === now.getMonth();
-              if (b.frequency === "Quarterly") return monthsSinceStart >= 0 && monthsSinceStart % 3 === 0;
-              if (b.frequency === "Bimonthly") return monthsSinceStart >= 0 && monthsSinceStart % 2 === 0;
-              return true;
+              const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
+              return occurrences.length > 0;
             });
             const ordered = getOrdered(thisMonthBills, cardOrders["bills-this"]);
             return ordered.length === 0 ? (
@@ -1034,12 +997,8 @@ export default function Bills() {
             const now = new Date();
             const otherBills = bills.filter((b) => {
               const startDate = new Date(b.date);
-              const monthsSinceStart = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-              if (b.frequency === "Monthly" || b.frequency === "Weekly" || b.frequency === "Biweekly") return false;
-              if (b.frequency === "Yearly") return startDate.getMonth() !== now.getMonth();
-              if (b.frequency === "Quarterly") return monthsSinceStart < 0 || monthsSinceStart % 3 !== 0;
-              if (b.frequency === "Bimonthly") return monthsSinceStart < 0 || monthsSinceStart % 2 !== 0;
-              return false;
+              const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
+              return occurrences.length === 0;
             });
             const ordered = getOrdered(otherBills, cardOrders["bills-other"]);
             return ordered.length === 0 ? (

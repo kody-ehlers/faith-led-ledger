@@ -8,6 +8,9 @@ import {
   calculateCategoryTotals,
   getEntryIncomeForMonth,
   getAmountForDate,
+  getRecurringOccurrencesInMonth,
+  isRecurringOnDate,
+  dateIsSuspended,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
@@ -29,6 +32,7 @@ import {
   isSameMonth,
   isSameDay,
   isToday,
+  isAfter,
 } from "date-fns";
 import {
   TrendingUp,
@@ -75,21 +79,20 @@ export default function Home() {
     .filter((e) => { const d = new Date(e.date); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); })
     .reduce((sum, e) => sum + e.amount, 0);
   const billsMTD = bills.reduce((sum, b) => {
-    if (!b.paidMonths?.includes(monthKey)) return sum;
-    return sum + (b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount);
+    const occurrences = getRecurringOccurrencesInMonth(new Date(b.date), b.frequency, now);
+    const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
+    const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely));
+    if (valid.length === 0) return sum;
+    const amount = b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
+    return sum + amount * valid.length;
   }, 0);
   const subsMTD = subscriptions.reduce((sum, s) => {
-    if (!s.paidMonths?.includes(monthKey)) {
-      if (s.autopay) {
-        try {
-          const day = new Date(s.date).getDate();
-          const due = new Date(now.getFullYear(), now.getMonth(), day);
-          if (due <= now) return sum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
-        } catch { /* ignore */ }
-      }
-      return sum;
-    }
-    return sum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
+    const occurrences = getRecurringOccurrencesInMonth(new Date(s.date), s.frequency, now);
+    const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
+    const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely));
+    if (valid.length === 0) return sum;
+    const amount = s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
+    return sum + amount * valid.length;
   }, 0);
   const debtPaymentsMTD = debts.reduce((sum, d) => {
     return sum + (d.paymentHistory || [])
@@ -118,18 +121,22 @@ export default function Home() {
 
   // Add bills to category data
   bills.forEach((b) => {
-    if (b.paidMonths?.includes(monthKey) || (b.autopay && new Date(now.getFullYear(), now.getMonth(), new Date(b.date).getDate()) <= now)) {
-      const amt = b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
-      categoryTotals["Bills"] = (categoryTotals["Bills"] || 0) + amt;
-    }
+    const occurrences = getRecurringOccurrencesInMonth(new Date(b.date), b.frequency, now);
+    const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
+    const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely));
+    if (valid.length === 0) return;
+    const amt = b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
+    categoryTotals["Bills"] = (categoryTotals["Bills"] || 0) + amt * valid.length;
   });
 
   // Add subscriptions to category data
   subscriptions.forEach((s) => {
-    if (s.paidMonths?.includes(monthKey) || (s.autopay && new Date(now.getFullYear(), now.getMonth(), new Date(s.date).getDate()) <= now)) {
-      const amt = s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
-      categoryTotals["Subscriptions"] = (categoryTotals["Subscriptions"] || 0) + amt;
-    }
+    const occurrences = getRecurringOccurrencesInMonth(new Date(s.date), s.frequency, now);
+    const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
+    const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely));
+    if (valid.length === 0) return;
+    const amt = s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
+    categoryTotals["Subscriptions"] = (categoryTotals["Subscriptions"] || 0) + amt * valid.length;
   });
 
   const categoryData = Object.entries(categoryTotals)
@@ -184,8 +191,17 @@ export default function Home() {
 
   // Bills due today
   bills.forEach((b) => {
-    const day = new Date(b.date).getDate();
-    if (day === now.getDate()) {
+    const start = new Date(b.date);
+    const dayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isCancelledOn = (entry: typeof b, d: Date) => {
+      if (!entry.cancelledFrom) return false;
+      const from = new Date(entry.cancelledFrom);
+      if (from > d) return false;
+      if (entry.cancelledIndefinitely) return true;
+      if (entry.cancelledTo) return d <= new Date(entry.cancelledTo);
+      return false;
+    };
+    if (!isCancelledOn(b, dayOnly) && isRecurringOnDate(new Date(b.date), b.frequency, now)) {
       const paid = b.paidMonths?.includes(monthKey);
       todayItems.push({
         label: `${b.name}${paid ? " ✓" : b.autopay ? " (autopay)" : " ⚠"}`,
@@ -197,8 +213,16 @@ export default function Home() {
 
   // Subscriptions due today
   subscriptions.forEach((s) => {
-    const day = new Date(s.date).getDate();
-    if (day === now.getDate()) {
+    const dayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isCancelledOn = (entry: typeof s, d: Date) => {
+      if (!entry.cancelledFrom) return false;
+      const from = new Date(entry.cancelledFrom);
+      if (from > d) return false;
+      if (entry.cancelledIndefinitely) return true;
+      if (entry.cancelledTo) return d <= new Date(entry.cancelledTo);
+      return false;
+    };
+    if (!isCancelledOn(s, dayOnly) && isRecurringOnDate(new Date(s.date), s.frequency, now)) {
       const paid = s.paidMonths?.includes(monthKey);
       todayItems.push({
         label: `${s.name}${paid ? " ✓" : s.autopay ? " (autopay)" : " ⚠"}`,
@@ -284,35 +308,23 @@ export default function Home() {
     for (const s of subscriptions) {
       const start = new Date(s.date);
       const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-      const isCancelledOn = (entry: typeof s, d: Date) => {
-        if (!entry.cancelledFrom) return false;
-        const from = new Date(entry.cancelledFrom);
-        if (from > d) return false;
-        if (entry.cancelledIndefinitely) return true;
-        if (entry.cancelledTo) return d <= new Date(entry.cancelledTo);
+      const fromOnly = parseDateOnly(s.cancelledFrom);
+      const toOnly = parseDateOnly(s.cancelledTo);
+      const isCancelledOn = (d: Date) => {
+        if (!fromOnly) return false;
+        if (d < fromOnly) return false;
+        if (s.cancelledIndefinitely) return true;
+        if (toOnly) return d <= toOnly;
         return false;
       };
       if ((s.frequency as string) === "One-time") {
-        if (isSameDay(new Date(s.date), dayOnly) && !isCancelledOn(s, dayOnly))
+        if (isSameDay(new Date(s.date), dayOnly) && !isCancelledOn(dayOnly))
           list.push({ name: s.name, amount: getAmountForDate(s as unknown as IncomeEntry, dayOnly) });
         continue;
       }
-      let occ = new Date(start);
-      const advance = (d: Date) => {
-        switch (s.frequency) {
-          case "Weekly": return addDays(d, 7);
-          case "Biweekly": return addDays(d, 14);
-          case "Monthly": return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
-          case "Bimonthly": return new Date(d.getFullYear(), d.getMonth() + 2, d.getDate());
-          case "Quarterly": return new Date(d.getFullYear(), d.getMonth() + 3, d.getDate());
-          case "Yearly": return new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
-          default: return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
-        }
-      };
-      let guard = 0;
-      while (occ < dayOnly && guard++ < 500) occ = advance(occ);
-      if (isSameDay(occ, dayOnly) && !isCancelledOn(s, dayOnly))
+      if (!isCancelledOn(dayOnly) && isRecurringOnDate(start, s.frequency, dayOnly)) {
         list.push({ name: s.name, amount: getAmountForDate(s as unknown as IncomeEntry, dayOnly) });
+      }
     }
     return list;
   };
@@ -321,10 +333,21 @@ export default function Home() {
     const list: { name: string; amount: number }[] = [];
     bills.forEach((b) => {
       const start = new Date(b.date);
-      if (start.getDate() !== day.getDate()) return;
       const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
       const startOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
       if (dayOnly < startOnly) return;
+      if (!isRecurringOnDate(start, b.frequency, dayOnly)) return;
+      // skip if the bill is cancelled/suspended on this date (robust date-only compare)
+      if (b.cancelledFrom) {
+        const fromOnly = parseDateOnly(b.cancelledFrom);
+        if (fromOnly && dayOnly >= fromOnly) {
+          if (b.cancelledIndefinitely) return;
+          if (b.cancelledTo) {
+            const toOnly = parseDateOnly(b.cancelledTo);
+            if (toOnly && dayOnly <= toOnly) return;
+          }
+        }
+      }
       const dayMonthKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}`;
       list.push({
         name: b.name,
@@ -335,6 +358,15 @@ export default function Home() {
   };
 
   const [focusedMonth, setFocusedMonth] = useState<Date>(startOfMonth(now));
+
+  // Parse an ISO date string to a local date-only (yyyy-mm-dd) without timezone shifts
+  const parseDateOnly = (s?: string | null) => {
+    if (!s) return null;
+    const iso = s.slice(0, 10); // YYYY-MM-DD
+    const parts = iso.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  };
   const monthsToShow = [startOfMonth(focusedMonth)];
 
   const [nextTodo, setNextTodo] = useState<TodoItem | null>(() => getNextTodo(loadTodos()));

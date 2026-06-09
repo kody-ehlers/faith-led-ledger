@@ -1,11 +1,13 @@
 import {
   IncomeEntry,
   ExpenseEntry,
-  SavingsAccount, LiquidAsset,
+  SavingsAccount,
+  LiquidAsset,
   DebtEntry,
   BillEntry,
   SubscriptionEntry,
   TithePayment,
+  RecurringFrequency,
 } from "@/store/financeStore";
 import {
   startOfMonth,
@@ -16,6 +18,7 @@ import {
   isBefore,
   isAfter,
   isEqual,
+  isSameDay,
 } from "date-fns";
 
 export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
@@ -36,7 +39,7 @@ export const calculatePostTaxIncome = (income: IncomeEntry[]): number => {
 export const calculateIncomeForMonthPublic = (
   income: IncomeEntry[],
   targetDate = new Date(),
-  includePreTax = true
+  includePreTax = true,
 ): number => {
   return calculateIncomeForMonth(income, targetDate, includePreTax, targetDate);
 };
@@ -47,7 +50,7 @@ export const getEntryIncomeForMonth = (
   entry: IncomeEntry,
   targetDate = new Date(),
   includePreTax = true,
-  asOfDate = new Date()
+  asOfDate = new Date(),
 ): number => {
   if (!includePreTax && entry.preTax) return 0;
 
@@ -137,7 +140,7 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   const target = toDateOnly(date).getTime();
   // Ensure changes are processed in ascending start order
   const changes = [...entry.changes].sort(
-    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
   );
   for (const ch of changes) {
     const start = toDateOnly(new Date(ch.start)).getTime();
@@ -150,12 +153,96 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   return changes[changes.length - 1].amount;
 };
 
+export const advanceRecurringDate = (
+  date: Date,
+  frequency: RecurringFrequency,
+): Date => {
+  switch (frequency) {
+    case "Weekly":
+      return addDays(date, 7);
+    case "Biweekly":
+      return addDays(date, 14);
+    case "Monthly":
+      return addMonths(date, 1);
+    case "Bimonthly":
+      return addMonths(date, 2);
+    case "Quarterly":
+      return addMonths(date, 3);
+    case "Yearly":
+      return addYears(date, 1);
+    default:
+      return addMonths(date, 1);
+  }
+};
+
+export const getRecurringOccurrencesInMonth = (
+  startDate: Date,
+  frequency: RecurringFrequency,
+  targetDate: Date,
+  untilDate: Date = endOfMonth(targetDate),
+): Date[] => {
+  const occurrences: Date[] = [];
+  const monthStart = startOfMonth(targetDate);
+  const monthEnd = endOfMonth(targetDate);
+
+  let occurrence = new Date(startDate);
+  if (isAfter(occurrence, monthEnd)) return occurrences;
+
+  let guard = 0;
+  while (isBefore(occurrence, monthStart) && guard < 1000) {
+    occurrence = advanceRecurringDate(occurrence, frequency);
+    guard++;
+    if (isAfter(occurrence, monthEnd)) return occurrences;
+  }
+
+  guard = 0;
+  while (
+    !isAfter(occurrence, monthEnd) &&
+    !isAfter(occurrence, untilDate) &&
+    guard < 1000
+  ) {
+    if (!isBefore(occurrence, monthStart)) {
+      occurrences.push(new Date(occurrence));
+    }
+    occurrence = advanceRecurringDate(occurrence, frequency);
+    guard++;
+  }
+
+  return occurrences;
+};
+
+export const isRecurringOnDate = (
+  startDate: Date,
+  frequency: RecurringFrequency,
+  targetDate: Date,
+): boolean => {
+  const targetDay = new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+  );
+  let occurrence = new Date(startDate);
+  if (isAfter(occurrence, targetDay)) return false;
+
+  let guard = 0;
+  while (
+    !isSameDay(occurrence, targetDay) &&
+    isBefore(occurrence, targetDay) &&
+    guard < 1000
+  ) {
+    occurrence = advanceRecurringDate(occurrence, frequency);
+    guard++;
+  }
+
+  return isSameDay(occurrence, targetDay);
+};
+
 // Enumerate occurrences in the month and sum amounts; respects suspensions and changes
 const calculateIncomeForMonth = (
   income: IncomeEntry[],
   targetDate: Date,
   includePreTax: boolean,
-  asOfDate: Date = new Date()
+  asOfDate: Date = new Date(),
 ) => {
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
@@ -211,7 +298,8 @@ const calculateIncomeForMonth = (
       }
     };
 
-    if (isAfter(occurrence, monthEnd) || isAfter(occurrence, asOfDate)) continue;
+    if (isAfter(occurrence, monthEnd) || isAfter(occurrence, asOfDate))
+      continue;
 
     let guard = 0;
     while (isBefore(occurrence, monthStart) && guard < 1000) {
@@ -242,7 +330,7 @@ const calculateIncomeForMonth = (
 
 export const calculatePostTaxIncomeForMonth = (
   income: IncomeEntry[],
-  targetDate = new Date()
+  targetDate = new Date(),
 ): number => {
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
@@ -334,7 +422,7 @@ export const calculatePostTaxIncomeForMonth = (
 
 export const calculatePostTaxIncomeReceivedSoFar = (
   income: IncomeEntry[],
-  asOfDate = new Date()
+  asOfDate = new Date(),
 ): number => {
   // Sum post-tax income occurrences for the month of `asOfDate` where occurrence date <= asOfDate
   const monthStart = startOfMonth(asOfDate);
@@ -432,7 +520,7 @@ export const calculateMonthlyExpenses = (
   subscriptions: SubscriptionEntry[],
   tithes: TithePayment[],
   assets: LiquidAsset[],
-  asOfDate: Date = new Date()
+  asOfDate: Date = new Date(),
 ): number => {
   const now = asOfDate;
   const monthKey = now.toISOString().slice(0, 7); // YYYY-MM
@@ -442,7 +530,10 @@ export const calculateMonthlyExpenses = (
   // 1) Expenses with a date in the current month
   for (const e of expenses) {
     const d = new Date(e.date);
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+    if (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth()
+    ) {
       total += e.amount;
     }
   }
@@ -450,7 +541,10 @@ export const calculateMonthlyExpenses = (
   // 2) Tithes with a date in the current month
   for (const t of tithes) {
     const d = new Date(t.date);
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+    if (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth()
+    ) {
       total += t.amount;
     }
   }
@@ -459,57 +553,36 @@ export const calculateMonthlyExpenses = (
   for (const b of bills) {
     if (!b.paidMonths) continue;
     if (b.paidMonths.includes(monthKey)) {
-      const amount = b.variablePrice ? b.monthlyPrices?.[monthKey] || b.amount : b.amount;
+      const amount = b.variablePrice
+        ? b.monthlyPrices?.[monthKey] || b.amount
+        : b.amount;
       total += amount;
     }
   }
 
   // 4) Subscriptions: include if paidMonths includes monthKey, or if autopay and scheduled occurrence for this month is on-or-before today
   for (const s of subscriptions) {
-    const amountForMonth = s.variablePrice ? s.monthlyPrices?.[monthKey] || s.amount : s.amount;
+    const amountForMonth = s.variablePrice
+      ? s.monthlyPrices?.[monthKey] || s.amount
+      : s.amount;
     if (s.paidMonths && s.paidMonths.includes(monthKey)) {
       total += amountForMonth;
       continue;
     }
 
     if (s.autopay) {
-      // find occurrence date for this month
       const start = new Date(s.date);
       if (isAfter(start, now)) continue;
 
-      let occ = new Date(start);
-      const advance = (d: Date) => {
-        switch (s.frequency) {
-          case "Weekly":
-            return addDays(d, 7);
-          case "Biweekly":
-            return addDays(d, 14);
-          case "Monthly":
-            return addMonths(d, 1);
-          case "Bimonthly":
-            return addMonths(d, 2);
-          case "Quarterly":
-            return addMonths(d, 3);
-          case "Yearly":
-            return addYears(d, 1);
-          default:
-            return addMonths(d, 1);
-        }
-      };
-
-      let guard = 0;
-      while (occ.getFullYear() < now.getFullYear() || (occ.getFullYear() === now.getFullYear() && occ.getMonth() < now.getMonth())) {
-        occ = advance(occ);
-        guard++;
-        if (guard > 1000) break;
-      }
-
-      if (occ.getFullYear() === now.getFullYear() && occ.getMonth() === now.getMonth()) {
-        // treat as spent if occurrence date is on-or-before today
-        const occDate = occ;
-        if (!isAfter(occDate, now)) {
-          total += amountForMonth;
-        }
+      const occurrences = getRecurringOccurrencesInMonth(
+        start,
+        s.frequency,
+        now,
+        now,
+      );
+      const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
+      if (dueOccurrences.length > 0) {
+        total += amountForMonth * dueOccurrences.length;
       }
     }
   }
@@ -548,7 +621,10 @@ export const calculateMonthlyExpenses = (
     if (!a.transactions) continue;
     for (const tx of a.transactions) {
       const txDate = new Date(tx.date);
-      if (txDate.getFullYear() === now.getFullYear() && txDate.getMonth() === now.getMonth()) {
+      if (
+        txDate.getFullYear() === now.getFullYear() &&
+        txDate.getMonth() === now.getMonth()
+      ) {
         const key1 = `${tx.date}|${-Math.abs(tx.amount)}`;
         const key2 = `${tx.date}|${tx.amount}`;
         // consider negative amounts as outflows
@@ -567,7 +643,7 @@ export const calculateMonthlyExpenses = (
 
 export const calculateNetWorth = (
   assets: LiquidAsset[],
-  debts: DebtEntry[]
+  debts: DebtEntry[],
 ): number => {
   const totalAssets = assets.reduce((sum, acc) => sum + acc.currentAmount, 0);
   const totalDebts = debts.reduce((sum, debt) => sum + debt.balance, 0);
@@ -582,12 +658,15 @@ export const formatCurrency = (amount: number): string => {
 };
 
 export const calculateCategoryTotals = (
-  expenses: ExpenseEntry[]
+  expenses: ExpenseEntry[],
 ): Record<string, number> => {
-  return expenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  return expenses.reduce(
+    (acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 };
 
 // Transaction history for wallet accounts
@@ -595,7 +674,15 @@ export interface WalletTransaction {
   date: string; // ISO date
   amount: number; // positive for income/inflows, negative for expenses/outflows
   description: string;
-  type: "income" | "expense" | "bill" | "subscription" | "tithe" | "manual" | "interest" | "debt";
+  type:
+    | "income"
+    | "expense"
+    | "bill"
+    | "subscription"
+    | "tithe"
+    | "manual"
+    | "interest"
+    | "debt";
   balance: number; // running balance after this transaction
   id?: string; // for manual transactions, the transaction id
 }
@@ -610,16 +697,16 @@ export const calculateWalletTransactions = (
   expenses: ExpenseEntry[],
   bills: BillEntry[],
   subscriptions: SubscriptionEntry[],
-  tithes: TithePayment[]
+  tithes: TithePayment[],
 ): WalletTransaction[] => {
   const transactions: Array<WalletTransaction & { dateObj: Date }> = [];
-  
+
   const enactDate = asset.enactDate
     ? new Date(asset.enactDate + "T00:00:00")
     : asset.enactDate
-    ? new Date(asset.enactDate)
-    : new Date(0); // very old date as fallback
-  
+      ? new Date(asset.enactDate)
+      : new Date(0); // very old date as fallback
+
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
@@ -671,9 +758,15 @@ export const calculateWalletTransactions = (
 
       guard = 0;
       while (isBefore(occurrence, today) && guard < 1000) {
-        const isSuspended = incomeEntry.suspendedFrom &&
-          dateIsSuspended(occurrence, incomeEntry.suspendedFrom, incomeEntry.suspendedTo, incomeEntry.suspendedIndefinitely);
-        
+        const isSuspended =
+          incomeEntry.suspendedFrom &&
+          dateIsSuspended(
+            occurrence,
+            incomeEntry.suspendedFrom,
+            incomeEntry.suspendedTo,
+            incomeEntry.suspendedIndefinitely,
+          );
+
         if (!isSuspended) {
           const amount = getAmountForDate(incomeEntry, occurrence);
           transactions.push({
@@ -695,8 +788,9 @@ export const calculateWalletTransactions = (
   for (const expense of expenses) {
     if (expense.assetId !== assetId) continue;
     const expenseDate = new Date(expense.date);
-    if (isBefore(expenseDate, enactDate) || isAfter(expenseDate, today)) continue;
-    
+    if (isBefore(expenseDate, enactDate) || isAfter(expenseDate, today))
+      continue;
+
     transactions.push({
       dateObj: expenseDate,
       date: expense.date.slice(0, 10),
@@ -710,18 +804,28 @@ export const calculateWalletTransactions = (
   // Add bill payments (when marked as paid in paidMonths)
   for (const bill of bills) {
     if (bill.assetId !== assetId) continue;
-    
+
     if (bill.paidMonths && bill.paidMonths.length > 0) {
       for (const paidMonth of bill.paidMonths) {
         // Parse YYYY-MM format and create payment date on the 1st of the month
         const [year, month] = paidMonth.split("-").map(Number);
         const paymentDate = new Date(year, month - 1, 1);
-        
+
         if (isAfter(paymentDate, enactDate) && isBefore(paymentDate, today)) {
+          // skip payments that fall within a cancelled/suspended window
+          if (
+            dateIsSuspended(
+              paymentDate,
+              bill.cancelledFrom,
+              bill.cancelledTo,
+              bill.cancelledIndefinitely,
+            )
+          )
+            continue;
           const amount = bill.variablePrice
             ? bill.monthlyPrices?.[paidMonth] || bill.amount
             : bill.amount;
-          
+
           transactions.push({
             dateObj: paymentDate,
             date: paymentDate.toISOString().slice(0, 10),
@@ -771,15 +875,21 @@ export const calculateWalletTransactions = (
 
       guard = 0;
       while (isBefore(occurrence, today) && guard < 1000) {
-        const isCancelled = subscription.cancelledFrom &&
-          dateIsSuspended(occurrence, subscription.cancelledFrom, subscription.cancelledTo, subscription.cancelledIndefinitely);
-        
+        const isCancelled =
+          subscription.cancelledFrom &&
+          dateIsSuspended(
+            occurrence,
+            subscription.cancelledFrom,
+            subscription.cancelledTo,
+            subscription.cancelledIndefinitely,
+          );
+
         if (!isCancelled) {
           const monthKey = occurrence.toISOString().slice(0, 7); // YYYY-MM
           const amount = subscription.variablePrice
             ? subscription.monthlyPrices?.[monthKey] || subscription.amount
             : subscription.amount;
-          
+
           transactions.push({
             dateObj: occurrence,
             date: occurrence.toISOString().slice(0, 10),
@@ -800,7 +910,7 @@ export const calculateWalletTransactions = (
     if (tithe.assetId !== assetId) continue;
     const titheDate = new Date(tithe.date);
     if (isBefore(titheDate, enactDate) || isAfter(titheDate, today)) continue;
-    
+
     if (tithe.given) {
       transactions.push({
         dateObj: titheDate,
@@ -816,8 +926,9 @@ export const calculateWalletTransactions = (
   // Add interest history transactions
   for (const interest of asset.interestHistory || []) {
     const interestDate = new Date(interest.date);
-    if (isBefore(interestDate, enactDate) || isAfter(interestDate, today)) continue;
-    
+    if (isBefore(interestDate, enactDate) || isAfter(interestDate, today))
+      continue;
+
     transactions.push({
       dateObj: interestDate,
       date: interest.date.slice(0, 10),
@@ -833,7 +944,7 @@ export const calculateWalletTransactions = (
     for (const tx of asset.transactions) {
       const txDate = new Date(tx.date);
       if (isBefore(txDate, enactDate) || isAfter(txDate, today)) continue;
-      
+
       transactions.push({
         dateObj: txDate,
         date: txDate.toISOString().slice(0, 10),
@@ -847,7 +958,9 @@ export const calculateWalletTransactions = (
   }
 
   // Sort by date
-  transactions.sort((a, b) => new Date(a.dateObj).getTime() - new Date(b.dateObj).getTime());
+  transactions.sort(
+    (a, b) => new Date(a.dateObj).getTime() - new Date(b.dateObj).getTime(),
+  );
 
   // Determine if there's an explicit starting transaction to avoid double-counting
   const hasStartingTx =
@@ -855,7 +968,7 @@ export const calculateWalletTransactions = (
     asset.transactions.some(
       (t) =>
         (t.memo === "Starting balance" || t.memo === "Starting Balance") &&
-        Number(t.amount) === Number(asset.startingAmount)
+        Number(t.amount) === Number(asset.startingAmount),
     );
 
   // Calculate running balances
@@ -874,7 +987,7 @@ const dateIsSuspended = (
   date: Date,
   suspendedFrom: string | undefined,
   suspendedTo: string | null | undefined,
-  suspendedIndefinitely: boolean | undefined
+  suspendedIndefinitely: boolean | undefined,
 ): boolean => {
   if (!suspendedFrom) return false;
   const from = new Date(suspendedFrom);
@@ -897,7 +1010,7 @@ export const calculateWalletBalance = (
   expenses: ExpenseEntry[],
   bills: BillEntry[],
   subscriptions: SubscriptionEntry[],
-  tithes: TithePayment[]
+  tithes: TithePayment[],
 ): number => {
   const transactions = calculateWalletTransactions(
     asset.id,
@@ -906,7 +1019,7 @@ export const calculateWalletBalance = (
     expenses,
     bills,
     subscriptions,
-    tithes
+    tithes,
   );
 
   // If there are transactions, return the last balance

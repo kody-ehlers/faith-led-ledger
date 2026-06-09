@@ -6,11 +6,15 @@ const COLORS = [
   "hsl(215, 60%, 50%)",
   "hsl(263, 60%, 55%)",
   "hsl(43, 95%, 55%)",
-  "hsl(0, 75%, 55%)",
   "hsl(186, 70%, 45%)",
   "hsl(330, 70%, 55%)",
   "hsl(30, 80%, 55%)",
 ];
+
+const SPECIAL_COLORS: Record<string, string> = {
+  "Money Out": "hsl(0, 75%, 55%)",
+  "Net Savings": "hsl(142, 70%, 45%)",
+};
 
 interface ChartDataItem {
   name: string;
@@ -57,9 +61,10 @@ export default function CleanPieChart({ data, height = 300 }: CleanPieChartProps
           label={renderLabel}
           stroke="none"
         >
-          {data.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
+          {data.map((entry, index) => {
+            const color = SPECIAL_COLORS[entry.name] ?? COLORS[index % COLORS.length];
+            return <Cell key={`cell-${index}`} fill={color} />;
+          })}
         </Pie>
         <Tooltip content={<CustomTooltip />} />
         <Legend

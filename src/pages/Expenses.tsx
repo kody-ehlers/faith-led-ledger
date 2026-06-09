@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFinanceStore } from "@/store/financeStore";
-import type { ExpenseTemplate } from "@/store/financeStore";
+import type { ExpenseEntry, ExpenseTemplate } from "@/store/financeStore";
 import {
   calculateCategoryTotals,
   formatCurrency,
@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, ShoppingCart, Settings, CalendarIcon, Church, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit3, ShoppingCart, Settings, CalendarIcon, Church, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -98,6 +98,7 @@ export default function Expenses() {
     expenses,
     addExpense,
     removeExpense,
+    updateExpense,
     assets,
     expenseCategories,
     addExpenseCategory,
@@ -106,6 +107,7 @@ export default function Expenses() {
     savedExpenseTemplates,
     addExpenseTemplate,
     removeExpenseTemplate,
+    bulkUpdateExpenseCategory,
     walletEnabled,
   } = useFinanceStore();
   const [name, setName] = useState("");
@@ -133,6 +135,17 @@ export default function Expenses() {
   // Category management
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [bulkFromCategory, setBulkFromCategory] = useState<string | null>(null);
+  const [bulkToCategory, setBulkToCategory] = useState<string | null>(null);
+  const [bulkFromDate, setBulkFromDate] = useState<string | null>(null);
+  const [bulkToDate, setBulkToDate] = useState<string | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseEntry | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState<number | null>(null);
+  const [editCategory, setEditCategory] = useState(expenseCategories[0] || "Other");
+  const [editDate, setEditDate] = useState(() => new Date().toISOString().slice(0, 10));
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
@@ -270,6 +283,53 @@ export default function Expenses() {
   const handleRemoveExpense = (id: string) => {
     removeExpense(id);
     toast.success("Expense removed");
+  };
+
+  const openEditExpenseDialog = (expense: ExpenseEntry) => {
+    setEditingExpense(expense);
+    setEditName(expense.name);
+    setEditAmount(expense.amount);
+    setEditCategory(expense.category);
+    setEditDate(expense.date.slice(0, 10));
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveExpenseEdits = () => {
+    if (!editingExpense) return;
+    if (!editName.trim() || editAmount === null || editAmount <= 0) {
+      toast.error("Please enter a valid name and amount");
+      return;
+    }
+    updateExpense(editingExpense.id, {
+      name: editName.trim(),
+      amount: editAmount,
+      category: editCategory,
+      date: new Date(editDate).toISOString(),
+    });
+    toast.success("Expense updated");
+    setIsEditDialogOpen(false);
+    setEditingExpense(null);
+  };
+
+  const handleBulkReassign = () => {
+    if (!bulkFromCategory || !bulkToCategory) {
+      toast.error("Select both categories to reassign");
+      return;
+    }
+
+    bulkUpdateExpenseCategory(
+      bulkFromCategory,
+      bulkToCategory,
+      bulkFromDate || undefined,
+      bulkToDate || undefined
+    );
+
+    toast.success("Expenses reassigned");
+    setIsBulkDialogOpen(false);
+    setBulkFromCategory(null);
+    setBulkToCategory(null);
+    setBulkFromDate(null);
+    setBulkToDate(null);
   };
 
   const handleLoadTemplate = (template: ExpenseTemplate) => {
@@ -687,85 +747,90 @@ export default function Expenses() {
               <CardTitle>Recent Expenses</CardTitle>
               <CardDescription>Your latest transactions</CardDescription>
             </div>
-            <Popover open={isFilterDateOpen} onOpenChange={setIsFilterDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-fit justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(filterDateRange.from, "MMM d")} - {format(filterDateRange.to, "MMM d, yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2" align="start">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2 pb-2 border-b">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const now = new Date();
-                        setFilterDateRange({
-                          from: new Date(now.getFullYear(), now.getMonth(), 1),
-                          to: now,
-                        });
+            <div className="flex items-center gap-2">
+              <Popover open={isFilterDateOpen} onOpenChange={setIsFilterDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-fit justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(filterDateRange.from, "MMM d")} - {format(filterDateRange.to, "MMM d, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" align="start">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2 pb-2 border-b">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          setFilterDateRange({
+                            from: new Date(now.getFullYear(), now.getMonth(), 1),
+                            to: now,
+                          });
+                        }}
+                      >
+                        Month to Date
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          setFilterDateRange({
+                            from: new Date(now.getFullYear(), 0, 1),
+                            to: now,
+                          });
+                        }}
+                      >
+                        Year to Date
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          const from = new Date();
+                          from.setDate(now.getDate() - 30);
+                          setFilterDateRange({ from, to: now });
+                        }}
+                      >
+                        Last 30 Days
+                      </Button>
+                    </div>
+                    <Calendar
+                      mode="range"
+                      selected={{ from: filterDateRange.from, to: filterDateRange.to }}
+                      onSelect={(range) => {
+                        if (range?.from) {
+                          setFilterDateRange({
+                            from: range.from,
+                            to: range.to || range.from
+                          });
+                        }
                       }}
-                    >
-                      Month to Date
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const now = new Date();
-                        setFilterDateRange({
-                          from: new Date(now.getFullYear(), 0, 1),
-                          to: now,
-                        });
-                      }}
-                    >
-                      Year to Date
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const now = new Date();
-                        const from = new Date();
-                        from.setDate(now.getDate() - 30);
-                        setFilterDateRange({ from, to: now });
-                      }}
-                    >
-                      Last 30 Days
-                    </Button>
+                      numberOfMonths={2}
+                    />
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsFilterDateOpen(false)}
+                        className="flex-1"
+                      >
+                        Done
+                      </Button>
+                    </div>
                   </div>
-                  <Calendar
-                    mode="range"
-                    selected={{ from: filterDateRange.from, to: filterDateRange.to }}
-                    onSelect={(range) => {
-                      if (range?.from) {
-                        setFilterDateRange({
-                          from: range.from,
-                          to: range.to || range.from
-                        });
-                      }
-                    }}
-                    numberOfMonths={2}
-                  />
-                  <div className="flex gap-2 pt-2 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsFilterDateOpen(false)}
-                      className="flex-1"
-                    >
-                      Done
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="sm" onClick={() => setIsBulkDialogOpen(true)}>
+                Reassign Categories
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -862,14 +927,24 @@ export default function Expenses() {
                             </span>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={handleRemoveGroup}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditExpenseDialog(expense)}
+                            className="text-primary hover:bg-primary/10"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleRemoveGroup}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })
@@ -922,6 +997,108 @@ export default function Expenses() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsCategoryDialogOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Reassign Dialog */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reassign Categories</DialogTitle>
+            <DialogDescription>Move expenses from one category to another over a date range.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>From Category</Label>
+              <Select value={bulkFromCategory ?? ""} onValueChange={(value) => setBulkFromCategory(value || null)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select source category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {expenseCategories.map((cat) => (
+                    <SelectItem value={cat} key={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>To Category</Label>
+              <Select value={bulkToCategory ?? ""} onValueChange={(value) => setBulkToCategory(value || null)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select destination category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {expenseCategories.map((cat) => (
+                    <SelectItem value={cat} key={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>From Date (optional)</Label>
+              <Input
+                type="date"
+                value={bulkFromDate ?? ""}
+                onChange={(e) => setBulkFromDate(e.target.value || null)}
+              />
+            </div>
+
+            <div>
+              <Label>To Date (optional)</Label>
+              <Input
+                type="date"
+                value={bulkToDate ?? ""}
+                onChange={(e) => setBulkToDate(e.target.value || null)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsBulkDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkReassign}>Reassign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Expense Modal */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+            <DialogDescription>Update the amount, date, or category for this expense.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Amount</Label>
+              <CurrencyInput value={editAmount ?? 0} onChange={(value) => setEditAmount(value)} />
+            </div>
+            <div>
+              <Label>Category</Label>
+              <Select value={editCategory} onValueChange={(value) => setEditCategory(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {expenseCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Date</Label>
+              <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveExpenseEdits}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -979,17 +1156,27 @@ export default function Expenses() {
                           <span>{new Date(expense.date).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          removeExpense(expense.id);
-                          toast.success("Expense removed");
-                        }}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditExpenseDialog(expense)}
+                          className="text-primary hover:bg-primary/10"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            removeExpense(expense.id);
+                            toast.success("Expense removed");
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
