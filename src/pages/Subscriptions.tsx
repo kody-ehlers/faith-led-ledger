@@ -136,7 +136,7 @@ export default function Subscriptions() {
       if (now < from) return false;
       if (entry.cancelledIndefinitely) return true;
       if (entry.cancelledTo) return now <= new Date(entry.cancelledTo);
-      return false;
+      return true;
     };
 
     const cancelledNow = isCancelledNow();

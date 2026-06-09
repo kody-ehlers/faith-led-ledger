@@ -159,7 +159,7 @@ export default function Home() {
         if (from > d) return false;
         if (entry.suspendedIndefinitely) return true;
         if (entry.suspendedTo) return d <= new Date(entry.suspendedTo);
-        return false;
+        return true;
       };
       if (inc.frequency === "One-time") {
         if (isSameDay(new Date(inc.date), dayOnly) && !isSuspendedOn(inc, dayOnly))
@@ -199,7 +199,7 @@ export default function Home() {
       if (from > d) return false;
       if (entry.cancelledIndefinitely) return true;
       if (entry.cancelledTo) return d <= new Date(entry.cancelledTo);
-      return false;
+      return true;
     };
     if (!isCancelledOn(b, dayOnly) && isRecurringOnDate(new Date(b.date), b.frequency, now)) {
       const paid = b.paidMonths?.includes(monthKey);
@@ -220,7 +220,7 @@ export default function Home() {
       if (from > d) return false;
       if (entry.cancelledIndefinitely) return true;
       if (entry.cancelledTo) return d <= new Date(entry.cancelledTo);
-      return false;
+      return true;
     };
     if (!isCancelledOn(s, dayOnly) && isRecurringOnDate(new Date(s.date), s.frequency, now)) {
       const paid = s.paidMonths?.includes(monthKey);
@@ -315,7 +315,7 @@ export default function Home() {
         if (d < fromOnly) return false;
         if (s.cancelledIndefinitely) return true;
         if (toOnly) return d <= toOnly;
-        return false;
+        return true;
       };
       if ((s.frequency as string) === "One-time") {
         if (isSameDay(new Date(s.date), dayOnly) && !isCancelledOn(dayOnly))
@@ -346,6 +346,7 @@ export default function Home() {
             const toOnly = parseDateOnly(b.cancelledTo);
             if (toOnly && dayOnly <= toOnly) return;
           }
+          return;
         }
       }
       const dayMonthKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}`;
