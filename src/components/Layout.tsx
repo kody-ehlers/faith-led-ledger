@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ export function Layout({ children }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const appName = useFinanceStore((state) => state.appName);
   const walletEnabled = useFinanceStore((state) => state.walletEnabled);
+  const theme = useFinanceStore((state) => state.theme);
+  const updateTheme = useFinanceStore((state) => state.updateTheme);
   const income = useFinanceStore((state) => state.income);
   const expenses = useFinanceStore((state) => state.expenses);
   const bills = useFinanceStore((state) => state.bills);
@@ -101,8 +103,17 @@ export function Layout({ children }: LayoutProps) {
 
   const hasReconciliation = reconciliationItems.length > 0;
 
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
   const toggleTheme = () => {
-    document.documentElement.classList.toggle("dark");
+    const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    updateTheme(next);
   };
 
   const handleSidebarToggle = () => {
