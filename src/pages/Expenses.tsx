@@ -39,7 +39,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, Trash2, Edit3, ShoppingCart, Settings, CalendarIcon, Church, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
+import DatePicker from "@/components/DatePicker";
 import {
   DndContext,
   closestCenter,
@@ -996,7 +997,7 @@ export default function Expenses() {
             <DialogDescription>Move expenses from one category to another over a date range.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>From Category</Label>
               <Select value={bulkFromCategory ?? ""} onValueChange={(value) => setBulkFromCategory(value || null)}>
                 <SelectTrigger className="w-full">
@@ -1010,7 +1011,7 @@ export default function Expenses() {
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>To Category</Label>
               <Select value={bulkToCategory ?? ""} onValueChange={(value) => setBulkToCategory(value || null)}>
                 <SelectTrigger className="w-full">
@@ -1024,22 +1025,36 @@ export default function Expenses() {
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>From Date (optional)</Label>
-              <Input
-                type="date"
-                value={bulkFromDate ?? ""}
-                onChange={(e) => setBulkFromDate(e.target.value || null)}
-              />
+              <div className="flex items-center gap-2">
+                <DatePicker
+                  selected={bulkFromDate ? parse(bulkFromDate, "yyyy-MM-dd", new Date()) : null}
+                  onSelect={(d) => setBulkFromDate(format(d, "yyyy-MM-dd"))}
+                  placeholder="Any start date"
+                />
+                {bulkFromDate && (
+                  <Button variant="ghost" size="sm" onClick={() => setBulkFromDate(null)}>
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>To Date (optional)</Label>
-              <Input
-                type="date"
-                value={bulkToDate ?? ""}
-                onChange={(e) => setBulkToDate(e.target.value || null)}
-              />
+              <div className="flex items-center gap-2">
+                <DatePicker
+                  selected={bulkToDate ? parse(bulkToDate, "yyyy-MM-dd", new Date()) : null}
+                  onSelect={(d) => setBulkToDate(format(d, "yyyy-MM-dd"))}
+                  placeholder="Any end date"
+                />
+                {bulkToDate && (
+                  <Button variant="ghost" size="sm" onClick={() => setBulkToDate(null)}>
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -1057,15 +1072,15 @@ export default function Expenses() {
             <DialogDescription>Update the amount, date, or category for this expense.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Name</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Amount</Label>
               <CurrencyInput value={editAmount ?? 0} onChange={(value) => setEditAmount(value)} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Category</Label>
               <Select value={editCategory} onValueChange={(value) => setEditCategory(value)}>
                 <SelectTrigger className="w-full">
@@ -1078,9 +1093,12 @@ export default function Expenses() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Date</Label>
-              <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              <DatePicker
+                selected={editDate ? parse(editDate, "yyyy-MM-dd", new Date()) : null}
+                onSelect={(d) => setEditDate(format(d, "yyyy-MM-dd"))}
+              />
             </div>
           </div>
           <DialogFooter>
