@@ -305,7 +305,7 @@ export default function Expenses() {
       name: editName.trim(),
       amount: editAmount,
       category: editCategory,
-      date: new Date(editDate).toISOString(),
+      date: parse(editDate, "yyyy-MM-dd", new Date()).toISOString(),
     });
     toast.success("Expense updated");
     setIsEditDialogOpen(false);
