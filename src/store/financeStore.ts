@@ -226,6 +226,7 @@ interface FinanceState {
   walletEnabled: boolean;
   expenseCategories: string[];
   cardOrders: Record<string, string[]>;
+  theme: "light" | "dark";
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -365,6 +366,7 @@ interface FinanceState {
   updateCardOrder: (page: string, order: string[]) => void;
   updateTimezone: (tz: string) => void;
   updateWalletEnabled: (enabled: boolean) => void;
+  updateTheme: (theme: "light" | "dark") => void;
   // Auto-hide settings (0 = never)
   autoHideCancelledMonths: number;
   autoHideCompletedMonths: number;
@@ -388,6 +390,7 @@ export const useFinanceStore = create<FinanceState>()(
       appName: "My Finances",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       walletEnabled: true,
+      theme: "light",
       expenseCategories: [
         "Groceries",
         "Dining",
