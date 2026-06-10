@@ -16,6 +16,13 @@ const SPECIAL_COLORS: Record<string, string> = {
   "Net Savings": "hsl(142, 70%, 45%)",
 };
 
+const getColorForIndex = (index: number) => {
+  const hue = (index * 35) % 360;
+  const saturation = 60 + ((index % 3) * 10);
+  const lightness = 45 + ((Math.floor(index / 3) % 2) * 8);
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+};
+
 interface ChartDataItem {
   name: string;
   value: number;
@@ -62,7 +69,7 @@ export default function CleanPieChart({ data, height = 300 }: CleanPieChartProps
           stroke="none"
         >
           {data.map((entry, index) => {
-            const color = SPECIAL_COLORS[entry.name] ?? COLORS[index % COLORS.length];
+            const color = SPECIAL_COLORS[entry.name] ?? getColorForIndex(index);
             return <Cell key={`cell-${index}`} fill={color} />;
           })}
         </Pie>

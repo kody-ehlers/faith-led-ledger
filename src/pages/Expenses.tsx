@@ -676,19 +676,6 @@ export default function Expenses() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedTemplateId !== "__none") {
-                      const template = savedExpenseTemplates.find((t) => t.id === selectedTemplateId);
-                      if (template) handleLoadTemplate(template);
-                    }
-                  }}
-                  disabled={selectedTemplateId === "__none"}
-                >
-                  Use selected
-                </Button>
-                <Button
                   variant="ghost"
                   size="sm"
                   className="text-destructive"

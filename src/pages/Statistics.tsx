@@ -8,9 +8,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format, addMonths, isAfter } from "date-fns";
-import { formatCurrency, dateIsSuspended } from "@/utils/calculations";
+import { formatCurrency, dateIsSuspended, getRecurringOccurrencesInMonth } from "@/utils/calculations";
 import CleanPieChart from "@/components/CleanPieChart";
-import {  Heart, Church } from "lucide-react";
+import { Heart, Church } from "lucide-react";
 
 type TimePeriod = "MTD" | "3M" | "6M" | "12M" | "YTD" | "MONTH";
 
@@ -49,23 +49,24 @@ export default function Statistics() {
   });
 
   const billsInPeriod = bills.reduce((sum, b) => {
-    // sum bill occurrences in the range (paidMonths, autopay, or monthly occurrences)
     const monthKeys: string[] = [];
     let m = startOfMonth(start);
     while (!isAfter(m, end)) { monthKeys.push(format(m, "yyyy-MM")); m = addMonths(m, 1); }
+
     let total = 0;
     monthKeys.forEach((mk) => {
       const [y, mm] = mk.split("-").map(Number);
-      // representative date for this month
-      const reprDate = new Date(y, mm - 1, Math.min(15, new Date(b.date).getDate()));
-      if (dateIsSuspended(reprDate, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) return;
-      if (b.paidMonths?.includes(mk)) {
-        total += b.variablePrice ? (b.monthlyPrices?.[mk] || b.amount) : b.amount;
-      } else if (b.autopay) {
-        const due = new Date(y, mm - 1, new Date(b.date).getDate());
-        if (due >= start && due <= end) total += b.amount;
-      }
+      const monthStart = new Date(y, mm - 1, 1);
+      const occurrences = getRecurringOccurrencesInMonth(new Date(b.date), b.frequency, monthStart);
+
+      occurrences.forEach((occurrence) => {
+        if (occurrence < start || occurrence > end) return;
+        if (dateIsSuspended(occurrence, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) return;
+        const monthKey = format(occurrence, "yyyy-MM");
+        total += b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
+      });
     });
+
     return sum + total;
   }, 0);
 
@@ -73,18 +74,21 @@ export default function Statistics() {
     const monthKeys: string[] = [];
     let m = startOfMonth(start);
     while (!isAfter(m, end)) { monthKeys.push(format(m, "yyyy-MM")); m = addMonths(m, 1); }
+
     let total = 0;
     monthKeys.forEach((mk) => {
       const [y, mm] = mk.split("-").map(Number);
-      const reprDate = new Date(y, mm - 1, Math.min(15, new Date(s.date).getDate()));
-      if (dateIsSuspended(reprDate, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) return;
-      if (s.paidMonths?.includes(mk)) {
-        total += s.variablePrice ? (s.monthlyPrices?.[mk] || s.amount) : s.amount;
-      } else if (s.autopay) {
-        const due = new Date(y, mm - 1, new Date(s.date).getDate());
-        if (due >= start && due <= end) total += s.amount;
-      }
+      const monthStart = new Date(y, mm - 1, 1);
+      const occurrences = getRecurringOccurrencesInMonth(new Date(s.date), s.frequency, monthStart);
+
+      occurrences.forEach((occurrence) => {
+        if (occurrence < start || occurrence > end) return;
+        if (dateIsSuspended(occurrence, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) return;
+        const monthKey = format(occurrence, "yyyy-MM");
+        total += s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
+      });
     });
+
     return sum + total;
   }, 0);
 

@@ -130,8 +130,6 @@ export default function DevOps() {
             return true;
         }
     };
-    const [showFixedBugs, setShowFixedBugs] = useState(false);
-    const [showFulfilledRequests, setShowFulfilledRequests] = useState(false);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
