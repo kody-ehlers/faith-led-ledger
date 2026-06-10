@@ -1235,6 +1235,11 @@ export const useFinanceStore = create<FinanceState>()(
           walletEnabled: enabled,
         })),
 
+      updateTheme: (theme) =>
+        set(() => ({
+          theme,
+        })),
+
       addExpenseCategory: (category) =>
         set((state) => ({
           expenseCategories: state.expenseCategories.includes(category)
