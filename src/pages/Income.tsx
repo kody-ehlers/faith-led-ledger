@@ -89,12 +89,51 @@ export default function Income() {
     | "Yearly"
     | "One-time";
 
+  const getPeriodKey = (frequency: Frequency, date: Date) => {
+    if (frequency === "Weekly" || frequency === "Biweekly" || frequency === "One-time") {
+      return date.toISOString().slice(0, 10); // YYYY-MM-DD
+    }
+    return date.toISOString().slice(0, 7); // YYYY-MM
+  };
+
+  const getPeriodDisplay = (frequency: Frequency, date: Date) => {
+    if (frequency === "Weekly") {
+      return `Week of ${format(date, "MMM d, yyyy")}`;
+    }
+    if (frequency === "Biweekly") {
+      return `Biweekly period starting ${format(date, "MMM d, yyyy")}`;
+    }
+    if (frequency === "One-time") {
+      return `One-time payment on ${format(date, "PPP")}`;
+    }
+    if (frequency === "Bimonthly") {
+      return `Bimonthly period of ${format(date, "MMMM yyyy")}`;
+    }
+    if (frequency === "Quarterly") {
+      return `Quarterly period of ${format(date, "QQQ yyyy")}`;
+    }
+    if (frequency === "Yearly") {
+      return `Year of ${format(date, "yyyy")}`;
+    }
+    return `Month of ${format(date, "MMMM yyyy")}`;
+  };
+
+  const advancePeriod = (frequency: Frequency, date: Date, direction: number) => {
+    if (frequency === "Weekly") return addDays(date, 7 * direction);
+    if (frequency === "Biweekly") return addDays(date, 14 * direction);
+    if (frequency === "Bimonthly") return addMonths(date, 2 * direction);
+    if (frequency === "Quarterly") return addMonths(date, 3 * direction);
+    if (frequency === "Yearly") return addYears(date, 1 * direction);
+    return addMonths(date, 1 * direction);
+  };
+
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("One-time");
   const [date, setDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
+  const [variablePay, setVariablePay] = useState(false);
   const [applyRetroactive, setApplyRetroactive] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -112,6 +151,11 @@ export default function Income() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
+  // Period amounts editor for Edit modal
+  const [isPeriodAmountsEditOpen, setIsPeriodAmountsEditOpen] = useState(false);
+  const [periodAmountsLocalEdit, setPeriodAmountsLocalEdit] = useState<Record<string, number>>({});
+  const [currentPeriodDateEdit, setCurrentPeriodDateEdit] = useState(new Date());
+
   const handleAddIncome = () => {
     if (!source.trim() || amount === null || amount <= 0 || !date) {
       toast.error("Please fill in all fields with valid values");
@@ -126,6 +170,8 @@ export default function Income() {
       date: date.toISOString(),
       assetId: walletEnabled ? assetId ?? undefined : undefined,
       notes: notes.trim(),
+      variablePay: variablePay,
+      periodAmounts: {},
     });
 
     // Retroactive application is now informational only — wallet sync handles actual allocation
@@ -164,6 +210,7 @@ export default function Income() {
     setNotes("");
     setAssetId(null);
     setApplyRetroactive(false);
+    setVariablePay(false);
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -363,14 +410,17 @@ export default function Income() {
 
           {/* Right: Amount + Notes + Edit/Delete */}
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "font-semibold w-24 text-right",
-                isPast ? "text-success" : "text-foreground"
-              )}
-            >
-              {formatCurrency(entry.amount)}
-            </span>
+            {(() => {
+              const now = new Date();
+              const periodKey = getPeriodKey(entry.frequency, now);
+              const currentOverride = entry.variablePay
+                ? entry.periodAmounts?.[periodKey] ?? entry.monthlyAmounts?.[periodKey] ?? null
+                : null;
+              const display = currentOverride !== null ? currentOverride : entry.amount;
+              return (
+                <span className={cn("font-semibold w-24 text-right", isPast ? "text-success" : "text-foreground")}>{formatCurrency(display)}</span>
+              );
+            })()}
             <div className="w-10 flex justify-center">
               {entry.notes && (
                 <Popover>
@@ -642,6 +692,7 @@ export default function Income() {
                     >
                       <TrendingUp className="mr-2 h-4 w-4" /> Adjust Pay
                     </Button>
+
 
                     <Button
                       variant="outline"
@@ -1004,6 +1055,12 @@ export default function Income() {
               </div>
             )}
 
+            {/* Variable pay toggle */}
+            <div className="md:col-span-2 flex items-center gap-3">
+              <Switch checked={variablePay} onCheckedChange={setVariablePay} id="variable-pay" />
+              <Label htmlFor="variable-pay" className="cursor-pointer">Variable pay (allow per-period overrides)</Label>
+            </div>
+
             {/* Apply Retroactive Toggle */}
             {walletEnabled && assetId && frequency !== "One-time" && (
               <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
@@ -1072,7 +1129,8 @@ export default function Income() {
 
       {/* Edit Modal */}
       {editingIncome && (
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <>
+          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Income</DialogTitle>
@@ -1172,6 +1230,24 @@ export default function Income() {
                   </Select>
                 </div>
               )}
+
+              {/* Variable pay toggle + open period editor */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                      <Switch checked={editingIncome.variablePay ?? false} onCheckedChange={(v) => setEditingIncome({ ...editingIncome, variablePay: v })} id="edit-variable-pay" />
+                  <Label className="cursor-pointer">Variable pay (allow per-period overrides)</Label>
+                  <div className="ml-auto">
+                    <Button variant="outline" onClick={() => {
+                      const initialDate = new Date();
+                      setPeriodAmountsLocalEdit(editingIncome.periodAmounts ? { ...editingIncome.periodAmounts } : editingIncome.monthlyAmounts ? { ...editingIncome.monthlyAmounts } : {});
+                      setCurrentPeriodDateEdit(initialDate);
+                      setIsPeriodAmountsEditOpen(true);
+                    }} disabled={!editingIncome.variablePay}>
+                      Set {editingIncome.frequency} Amounts
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>
@@ -1179,6 +1255,52 @@ export default function Income() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Period amounts dialog for Edit modal */}
+        <Dialog open={isPeriodAmountsEditOpen} onOpenChange={setIsPeriodAmountsEditOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Set {editingIncome?.frequency} Amounts</DialogTitle>
+            </DialogHeader>
+            <div>
+              {(() => {
+                const periodKey = getPeriodKey(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit);
+                const periodLabel = getPeriodDisplay(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit);
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPeriodDateEdit(advancePeriod(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit, -1))}>
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                      </Button>
+                      <h3 className="text-lg font-semibold">{periodLabel}</h3>
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPeriodDateEdit(advancePeriod(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit, 1))}>
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Amount for {periodLabel}</Label>
+                      <CurrencyInput value={periodAmountsLocalEdit[periodKey] ?? 0} onChange={(v) => { const copy = { ...periodAmountsLocalEdit }; copy[periodKey] = v ?? 0; setPeriodAmountsLocalEdit(copy); }} />
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">Saved: ${ (periodAmountsLocalEdit[periodKey] ?? 0).toFixed(2) }</div>
+                  </div>
+                );
+              })()}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsPeriodAmountsEditOpen(false)}>Done</Button>
+              <Button onClick={() => {
+                if (editingIncome) {
+                  updateIncome(editingIncome.id, { periodAmounts: periodAmountsLocalEdit, variablePay: true });
+                  toast.success(`${editingIncome.frequency} amounts saved`);
+                }
+                setIsPeriodAmountsEditOpen(false);
+              }}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        </>
       )}
       {/* Confirm edit/truncate history dialog */}
       <Dialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen}>

@@ -136,6 +136,36 @@ const toDateOnly = (d: Date) =>
 
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
 export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
+  // If entry supports variable pay and has a monthly override, prefer that
+  if (entry.variablePay) {
+    try {
+      const periodKey = (() => {
+        if (
+          entry.frequency === "Weekly" ||
+          entry.frequency === "Biweekly" ||
+          entry.frequency === "One-time"
+        ) {
+          return date.toISOString().slice(0, 10); // YYYY-MM-DD
+        }
+        return date.toISOString().slice(0, 7); // YYYY-MM
+      })();
+
+      if (
+        entry.periodAmounts &&
+        typeof entry.periodAmounts[periodKey] === "number"
+      ) {
+        return entry.periodAmounts[periodKey];
+      }
+      if (
+        entry.monthlyAmounts &&
+        typeof entry.monthlyAmounts[periodKey] === "number"
+      ) {
+        return entry.monthlyAmounts[periodKey];
+      }
+    } catch {
+      // fall through to changes/amount
+    }
+  }
   if (!entry.changes || entry.changes.length === 0) return entry.amount;
   const target = toDateOnly(date).getTime();
   // Ensure changes are processed in ascending start order

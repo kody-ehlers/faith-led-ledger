@@ -58,6 +58,8 @@ export default function Bills() {
     walletEnabled,
   } = useFinanceStore();
 
+  const autoHideCancelledMonths = useFinanceStore((s) => s.autoHideCancelledMonths);
+
   const [name, setName] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
@@ -971,7 +973,16 @@ export default function Bills() {
               const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
               return occurrences.length > 0;
             });
-            const ordered = getOrdered(thisMonthBills, cardOrders["bills-this"]);
+            const visibleThis = thisMonthBills.filter((b) => {
+              if (!autoHideCancelledMonths || autoHideCancelledMonths <= 0) return true;
+              if (!b.cancelledFrom) return true;
+              try {
+                const d = new Date(b.cancelledFrom);
+                const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                return months < autoHideCancelledMonths;
+              } catch { return true; }
+            });
+            const ordered = getOrdered(visibleThis, cardOrders["bills-this"]);
             return ordered.length === 0 ? (
               <p className="text-muted-foreground py-4">No bills due this month.</p>
             ) : (
@@ -1000,7 +1011,16 @@ export default function Bills() {
               const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
               return occurrences.length === 0;
             });
-            const ordered = getOrdered(otherBills, cardOrders["bills-other"]);
+            const visibleOther = otherBills.filter((b) => {
+              if (!autoHideCancelledMonths || autoHideCancelledMonths <= 0) return true;
+              if (!b.cancelledFrom) return true;
+              try {
+                const d = new Date(b.cancelledFrom);
+                const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                return months < autoHideCancelledMonths;
+              } catch { return true; }
+            });
+            const ordered = getOrdered(visibleOther, cardOrders["bills-other"]);
             return ordered.length === 0 ? (
               <p className="text-muted-foreground py-4">All bills are due this month.</p>
             ) : (

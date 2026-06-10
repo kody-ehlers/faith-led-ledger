@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useFinanceStore } from "@/store/financeStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ interface IssueItem {
     text: string;
     complete: boolean;
     createdAt: string;
+    completedAt?: string | null;
 }
 
 const BUGS_STORAGE_KEY = "finance-known-bugs";
@@ -35,6 +37,13 @@ export default function DevOps() {
     });
     const [newBug, setNewBug] = useState("");
     const [newRequest, setNewRequest] = useState("");
+    const autoHideCompletedMonths = useFinanceStore((s) => s.autoHideCompletedMonths);
+    const [showFixedBugs, setShowFixedBugs] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("devops-show-fixed-bugs") || "false"); } catch { return false; }
+    });
+    const [showFulfilledRequests, setShowFulfilledRequests] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("devops-show-fulfilled-requests") || "false"); } catch { return false; }
+    });
 
     useEffect(() => {
         try {
@@ -51,6 +60,14 @@ export default function DevOps() {
             /* ignore */
         }
     }, [requests]);
+
+    useEffect(() => {
+        try { localStorage.setItem("devops-show-fixed-bugs", JSON.stringify(showFixedBugs)); } catch {}
+    }, [showFixedBugs]);
+
+    useEffect(() => {
+        try { localStorage.setItem("devops-show-fulfilled-requests", JSON.stringify(showFulfilledRequests)); } catch {}
+    }, [showFulfilledRequests]);
 
     const addItem = (
         text: string,
@@ -78,8 +95,16 @@ export default function DevOps() {
         items: IssueItem[],
         setter: Dispatch<SetStateAction<IssueItem[]>>
     ) => {
-        setter(items.map((item) => (item.id === id ? { ...item, complete: !item.complete } : item)));
+        setter(items.map((item) => {
+            if (item.id !== id) return item;
+            if (!item.complete) {
+                return { ...item, complete: true, completedAt: new Date().toISOString() };
+            }
+            return { ...item, complete: false, completedAt: null };
+        }));
     };
+
+    const clearCompleted = (setter: Dispatch<SetStateAction<IssueItem[]>>) => setter((prev) => prev.filter((i) => !i.complete));
 
     const removeItem = (
         id: string,
@@ -92,6 +117,21 @@ export default function DevOps() {
     const fixedBugs = bugs.filter((item) => item.complete).length;
     const openRequests = requests.filter((item) => !item.complete).length;
     const fulfilledRequests = requests.filter((item) => item.complete).length;
+
+    const shouldShowCompleted = (completedAt?: string | null) => {
+        if (!completedAt) return true;
+        if (!autoHideCompletedMonths || autoHideCompletedMonths <= 0) return true;
+        try {
+            const d = new Date(completedAt);
+            const now = new Date();
+            const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+            return months < autoHideCompletedMonths;
+        } catch {
+            return true;
+        }
+    };
+    const [showFixedBugs, setShowFixedBugs] = useState(false);
+    const [showFulfilledRequests, setShowFulfilledRequests] = useState(false);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -171,7 +211,8 @@ export default function DevOps() {
                             </p>
                         ) : (
                             <div className="space-y-2">
-                                {bugs.map((bug) => (
+                                {/* Open bugs */}
+                                {bugs.filter((b) => !b.complete).map((bug) => (
                                     <div key={bug.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
                                         <button
                                             className={`rounded-full p-2 ${bug.complete ? "bg-success/10 text-success" : "bg-muted/10 text-muted-foreground"}`}
@@ -193,6 +234,43 @@ export default function DevOps() {
                                         </Button>
                                     </div>
                                 ))}
+
+                                {/* Completed bugs (collapsible) */}
+                                {bugs.some((b) => b.complete) && (
+                                    <div className="mt-2">
+                                            <div className="flex items-center justify-between">
+                                            <p className="text-sm text-muted-foreground">Fixed ({fixedBugs})</p>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => setShowFixedBugs((v) => !v)}>
+                                                    {showFixedBugs ? "Hide" : "Show"}
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => clearCompleted(setBugs)}>Clear completed</Button>
+                                            </div>
+                                        </div>
+                                        {showFixedBugs && (
+                                            <div className="mt-2 space-y-2">
+                                                {bugs.filter((b) => b.complete && shouldShowCompleted(b.completedAt ?? b.createdAt)).map((bug) => (
+                                                    <div key={bug.id} className="flex items-center gap-3 rounded-lg border border-border bg-muted/10 p-3">
+                                                        <button
+                                                            className={`rounded-full p-2 bg-success/10 text-success`}
+                                                            onClick={() => toggleItem(bug.id, bugs, setBugs)}
+                                                            aria-label="Mark bug open"
+                                                        >
+                                                            ✓
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm line-through text-muted-foreground">{bug.text}</p>
+                                                            <p className="text-xs text-muted-foreground">Completed {new Date(bug.completedAt ?? bug.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" onClick={() => removeItem(bug.id, setBugs)}>
+                                                            ✕
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -236,7 +314,8 @@ export default function DevOps() {
                             </p>
                         ) : (
                             <div className="space-y-2">
-                                {requests.map((request) => (
+                                {/* Open requests */}
+                                {requests.filter((r) => !r.complete).map((request) => (
                                     <div key={request.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
                                         <button
                                             className={`rounded-full p-2 ${request.complete ? "bg-success/10 text-success" : "bg-muted/10 text-muted-foreground"}`}
@@ -258,6 +337,43 @@ export default function DevOps() {
                                         </Button>
                                     </div>
                                 ))}
+
+                                {/* Completed requests (collapsible) */}
+                                {requests.some((r) => r.complete) && (
+                                    <div className="mt-2">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm text-muted-foreground">Fulfilled ({fulfilledRequests})</p>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => setShowFulfilledRequests((v) => !v)}>
+                                                    {showFulfilledRequests ? "Hide" : "Show"}
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => clearCompleted(setRequests)}>Clear completed</Button>
+                                            </div>
+                                        </div>
+                                        {showFulfilledRequests && (
+                                            <div className="mt-2 space-y-2">
+                                                {requests.filter((r) => r.complete && shouldShowCompleted(r.completedAt ?? r.createdAt)).map((request) => (
+                                                    <div key={request.id} className="flex items-center gap-3 rounded-lg border border-border bg-muted/10 p-3">
+                                                        <button
+                                                            className={`rounded-full p-2 bg-success/10 text-success`}
+                                                            onClick={() => toggleItem(request.id, requests, setRequests)}
+                                                            aria-label="Mark request open"
+                                                        >
+                                                            ✓
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm line-through text-muted-foreground">{request.text}</p>
+                                                            <p className="text-xs text-muted-foreground">Completed {new Date(request.completedAt ?? request.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" onClick={() => removeItem(request.id, setRequests)}>
+                                                            ✕
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>

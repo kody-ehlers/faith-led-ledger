@@ -26,6 +26,9 @@ export interface IncomeEntry {
     end?: string | null;
   }>;
   assetId?: string | null;
+  variablePay?: boolean;
+  periodAmounts?: { [period: string]: number };
+  monthlyAmounts?: { [month: string]: number };
 }
 
 export interface ExpenseEntry {
@@ -362,6 +365,11 @@ interface FinanceState {
   updateCardOrder: (page: string, order: string[]) => void;
   updateTimezone: (tz: string) => void;
   updateWalletEnabled: (enabled: boolean) => void;
+  // Auto-hide settings (0 = never)
+  autoHideCancelledMonths: number;
+  autoHideCompletedMonths: number;
+  updateAutoHideCancelledMonths: (months: number) => void;
+  updateAutoHideCompletedMonths: (months: number) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -1204,6 +1212,15 @@ export const useFinanceStore = create<FinanceState>()(
         set(() => ({
           appName: name,
         })),
+
+      autoHideCancelledMonths: 0,
+      autoHideCompletedMonths: 0,
+
+      updateAutoHideCancelledMonths: (months) =>
+        set(() => ({ autoHideCancelledMonths: months })),
+
+      updateAutoHideCompletedMonths: (months) =>
+        set(() => ({ autoHideCompletedMonths: months })),
 
       updateTimezone: (tz) =>
         set(() => ({

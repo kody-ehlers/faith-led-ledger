@@ -58,6 +58,8 @@ export default function Subscriptions() {
     walletEnabled,
   } = useFinanceStore();
 
+  const autoHideCancelledMonths = useFinanceStore((s) => s.autoHideCancelledMonths);
+
   const [name, setName] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
@@ -1020,12 +1022,23 @@ export default function Subscriptions() {
               const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
               return occurrences.length > 0;
             });
+            // Apply auto-hide filter for cancelled subscriptions
+            const visibleThisMonth = thisMonthSubs.filter((s) => {
+              if (!autoHideCancelledMonths || autoHideCancelledMonths <= 0) return true;
+              if (!s.cancelledFrom) return true;
+              try {
+                const d = new Date(s.cancelledFrom);
+                const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                return months < autoHideCancelledMonths;
+              } catch { return true; }
+            });
             const ordered = getOrdered(thisMonthSubs, cardOrders["subs-this"]);
-            return ordered.length === 0 ? (
+            const orderedVisible = getOrdered(visibleThisMonth, cardOrders["subs-this"]);
+            return orderedVisible.length === 0 ? (
               <p className="text-muted-foreground py-4">No subscriptions due this month.</p>
             ) : (
               <SortableCardGrid
-                items={ordered}
+                items={orderedVisible}
                 onReorder={(ids) => updateCardOrder("subs-this", ids)}
                 className="space-y-3"
                 layout="list"
@@ -1049,7 +1062,16 @@ export default function Subscriptions() {
               const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
               return occurrences.length === 0;
             });
-            const ordered = getOrdered(otherSubs, cardOrders["subs-other"]);
+            const visibleOther = otherSubs.filter((s) => {
+              if (!autoHideCancelledMonths || autoHideCancelledMonths <= 0) return true;
+              if (!s.cancelledFrom) return true;
+              try {
+                const d = new Date(s.cancelledFrom);
+                const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                return months < autoHideCancelledMonths;
+              } catch { return true; }
+            });
+            const ordered = getOrdered(visibleOther, cardOrders["subs-other"]);
             return ordered.length === 0 ? (
               <p className="text-muted-foreground py-4">All subscriptions are due this month.</p>
             ) : (

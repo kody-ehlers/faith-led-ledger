@@ -21,6 +21,9 @@ import { toast } from "sonner";
 import { Church, Settings as SettingsIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
+
+const HIDE_OPTIONS = [0, 1, 3, 6, 12];
+
 export default function Settings() {
   const appName = useFinanceStore((state) => state.appName);
   const timezone = useFinanceStore((state) => state.timezone);
@@ -30,6 +33,10 @@ export default function Settings() {
   const [localTimezone, setLocalTimezone] = useState(timezone);
   const walletEnabled = useFinanceStore((state) => state.walletEnabled);
   const updateWalletEnabled = useFinanceStore((state) => state.updateWalletEnabled);
+  const autoHideCancelledMonths = useFinanceStore((s) => s.autoHideCancelledMonths);
+  const autoHideCompletedMonths = useFinanceStore((s) => s.autoHideCompletedMonths);
+  const updateAutoHideCancelledMonths = useFinanceStore((s) => s.updateAutoHideCancelledMonths);
+  const updateAutoHideCompletedMonths = useFinanceStore((s) => s.updateAutoHideCompletedMonths);
 
 
   const handleSave = () => {
@@ -145,6 +152,44 @@ export default function Settings() {
             </p>
           </div>
           <Button onClick={handleSave}>Save Changes</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Auto-hide Inactive Items</CardTitle>
+          <CardDescription>Automatically hide old cancelled or completed items from lists</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Hide cancelled subscriptions/bills after</Label>
+              <Select value={String(autoHideCancelledMonths)} onValueChange={(v) => updateAutoHideCancelledMonths(parseInt(v, 10))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HIDE_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={String(m)}>{m === 0 ? "Never" : `${m} month${m > 1 ? "s" : ""}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Hide completed features/bugs after</Label>
+              <Select value={String(autoHideCompletedMonths)} onValueChange={(v) => updateAutoHideCompletedMonths(parseInt(v, 10))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HIDE_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={String(m)}>{m === 0 ? "Never" : `${m} month${m > 1 ? "s" : ""}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
