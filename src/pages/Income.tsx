@@ -7,6 +7,8 @@ import {
   calculatePostTaxIncomeReceivedSoFar,
   formatCurrency,
   getEntryIncomeForMonth,
+  getPeriodKey as getPeriodKeyForEntry,
+  getPeriodAnchor,
 } from "@/utils/calculations";
 import {
   ResponsiveContainer,
@@ -60,6 +62,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import DatePicker from "@/components/DatePicker";
+import VariableAmountsEditor from "@/components/VariableAmountsEditor";
 import {
   Dialog,
   DialogContent,
@@ -88,13 +91,6 @@ export default function Income() {
     | "Quarterly"
     | "Yearly"
     | "One-time";
-
-  const getPeriodKey = (frequency: Frequency, date: Date) => {
-    if (frequency === "Weekly" || frequency === "Biweekly" || frequency === "One-time") {
-      return date.toISOString().slice(0, 10); // YYYY-MM-DD
-    }
-    return date.toISOString().slice(0, 7); // YYYY-MM
-  };
 
   const getPeriodDisplay = (frequency: Frequency, date: Date) => {
     if (frequency === "Weekly") {
@@ -150,11 +146,6 @@ export default function Income() {
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
-
-  // Period amounts editor for Edit modal
-  const [isPeriodAmountsEditOpen, setIsPeriodAmountsEditOpen] = useState(false);
-  const [periodAmountsLocalEdit, setPeriodAmountsLocalEdit] = useState<Record<string, number>>({});
-  const [currentPeriodDateEdit, setCurrentPeriodDateEdit] = useState(new Date());
 
   const handleAddIncome = () => {
     if (!source.trim() || amount === null || amount <= 0 || !date) {
@@ -282,6 +273,8 @@ export default function Income() {
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
       assetId: editingIncome.assetId,
+      variablePay: editingIncome.variablePay,
+      periodAmounts: editingIncome.periodAmounts ?? {},
     };
 
     updateIncome(editingIncome.id, updates);
@@ -412,7 +405,7 @@ export default function Income() {
           <div className="flex items-center gap-2">
             {(() => {
               const now = new Date();
-              const periodKey = getPeriodKey(entry.frequency, now);
+              const periodKey = getPeriodKeyForEntry(entry, now);
               const currentOverride = entry.variablePay
                 ? entry.periodAmounts?.[periodKey] ?? entry.monthlyAmounts?.[periodKey] ?? null
                 : null;
@@ -1231,72 +1224,42 @@ export default function Income() {
                 </div>
               )}
 
-              {/* Variable pay toggle + open period editor */}
-              <div className="space-y-2">
+              {/* Variable pay toggle + inline per-period editor */}
+              <div className="space-y-3 rounded-md border border-border p-3">
                 <div className="flex items-center gap-3">
-                      <Switch checked={editingIncome.variablePay ?? false} onCheckedChange={(v) => setEditingIncome({ ...editingIncome, variablePay: v })} id="edit-variable-pay" />
-                  <Label className="cursor-pointer">Variable pay (allow per-period overrides)</Label>
-                  <div className="ml-auto">
-                    <Button variant="outline" onClick={() => {
-                      const initialDate = new Date();
-                      setPeriodAmountsLocalEdit(editingIncome.periodAmounts ? { ...editingIncome.periodAmounts } : editingIncome.monthlyAmounts ? { ...editingIncome.monthlyAmounts } : {});
-                      setCurrentPeriodDateEdit(initialDate);
-                      setIsPeriodAmountsEditOpen(true);
-                    }} disabled={!editingIncome.variablePay}>
-                      Set {editingIncome.frequency} Amounts
-                    </Button>
-                  </div>
+                  <Switch
+                    checked={editingIncome.variablePay ?? false}
+                    onCheckedChange={(v) =>
+                      setEditingIncome({ ...editingIncome, variablePay: v })
+                    }
+                    id="edit-variable-pay"
+                  />
+                  <Label
+                    htmlFor="edit-variable-pay"
+                    className="cursor-pointer"
+                  >
+                    Variable pay (per-period overrides)
+                  </Label>
                 </div>
+
+                {editingIncome.variablePay &&
+                  editingIncome.frequency !== "One-time" && (
+                    <VariableAmountsEditor
+                      entry={editingIncome}
+                      onChange={(map) =>
+                        setEditingIncome({
+                          ...editingIncome,
+                          periodAmounts: map,
+                        })
+                      }
+                      getPeriodDisplay={getPeriodDisplay}
+                    />
+                  )}
               </div>
             </div>
 
             <DialogFooter>
               <Button onClick={handleSaveEdit}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Period amounts dialog for Edit modal */}
-        <Dialog open={isPeriodAmountsEditOpen} onOpenChange={setIsPeriodAmountsEditOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Set {editingIncome?.frequency} Amounts</DialogTitle>
-            </DialogHeader>
-            <div>
-              {(() => {
-                const periodKey = getPeriodKey(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit);
-                const periodLabel = getPeriodDisplay(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit);
-                return (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Button variant="outline" size="icon" onClick={() => setCurrentPeriodDateEdit(advancePeriod(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit, -1))}>
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-                      </Button>
-                      <h3 className="text-lg font-semibold">{periodLabel}</h3>
-                      <Button variant="outline" size="icon" onClick={() => setCurrentPeriodDateEdit(advancePeriod(editingIncome?.frequency ?? "Monthly", currentPeriodDateEdit, 1))}>
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Amount for {periodLabel}</Label>
-                      <CurrencyInput value={periodAmountsLocalEdit[periodKey] ?? 0} onChange={(v) => { const copy = { ...periodAmountsLocalEdit }; copy[periodKey] = v ?? 0; setPeriodAmountsLocalEdit(copy); }} />
-                    </div>
-
-                    <div className="text-sm text-muted-foreground">Saved: ${ (periodAmountsLocalEdit[periodKey] ?? 0).toFixed(2) }</div>
-                  </div>
-                );
-              })()}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setIsPeriodAmountsEditOpen(false)}>Done</Button>
-              <Button onClick={() => {
-                if (editingIncome) {
-                  updateIncome(editingIncome.id, { periodAmounts: periodAmountsLocalEdit, variablePay: true });
-                  toast.success(`${editingIncome.frequency} amounts saved`);
-                }
-                setIsPeriodAmountsEditOpen(false);
-              }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
