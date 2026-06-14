@@ -146,11 +146,6 @@ export default function Income() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
-  // Period amounts editor for Edit modal
-  const [isPeriodAmountsEditOpen, setIsPeriodAmountsEditOpen] = useState(false);
-  const [periodAmountsLocalEdit, setPeriodAmountsLocalEdit] = useState<Record<string, number>>({});
-  const [currentPeriodDateEdit, setCurrentPeriodDateEdit] = useState(new Date());
-
   const handleAddIncome = () => {
     if (!source.trim() || amount === null || amount <= 0 || !date) {
       toast.error("Please fill in all fields with valid values");
