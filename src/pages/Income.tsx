@@ -62,6 +62,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import DatePicker from "@/components/DatePicker";
+import VariableAmountsEditor from "@/components/VariableAmountsEditor";
 import {
   Dialog,
   DialogContent,
