@@ -407,7 +407,7 @@ export default function Income() {
           <div className="flex items-center gap-2">
             {(() => {
               const now = new Date();
-              const periodKey = getPeriodKey(entry.frequency, now);
+              const periodKey = getPeriodKeyForEntry(entry, now);
               const currentOverride = entry.variablePay
                 ? entry.periodAmounts?.[periodKey] ?? entry.monthlyAmounts?.[periodKey] ?? null
                 : null;
