@@ -272,6 +272,8 @@ export default function Income() {
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
       assetId: editingIncome.assetId,
+      variablePay: editingIncome.variablePay,
+      periodAmounts: editingIncome.periodAmounts ?? {},
     };
 
     updateIncome(editingIncome.id, updates);
