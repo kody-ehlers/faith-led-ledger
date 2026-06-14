@@ -1124,105 +1124,107 @@ export default function Income() {
       {editingIncome && (
         <>
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Edit Income</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Source</Label>
-                <Input
-                  value={editingIncome.source}
-                  onChange={(e) =>
-                    setEditingIncome({
-                      ...editingIncome,
-                      source: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <div className="py-2 text-foreground font-medium">
-                  {formatCurrency(editingIncome.amount)}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Frequency</Label>
-                <Select
-                  value={editingIncome.frequency}
-                  onValueChange={(value: Frequency) =>
-                    setEditingIncome({ ...editingIncome, frequency: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="One-time">One-time</SelectItem>
-                    <SelectItem value="Weekly">Weekly</SelectItem>
-                    <SelectItem value="Biweekly">Biweekly</SelectItem>
-                    <SelectItem value="Monthly">Monthly</SelectItem>
-                    <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                    <SelectItem value="Quarterly">Quarterly</SelectItem>
-                    <SelectItem value="Yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Start Date</Label>
-                <div className="py-2 text-foreground">
-                  {editingIncome.date
-                    ? format(new Date(editingIncome.date), "PPP")
-                    : "-"}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Notes</Label>
-                <Input
-                  value={editingIncome.notes}
-                  onChange={(e) =>
-                    setEditingIncome({
-                      ...editingIncome,
-                      notes: e.target.value.slice(0, 200),
-                    })
-                  }
-                />
-              </div>
-
-              {walletEnabled && (
+            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Wallet</Label>
-                  <Select
-                    value={editingIncome.assetId ?? "__none"}
-                    onValueChange={(v) =>
+                  <Label>Source</Label>
+                  <Input
+                    value={editingIncome.source}
+                    onChange={(e) =>
                       setEditingIncome({
                         ...editingIncome,
-                        assetId: v === "__none" ? null : v,
+                        source: e.target.value,
                       })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <Select
+                    value={editingIncome.frequency}
+                    onValueChange={(value: Frequency) =>
+                      setEditingIncome({ ...editingIncome, frequency: value })
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">No Wallet Selected</SelectItem>
-                      {assets
-                        .filter((a) => a.type !== "Credit Card" && !a.closed)
-                        .map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.name} • {a.type}
-                          </SelectItem>
-                        ))}
+                      <SelectItem value="One-time">One-time</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
+                      <SelectItem value="Biweekly">Biweekly</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                      <SelectItem value="Quarterly">Quarterly</SelectItem>
+                      <SelectItem value="Yearly">Yearly</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label>Amount</Label>
+                  <div className="py-2 text-foreground font-medium">
+                    {formatCurrency(editingIncome.amount)}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <div className="py-2 text-foreground">
+                    {editingIncome.date
+                      ? format(new Date(editingIncome.date), "PPP")
+                      : "-"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Input
+                    value={editingIncome.notes}
+                    onChange={(e) =>
+                      setEditingIncome({
+                        ...editingIncome,
+                        notes: e.target.value.slice(0, 200),
+                      })
+                    }
+                  />
+                </div>
+
+                {walletEnabled && (
+                  <div className="space-y-2">
+                    <Label>Wallet</Label>
+                    <Select
+                      value={editingIncome.assetId ?? "__none"}
+                      onValueChange={(v) =>
+                        setEditingIncome({
+                          ...editingIncome,
+                          assetId: v === "__none" ? null : v,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No Wallet Selected</SelectItem>
+                        {assets
+                          .filter((a) => a.type !== "Credit Card" && !a.closed)
+                          .map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name} • {a.type}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
 
               {/* Variable pay toggle + inline per-period editor */}
               <div className="space-y-3 rounded-md border border-border p-3">
