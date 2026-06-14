@@ -7,6 +7,8 @@ import {
   calculatePostTaxIncomeReceivedSoFar,
   formatCurrency,
   getEntryIncomeForMonth,
+  getPeriodKey as getPeriodKeyForEntry,
+  getPeriodAnchor,
 } from "@/utils/calculations";
 import {
   ResponsiveContainer,
@@ -88,13 +90,6 @@ export default function Income() {
     | "Quarterly"
     | "Yearly"
     | "One-time";
-
-  const getPeriodKey = (frequency: Frequency, date: Date) => {
-    if (frequency === "Weekly" || frequency === "Biweekly" || frequency === "One-time") {
-      return date.toISOString().slice(0, 10); // YYYY-MM-DD
-    }
-    return date.toISOString().slice(0, 7); // YYYY-MM
-  };
 
   const getPeriodDisplay = (frequency: Frequency, date: Date) => {
     if (frequency === "Weekly") {
