@@ -134,21 +134,87 @@ export const getEntryIncomeForMonth = (
 const toDateOnly = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+// Format helpers using LOCAL date components (no timezone shifts)
+const localYMD = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+const localYM = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+/**
+ * Returns the START date of the recurring period (anchored to entry.date)
+ * that contains the given `date`. For dates before the entry start, returns
+ * the entry start. For One-time entries, always returns the entry date.
+ */
+export const getPeriodAnchor = (entry: IncomeEntry, date: Date): Date => {
+  const start = toDateOnly(new Date(entry.date));
+  const target = toDateOnly(date);
+  if (entry.frequency === "One-time") return start;
+  if (target.getTime() <= start.getTime()) return start;
+
+  switch (entry.frequency) {
+    case "Weekly": {
+      const days = Math.floor(
+        (target.getTime() - start.getTime()) / 86400000,
+      );
+      const periods = Math.floor(days / 7);
+      return addDays(start, periods * 7);
+    }
+    case "Biweekly": {
+      const days = Math.floor(
+        (target.getTime() - start.getTime()) / 86400000,
+      );
+      const periods = Math.floor(days / 14);
+      return addDays(start, periods * 14);
+    }
+    case "Monthly":
+    case "Bimonthly":
+    case "Quarterly":
+    case "Yearly": {
+      const step =
+        entry.frequency === "Monthly"
+          ? 1
+          : entry.frequency === "Bimonthly"
+            ? 2
+            : entry.frequency === "Quarterly"
+              ? 3
+              : 12;
+      const months =
+        (target.getFullYear() - start.getFullYear()) * 12 +
+        (target.getMonth() - start.getMonth());
+      // If target's day-of-month is before start's, we're not yet in that month's period
+      const adj = target.getDate() < start.getDate() ? -1 : 0;
+      const periods = Math.floor((months + adj) / step);
+      return addMonths(start, periods * step);
+    }
+    default:
+      return start;
+  }
+};
+
+/**
+ * Returns the period key used in `periodAmounts` for an entry on a given date.
+ * Always derived from the period's anchor so editor and calculator agree.
+ */
+export const getPeriodKey = (entry: IncomeEntry, date: Date): string => {
+  const anchor = getPeriodAnchor(entry, date);
+  if (
+    entry.frequency === "Weekly" ||
+    entry.frequency === "Biweekly" ||
+    entry.frequency === "One-time"
+  ) {
+    return localYMD(anchor);
+  }
+  return localYM(anchor);
+};
+
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
 export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   // If entry supports variable pay and has a monthly override, prefer that
   if (entry.variablePay) {
     try {
-      const periodKey = (() => {
-        if (
-          entry.frequency === "Weekly" ||
-          entry.frequency === "Biweekly" ||
-          entry.frequency === "One-time"
-        ) {
-          return date.toISOString().slice(0, 10); // YYYY-MM-DD
-        }
-        return date.toISOString().slice(0, 7); // YYYY-MM
-      })();
+      const periodKey = getPeriodKey(entry, date);
 
       if (
         entry.periodAmounts &&
@@ -161,6 +227,25 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
         typeof entry.monthlyAmounts[periodKey] === "number"
       ) {
         return entry.monthlyAmounts[periodKey];
+      }
+      // Back-compat: legacy keys produced via toISOString slice (may be off by tz)
+      const legacyKey =
+        entry.frequency === "Weekly" ||
+        entry.frequency === "Biweekly" ||
+        entry.frequency === "One-time"
+          ? date.toISOString().slice(0, 10)
+          : date.toISOString().slice(0, 7);
+      if (
+        entry.periodAmounts &&
+        typeof entry.periodAmounts[legacyKey] === "number"
+      ) {
+        return entry.periodAmounts[legacyKey];
+      }
+      if (
+        entry.monthlyAmounts &&
+        typeof entry.monthlyAmounts[legacyKey] === "number"
+      ) {
+        return entry.monthlyAmounts[legacyKey];
       }
     } catch {
       // fall through to changes/amount
