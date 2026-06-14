@@ -38,6 +38,7 @@ export interface ExpenseEntry {
   category: string;
   date: string;
   type: "need" | "want";
+  notes?: string;
   assetId?: string | null;
   dateRangeStart?: string | null;
   dateRangeEnd?: string | null;

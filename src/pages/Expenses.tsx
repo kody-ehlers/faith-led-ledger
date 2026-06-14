@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, Edit3, ShoppingCart, Settings, CalendarIcon, Church, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit3, ShoppingCart, Settings, CalendarIcon, Church, GripVertical, MessageSquareText } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse } from "date-fns";
 import DatePicker from "@/components/DatePicker";
@@ -115,6 +115,7 @@ export default function Expenses() {
   const [amount, setAmount] = useState<number | null>(null);
   const [category, setCategory] = useState(expenseCategories[0] || "Other");
   const [type, setType] = useState<"need" | "want">("need");
+  const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("__none");
 
@@ -147,6 +148,7 @@ export default function Expenses() {
   const [editAmount, setEditAmount] = useState<number | null>(null);
   const [editCategory, setEditCategory] = useState(expenseCategories[0] || "Other");
   const [editDate, setEditDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [editNotes, setEditNotes] = useState("");
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
@@ -184,6 +186,7 @@ export default function Expenses() {
         category,
         type,
         date: singleDate.toISOString(),
+        notes: notes.trim(),
         assetId: walletEnabled ? assetId ?? undefined : undefined,
       });
       toast.success("Expense added successfully");
@@ -241,6 +244,7 @@ export default function Expenses() {
           category,
           type,
           date: segment.startDate.toISOString(),
+          notes: notes.trim(),
           assetId: walletEnabled ? assetId ?? undefined : undefined,
           dateRangeStart: formatDateString(segment.startDate),
           dateRangeEnd: formatDateString(segment.endDate),
@@ -254,6 +258,7 @@ export default function Expenses() {
     setAmount(null);
     setCategory(expenseCategories[0] || "Other");
     setType("need");
+    setNotes("");
     setSelectedTemplateId("__none");
   };
 
@@ -292,6 +297,7 @@ export default function Expenses() {
     setEditAmount(expense.amount);
     setEditCategory(expense.category);
     setEditDate(expense.date.slice(0, 10));
+    setEditNotes(expense.notes ?? "");
     setIsEditDialogOpen(true);
   };
 
@@ -305,6 +311,7 @@ export default function Expenses() {
       name: editName.trim(),
       amount: editAmount,
       category: editCategory,
+      notes: editNotes.trim(),
       date: parse(editDate, "yyyy-MM-dd", new Date()).toISOString(),
     });
     toast.success("Expense updated");
@@ -597,6 +604,17 @@ export default function Expenses() {
                   <SelectItem value="want">Want</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expenseNotes">Notes (optional)</Label>
+              <Input
+                id="expenseNotes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value.slice(0, 200))}
+                placeholder="Add notes (max 200 chars)"
+                autoComplete="off"
+              />
             </div>
 
             {walletEnabled && (
@@ -916,6 +934,24 @@ export default function Expenses() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {expense.notes && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
+                                  aria-label="View notes"
+                                  title="View notes"
+                                >
+                                  <MessageSquareText className="h-4 w-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64">
+                                <p className="text-sm text-foreground">{expense.notes}</p>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1066,12 +1102,12 @@ export default function Expenses() {
 
       {/* Edit Expense Modal */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Expense</DialogTitle>
             <DialogDescription>Update the amount, date, or category for this expense.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Name</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -1099,6 +1135,10 @@ export default function Expenses() {
                 selected={editDate ? parse(editDate, "yyyy-MM-dd", new Date()) : null}
                 onSelect={(d) => setEditDate(format(d, "yyyy-MM-dd"))}
               />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Notes</Label>
+              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value.slice(0, 200))} placeholder="Add notes (max 200 chars)" />
             </div>
           </div>
           <DialogFooter>
@@ -1162,6 +1202,24 @@ export default function Expenses() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {expense.notes && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
+                                aria-label="View notes"
+                                title="View notes"
+                              >
+                                <MessageSquareText className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64">
+                              <p className="text-sm text-foreground">{expense.notes}</p>
+                            </PopoverContent>
+                          </Popover>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

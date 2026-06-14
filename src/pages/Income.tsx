@@ -1124,13 +1124,13 @@ export default function Income() {
       {editingIncome && (
         <>
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Edit Income</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Source</Label>
                   <Input
