@@ -266,15 +266,12 @@ export default function Income() {
   const handleSaveEdit = () => {
     if (!editingIncome || !editingIncome.source) return;
 
-    // Only allow editing non-amount/date fields here (source, frequency, preTax, notes)
     const updates: Partial<typeof editingIncome> = {
       source: editingIncome.source,
       frequency: editingIncome.frequency,
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
       assetId: editingIncome.assetId,
-      variablePay: editingIncome.variablePay,
-      periodAmounts: editingIncome.periodAmounts ?? {},
     };
 
     updateIncome(editingIncome.id, updates);
@@ -362,6 +359,12 @@ export default function Income() {
     const [adjustDate, setAdjustDate] = useState<Date>(new Date());
     // History dialog state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    // Variable pay dialog state
+    const [isVariablePayOpen, setIsVariablePayOpen] = useState(false);
+    const [vpEnabled, setVpEnabled] = useState(entry.variablePay ?? false);
+    const [vpOverrides, setVpOverrides] = useState<Record<string, number>>(
+      entry.periodAmounts ?? {}
+    );
 
     const suspendedNow = isCurrentlySuspended();
     const cardClass = cn(
@@ -650,6 +653,54 @@ export default function Income() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Variable Pay dialog (per-card) */}
+        <Dialog open={isVariablePayOpen} onOpenChange={setIsVariablePayOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Variable Pay</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={vpEnabled}
+                  onCheckedChange={setVpEnabled}
+                  id={`vp-toggle-${entry.id}`}
+                />
+                <Label htmlFor={`vp-toggle-${entry.id}`} className="cursor-pointer">
+                  Enable per-period overrides
+                </Label>
+              </div>
+
+              {vpEnabled && entry.frequency !== "One-time" && (
+                <VariableAmountsEditor
+                  entry={{ ...entry, variablePay: vpEnabled, periodAmounts: vpOverrides }}
+                  onChange={setVpOverrides}
+                  getPeriodDisplay={getPeriodDisplay}
+                />
+              )}
+
+              {vpEnabled && entry.frequency === "One-time" && (
+                <p className="text-sm text-muted-foreground">
+                  Variable pay is not applicable to one-time income.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  updateIncome(entry.id, {
+                    variablePay: vpEnabled,
+                    periodAmounts: vpEnabled ? vpOverrides : {},
+                  });
+                  toast.success(vpEnabled ? "Variable pay enabled" : "Variable pay disabled");
+                  setIsVariablePayOpen(false);
+                }}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Settings dialog (per-card) - collapses multiple actions into one place */}
         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
           <DialogContent className="sm:max-w-sm">
@@ -684,6 +735,18 @@ export default function Income() {
                       }}
                     >
                       <TrendingUp className="mr-2 h-4 w-4" /> Adjust Pay
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsSettingsOpen(false);
+                        setVpEnabled(entry.variablePay ?? false);
+                        setVpOverrides(entry.periodAmounts ?? {});
+                        setIsVariablePayOpen(true);
+                      }}
+                    >
+                      <DollarSign className="mr-2 h-4 w-4" /> Variable Pay
                     </Button>
 
 
@@ -1224,39 +1287,6 @@ export default function Income() {
                     </Select>
                   </div>
                 )}
-              </div>
-
-              {/* Variable pay toggle + inline per-period editor */}
-              <div className="space-y-3 rounded-md border border-border p-3">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={editingIncome.variablePay ?? false}
-                    onCheckedChange={(v) =>
-                      setEditingIncome({ ...editingIncome, variablePay: v })
-                    }
-                    id="edit-variable-pay"
-                  />
-                  <Label
-                    htmlFor="edit-variable-pay"
-                    className="cursor-pointer"
-                  >
-                    Variable pay (per-period overrides)
-                  </Label>
-                </div>
-
-                {editingIncome.variablePay &&
-                  editingIncome.frequency !== "One-time" && (
-                    <VariableAmountsEditor
-                      entry={editingIncome}
-                      onChange={(map) =>
-                        setEditingIncome({
-                          ...editingIncome,
-                          periodAmounts: map,
-                        })
-                      }
-                      getPeriodDisplay={getPeriodDisplay}
-                    />
-                  )}
               </div>
             </div>
 
