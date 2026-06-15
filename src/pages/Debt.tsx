@@ -246,7 +246,7 @@ export default function Debt() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Name</Label>
-                <Input placeholder="e.g., Student Loan" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Balance</Label>
@@ -258,15 +258,15 @@ export default function Debt() {
               </div>
               <div className="space-y-2">
                 <Label>Interest Rate (%)</Label>
-                <Input type="text" inputMode="decimal" placeholder="e.g., 5.25" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
+                <Input type="text" inputMode="decimal" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Term (months, optional)</Label>
-                <Input type="text" inputMode="numeric" placeholder="e.g., 120" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} />
+                <Input type="text" inputMode="numeric" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Notes (optional)</Label>
-                <Input placeholder="e.g., Federal loan" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
               <div className="flex items-center space-x-2">
                 <Switch checked={autopay} onCheckedChange={setAutopay} />
@@ -426,7 +426,6 @@ export default function Debt() {
                 <CurrencyInput
                   value={payInterest}
                   onChange={(v) => setPayInterest(v)}
-                  placeholder="Auto-calc"
                 />
               </div>
               <div className="space-y-2">

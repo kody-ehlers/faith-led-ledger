@@ -743,7 +743,6 @@ export default function Bills() {
                 <Input
                   value={cancelNote}
                   onChange={(e) => setCancelNote(e.target.value.slice(0, 200))}
-                  placeholder="Why cancel or pause?"
                 />
               </div>
             </div>
@@ -915,7 +914,6 @@ export default function Bills() {
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any additional notes..."
               />
             </div>
             <div className="flex items-center space-x-2">

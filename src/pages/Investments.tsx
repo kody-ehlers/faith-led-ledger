@@ -332,7 +332,7 @@ export default function Investments() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Investment Name</Label>
-                <Input placeholder="e.g., Roth IRA" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Initial Contribution</Label>
@@ -340,11 +340,11 @@ export default function Investments() {
               </div>
               <div className="space-y-2">
                 <Label>Expected Annual Return (%)</Label>
-                <Input type="text" inputMode="decimal" placeholder="e.g., 7" value={expectedReturn} onChange={(e) => setExpectedReturn(e.target.value)} />
+                <Input type="text" inputMode="decimal" value={expectedReturn} onChange={(e) => setExpectedReturn(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Notes (optional)</Label>
-                <Input placeholder="e.g., 401k, tax-advantaged" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
               <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
                 <Switch checked={autoDeposit} onCheckedChange={setAutoDeposit} id="auto-deposit" />
@@ -535,7 +535,7 @@ export default function Investments() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Amount</Label><CurrencyInput value={earningsAmount} onChange={(v) => setEarningsAmount(v)} /></div>
-            <div className="space-y-2"><Label>Type (optional)</Label><Input placeholder="e.g., Interest, Dividend" value={earningsDescription} onChange={(e) => setEarningsDescription(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Type (optional)</Label><Input value={earningsDescription} onChange={(e) => setEarningsDescription(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setEarningsTarget(null); setEarningsAmount(null); setEarningsDescription(""); }}>Cancel</Button>

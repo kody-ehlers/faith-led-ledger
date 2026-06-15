@@ -496,7 +496,6 @@ export default function Income() {
                   onChange={(e) =>
                     setSuspendComment(e.target.value.slice(0, 200))
                   }
-                  placeholder="Why is this suspended?"
                 />
               </div>
             </div>
@@ -539,7 +538,6 @@ export default function Income() {
                 <CurrencyInput
                   value={parseFloat(adjustAmount) || null}
                   onChange={(v) => setAdjustAmount(v !== null ? v.toString() : "")}
-                  placeholder="0.00"
                 />
               </div>
 
@@ -1001,7 +999,6 @@ export default function Income() {
                 id="source"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                placeholder="e.g., Salary, Freelance"
                 autoComplete="off"
               />
             </div>
@@ -1082,7 +1079,6 @@ export default function Income() {
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value.slice(0, 200))}
-                placeholder="Add notes (max 200 chars)"
               />
             </div>
 
@@ -1187,107 +1183,105 @@ export default function Income() {
       {editingIncome && (
         <>
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Income</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
-              <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Source</Label>
+                <Input
+                  value={editingIncome.source}
+                  onChange={(e) =>
+                    setEditingIncome({
+                      ...editingIncome,
+                      source: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <div className="py-2 text-foreground font-medium">
+                  {formatCurrency(editingIncome.amount)}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select
+                  value={editingIncome.frequency}
+                  onValueChange={(value: Frequency) =>
+                    setEditingIncome({ ...editingIncome, frequency: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="One-time">One-time</SelectItem>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Biweekly">Biweekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Bimonthly">Bimonthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <div className="py-2 text-foreground">
+                  {editingIncome.date
+                    ? format(new Date(editingIncome.date), "PPP")
+                    : "-"}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input
+                  value={editingIncome.notes}
+                  onChange={(e) =>
+                    setEditingIncome({
+                      ...editingIncome,
+                      notes: e.target.value.slice(0, 200),
+                    })
+                  }
+                />
+              </div>
+
+              {walletEnabled && (
                 <div className="space-y-2">
-                  <Label>Source</Label>
-                  <Input
-                    value={editingIncome.source}
-                    onChange={(e) =>
+                  <Label>Wallet</Label>
+                  <Select
+                    value={editingIncome.assetId ?? "__none"}
+                    onValueChange={(v) =>
                       setEditingIncome({
                         ...editingIncome,
-                        source: e.target.value,
+                        assetId: v === "__none" ? null : v,
                       })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Frequency</Label>
-                  <Select
-                    value={editingIncome.frequency}
-                    onValueChange={(value: Frequency) =>
-                      setEditingIncome({ ...editingIncome, frequency: value })
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="One-time">One-time</SelectItem>
-                      <SelectItem value="Weekly">Weekly</SelectItem>
-                      <SelectItem value="Biweekly">Biweekly</SelectItem>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Bimonthly">Bimonthly</SelectItem>
-                      <SelectItem value="Quarterly">Quarterly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
+                      <SelectItem value="__none">No Wallet Selected</SelectItem>
+                      {assets
+                        .filter((a) => a.type !== "Credit Card" && !a.closed)
+                        .map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} • {a.type}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Amount</Label>
-                  <div className="py-2 text-foreground font-medium">
-                    {formatCurrency(editingIncome.amount)}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  <div className="py-2 text-foreground">
-                    {editingIncome.date
-                      ? format(new Date(editingIncome.date), "PPP")
-                      : "-"}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Input
-                    value={editingIncome.notes}
-                    onChange={(e) =>
-                      setEditingIncome({
-                        ...editingIncome,
-                        notes: e.target.value.slice(0, 200),
-                      })
-                    }
-                  />
-                </div>
-
-                {walletEnabled && (
-                  <div className="space-y-2">
-                    <Label>Wallet</Label>
-                    <Select
-                      value={editingIncome.assetId ?? "__none"}
-                      onValueChange={(v) =>
-                        setEditingIncome({
-                          ...editingIncome,
-                          assetId: v === "__none" ? null : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">No Wallet Selected</SelectItem>
-                        {assets
-                          .filter((a) => a.type !== "Credit Card" && !a.closed)
-                          .map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name} • {a.type}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             <DialogFooter>

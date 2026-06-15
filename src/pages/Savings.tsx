@@ -177,7 +177,6 @@ export default function Savings() {
               <Input
                 type="text"
                 inputMode="decimal"
-                placeholder="e.g., 4.5"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
               />

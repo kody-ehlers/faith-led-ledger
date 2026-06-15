@@ -789,7 +789,6 @@ export default function Subscriptions() {
                 <Input
                   value={cancelNote}
                   onChange={(e) => setCancelNote(e.target.value.slice(0, 200))}
-                  placeholder="Why cancel or pause?"
                 />
               </div>
             </div>
@@ -906,7 +905,6 @@ export default function Subscriptions() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Netflix"
               />
             </div>
 

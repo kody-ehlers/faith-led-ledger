@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Trash2, Edit3, ShoppingCart, Settings, CalendarIcon, Church, GripVertical, MessageSquareText } from "lucide-react";
+import { Plus, Trash2, CreditCard as Edit3, ShoppingCart, Settings, Calendar as CalendarIcon, Church, GripVertical, MessageSquareText } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse } from "date-fns";
 import DatePicker from "@/components/DatePicker";
@@ -476,7 +476,6 @@ export default function Expenses() {
               <Label htmlFor="expenseName">Expense Name</Label>
               <Input
                 id="expenseName"
-                placeholder="e.g., Grocery shopping"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="off"
@@ -612,7 +611,6 @@ export default function Expenses() {
                 id="expenseNotes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value.slice(0, 200))}
-                placeholder="Add notes (max 200 chars)"
                 autoComplete="off"
               />
             </div>
@@ -992,7 +990,6 @@ export default function Expenses() {
                 <Input
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="e.g., Subscriptions"
                   onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                 />
                 <Button onClick={handleAddCategory}>
@@ -1138,7 +1135,7 @@ export default function Expenses() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Notes</Label>
-              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value.slice(0, 200))} placeholder="Add notes (max 200 chars)" />
+              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value.slice(0, 200))} />
             </div>
           </div>
           <DialogFooter>

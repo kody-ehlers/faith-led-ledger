@@ -36,7 +36,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Percent, SquarePen, Heart, TrashIcon, Church } from "lucide-react";
+import { History, Percent, SquarePen, Heart, Trash as TrashIcon, Church } from "lucide-react";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 export default function Wallet() {
@@ -421,7 +421,6 @@ export default function Wallet() {
                 <Input
                   type="text"
                   inputMode="decimal"
-                  placeholder="e.g., 4.5"
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
                 />
@@ -731,7 +730,7 @@ export default function Wallet() {
             </div>
             <div className="space-y-2">
               <Label>Date</Label>
-              <DatePicker selected={txEditDate ?? undefined} onSelect={(d) => setTxEditDate(d)} placeholder="Pick a date" />
+              <DatePicker selected={txEditDate ?? undefined} onSelect={(d) => setTxEditDate(d)} />
             </div>
           </div>
           <DialogFooter>
@@ -998,7 +997,6 @@ export default function Wallet() {
               <Input
                 type="text"
                 inputMode="decimal"
-                placeholder="e.g., 4.5"
                 value={apyNewRate}
                 onChange={(e) => setApyNewRate(e.target.value)}
               />
@@ -1158,7 +1156,6 @@ export default function Wallet() {
               <Input
                 value={transferMemo}
                 onChange={(e) => setTransferMemo(e.target.value)}
-                placeholder="e.g., Monthly transfer"
               />
             </div>
           </div>
