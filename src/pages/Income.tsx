@@ -130,6 +130,7 @@ export default function Income() {
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
   const [variablePay, setVariablePay] = useState(false);
+  const [notTitheable, setNotTitheable] = useState(false);
   const [applyRetroactive, setApplyRetroactive] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -163,6 +164,7 @@ export default function Income() {
       notes: notes.trim(),
       variablePay: variablePay,
       periodAmounts: {},
+      notTitheable: notTitheable,
     });
 
     // Retroactive application is now informational only — wallet sync handles actual allocation
@@ -202,6 +204,7 @@ export default function Income() {
     setAssetId(null);
     setApplyRetroactive(false);
     setVariablePay(false);
+    setNotTitheable(false);
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -272,6 +275,7 @@ export default function Income() {
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
       assetId: editingIncome.assetId,
+      notTitheable: editingIncome.notTitheable,
     };
 
     updateIncome(editingIncome.id, updates);
