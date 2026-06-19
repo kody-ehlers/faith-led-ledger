@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Button } from "@/components/ui/button";
 import { IncomeEntry } from "@/store/financeStore";
-import { getPeriodAnchor, getPeriodKey } from "@/utils/calculations";
+import { getPeriodKey } from "@/utils/calculations";
 import { addDays, addMonths, addYears } from "date-fns";
 import { X } from "lucide-react";
 
@@ -12,52 +12,87 @@ type Props = {
   getPeriodDisplay: (frequency: IncomeEntry["frequency"], date: Date) => string;
 };
 
-const BASE_BACK = 3;
-const BASE_FORWARD = 8;
+const PAGE_SIZE = 12;
 
-function advanceAnchor(date: Date, frequency: IncomeEntry["frequency"], direction: number): Date {
+function stepFromStart(start: Date, frequency: IncomeEntry["frequency"], n: number): Date {
   switch (frequency) {
     case "Weekly":
-      return addDays(date, 7 * direction);
+      return addDays(start, 7 * n);
     case "Biweekly":
-      return addDays(date, 14 * direction);
+      return addDays(start, 14 * n);
     case "Bimonthly":
-      return addMonths(date, 2 * direction);
+      return addMonths(start, 2 * n);
     case "Quarterly":
-      return addMonths(date, 3 * direction);
+      return addMonths(start, 3 * n);
     case "Yearly":
-      return addYears(date, 1 * direction);
+      return addYears(start, n);
     case "Monthly":
-      return addMonths(date, 1 * direction);
+      return addMonths(start, n);
     default:
-      return date;
+      return start;
+  }
+}
+
+function currentPeriodIndex(start: Date, frequency: IncomeEntry["frequency"], today: Date): number {
+  if (today.getTime() <= start.getTime()) return 0;
+  switch (frequency) {
+    case "Weekly":
+      return Math.floor((today.getTime() - start.getTime()) / (7 * 86400000));
+    case "Biweekly":
+      return Math.floor((today.getTime() - start.getTime()) / (14 * 86400000));
+    case "Monthly":
+    case "Bimonthly":
+    case "Quarterly":
+    case "Yearly": {
+      const step =
+        frequency === "Monthly" ? 1 : frequency === "Bimonthly" ? 2 : frequency === "Quarterly" ? 3 : 12;
+      const months =
+        (today.getFullYear() - start.getFullYear()) * 12 +
+        (today.getMonth() - start.getMonth());
+      const adj = today.getDate() < start.getDate() ? -1 : 0;
+      return Math.max(0, Math.floor((months + adj) / step));
+    }
+    default:
+      return 0;
   }
 }
 
 export default function VariableAmountsEditor({ entry, onChange, getPeriodDisplay }: Props) {
-  const [extraBack, setExtraBack] = useState(0);
-  const [extraForward, setExtraForward] = useState(0);
+  // Normalize the entry's start date to local noon to avoid TZ drift
+  const start = useMemo(() => {
+    const d = new Date(entry.date);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+  }, [entry.date]);
+
+  const todayIndex = useMemo(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return currentPeriodIndex(start, entry.frequency, today);
+  }, [start, entry.frequency]);
+
+  // Start by showing 3 past + 8 future periods around today, anchored to entry.start.
+  const [fromIndex, setFromIndex] = useState(() => Math.max(0, todayIndex - 3));
+  const [toIndex, setToIndex] = useState(() => todayIndex + 8);
 
   const periods = useMemo(() => {
-    const todayAnchor = getPeriodAnchor(entry, new Date());
-    const startEntry = new Date(entry.date);
-    const rows: { key: string; label: string; anchor: Date; isCurrent: boolean }[] = [];
-    const back = BASE_BACK + extraBack;
-    const forward = BASE_FORWARD + extraForward;
-    for (let i = -back; i <= forward; i++) {
-      const anchor = advanceAnchor(todayAnchor, entry.frequency, i);
-      // Don't show periods before the entry started
-      if (anchor.getTime() < new Date(startEntry.getFullYear(), startEntry.getMonth(), startEntry.getDate()).getTime()) continue;
+    const rows: { key: string; label: string; anchor: Date; isCurrent: boolean; index: number }[] = [];
+    const seen = new Set<string>();
+    for (let i = fromIndex; i <= toIndex; i++) {
+      if (i < 0) continue;
+      const anchor = stepFromStart(start, entry.frequency, i);
       const key = getPeriodKey(entry, anchor);
+      if (seen.has(key)) continue; // safety against any duplicate keys
+      seen.add(key);
       rows.push({
         key,
         anchor,
         label: getPeriodDisplay(entry.frequency, anchor),
-        isCurrent: i === 0,
+        isCurrent: i === todayIndex,
+        index: i,
       });
     }
     return rows;
-  }, [entry, extraBack, extraForward, getPeriodDisplay]);
+  }, [start, entry.frequency, entry, fromIndex, toIndex, todayIndex, getPeriodDisplay]);
 
   const overrides = entry.periodAmounts ?? {};
 
@@ -83,7 +118,8 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setExtraBack((n) => n + 6)}
+          disabled={fromIndex <= 0}
+          onClick={() => setFromIndex((n) => Math.max(0, n - PAGE_SIZE))}
         >
           Load earlier periods
         </Button>
@@ -133,7 +169,7 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setExtraForward((n) => n + 6)}
+          onClick={() => setToIndex((n) => n + PAGE_SIZE)}
         >
           Load later periods
         </Button>
