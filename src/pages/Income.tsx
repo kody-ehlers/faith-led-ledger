@@ -401,6 +401,12 @@ export default function Income() {
               {entry.frequency !== "One-time" && <span>{entry.frequency}</span>}
               {entry.frequency !== "One-time" && <span>•</span>}
               <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
+              {entry.notTitheable && (
+                <>
+                  <span>•</span>
+                  <span className="text-accent font-medium">Not titheable</span>
+                </>
+              )}
               {entry.frequency === "One-time" && <span>•</span>}
               {entry.frequency === "One-time" && (
                 <span>{format(new Date(entry.date), "PPP")}</span>
@@ -1117,6 +1123,18 @@ export default function Income() {
               <Label htmlFor="variable-pay" className="cursor-pointer">Variable pay (allow per-period overrides)</Label>
             </div>
 
+            {/* Titheable toggle */}
+            <div className="md:col-span-2 flex items-center gap-3">
+              <Switch
+                checked={!notTitheable}
+                onCheckedChange={(v) => setNotTitheable(!v)}
+                id="titheable"
+              />
+              <Label htmlFor="titheable" className="cursor-pointer">
+                Titheable income (counts toward 10% tithe)
+              </Label>
+            </div>
+
             {/* Apply Retroactive Toggle */}
             {walletEnabled && assetId && frequency !== "One-time" && (
               <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
@@ -1286,6 +1304,19 @@ export default function Income() {
                   </Select>
                 </div>
               )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <Switch
+                  checked={!editingIncome.notTitheable}
+                  onCheckedChange={(v) =>
+                    setEditingIncome({ ...editingIncome, notTitheable: !v })
+                  }
+                  id="edit-titheable"
+                />
+                <Label htmlFor="edit-titheable" className="cursor-pointer">
+                  Titheable income (counts toward 10% tithe)
+                </Label>
+              </div>
             </div>
 
             <DialogFooter>
