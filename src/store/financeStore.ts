@@ -29,6 +29,7 @@ export interface IncomeEntry {
   variablePay?: boolean;
   periodAmounts?: { [period: string]: number };
   monthlyAmounts?: { [month: string]: number };
+  notTitheable?: boolean;
 }
 
 export interface ExpenseEntry {
