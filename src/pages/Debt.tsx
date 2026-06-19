@@ -22,12 +22,13 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import DatePicker from "@/components/DatePicker";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 
 // Amortization row
 interface AmortRow {
   month: number;
+  date: Date;
   payment: number;
   principal: number;
   interest: number;
@@ -35,11 +36,22 @@ interface AmortRow {
 }
 
 function buildAmortization(
-  balance: number, annualRate: number, monthlyPayment: number, maxMonths = 360
-): AmortRow[] {
+  balance: number,
+  annualRate: number,
+  monthlyPayment: number,
+  startDate: Date,
+  maxMonths = 600,
+): { rows: AmortRow[]; willPayOff: boolean } {
   const rows: AmortRow[] = [];
   let remaining = balance;
   const monthlyRate = annualRate / 100 / 12;
+
+  // If payment cannot cover the first month's interest, amortization is impossible.
+  const firstInterest = remaining * monthlyRate;
+  if (monthlyPayment <= firstInterest + 0.0001 && remaining > 0) {
+    return { rows: [], willPayOff: false };
+  }
+
   for (let i = 1; i <= maxMonths && remaining > 0.01; i++) {
     const interestCharge = remaining * monthlyRate;
     const payment = Math.min(monthlyPayment, remaining + interestCharge);
@@ -47,13 +59,14 @@ function buildAmortization(
     remaining = Math.max(0, remaining - principal);
     rows.push({
       month: i,
+      date: addMonths(startDate, i - 1),
       payment: parseFloat(payment.toFixed(2)),
       principal: parseFloat(principal.toFixed(2)),
       interest: parseFloat(interestCharge.toFixed(2)),
       balance: parseFloat(remaining.toFixed(2)),
     });
   }
-  return rows;
+  return { rows, willPayOff: remaining <= 0.01 };
 }
 
 export default function Debt() {
@@ -178,10 +191,17 @@ export default function Debt() {
 
   // Amortization table for selected debt
   const amortDebt = debts.find((d) => d.id === amortTarget);
-  const amortTable = useMemo(() => {
-    if (!amortDebt) return [];
-    return buildAmortization(amortDebt.balance, amortDebt.interestRate, amortDebt.minimumPayment);
+  const amortResult = useMemo(() => {
+    if (!amortDebt) return { rows: [], willPayOff: true };
+    const start = amortDebt.dueDate ? new Date(amortDebt.dueDate) : new Date();
+    return buildAmortization(
+      amortDebt.balance,
+      amortDebt.interestRate,
+      amortDebt.minimumPayment,
+      start,
+    );
   }, [amortDebt]);
+  const amortTable = amortResult.rows;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -492,7 +512,13 @@ export default function Debt() {
                   <span className="font-semibold">{formatCurrency(amortDebt.minimumPayment)}</span>
                 </div>
               </div>
-              {amortTable.length > 0 && (
+              {!amortResult.willPayOff ? (
+                <div className="text-sm text-destructive font-medium border border-destructive/30 bg-destructive/5 rounded p-3">
+                  The minimum payment ({formatCurrency(amortDebt.minimumPayment)}) is not enough to cover the monthly interest
+                  ({formatCurrency((amortDebt.balance * amortDebt.interestRate) / 100 / 12)}).
+                  Increase the payment to make progress.
+                </div>
+              ) : amortTable.length > 0 && (
                 <div className="text-sm text-muted-foreground">
                   Payoff in <strong>{amortTable.length}</strong> months ({(amortTable.length / 12).toFixed(1)} years) •
                   Total Interest: <strong className="text-destructive">{formatCurrency(amortTable.reduce((s, r) => s + r.interest, 0))}</strong>
@@ -503,6 +529,7 @@ export default function Debt() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Month</TableHead>
+                      <TableHead>Date</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Principal</TableHead>
                       <TableHead>Interest</TableHead>
@@ -513,6 +540,7 @@ export default function Debt() {
                     {amortTable.map((row) => (
                       <TableRow key={row.month}>
                         <TableCell>{row.month}</TableCell>
+                        <TableCell>{format(row.date, "MMM yyyy")}</TableCell>
                         <TableCell>{formatCurrency(row.payment)}</TableCell>
                         <TableCell className="text-success">{formatCurrency(row.principal)}</TableCell>
                         <TableCell className="text-destructive">{formatCurrency(row.interest)}</TableCell>
