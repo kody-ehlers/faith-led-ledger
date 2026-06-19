@@ -466,6 +466,7 @@ export const calculatePostTaxIncomeForMonth = (
 
   for (const entry of income) {
     if (entry.preTax) continue; // skip pre-tax incomes for tithe
+    if (entry.notTitheable) continue; // user-marked non-titheable
 
     const start = new Date(entry.date);
 
@@ -559,6 +560,7 @@ export const calculatePostTaxIncomeReceivedSoFar = (
 
   for (const entry of income) {
     if (entry.preTax) continue;
+    if (entry.notTitheable) continue; // user-marked non-titheable
 
     const start = new Date(entry.date);
 

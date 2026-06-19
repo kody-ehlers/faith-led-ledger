@@ -15,7 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { calculatePostTaxIncomeForMonth, formatCurrency } from "@/utils/calculations";
+import {
+  calculatePostTaxIncomeForMonth,
+  formatCurrency,
+  getRecurringOccurrencesInMonth,
+} from "@/utils/calculations";
 import { Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
 import {
   startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, isBefore, isAfter,
@@ -157,83 +161,76 @@ export default function Budget() {
 
   // Calculate fixed monthly costs
   const calculateFixedCosts = () => {
+    const monthKeys = getMonthKeysInRange();
+    const today = new Date();
+
+    const isCancelled = (
+      item: { cancelledFrom?: string | null; cancelledTo?: string | null; cancelledIndefinitely?: boolean },
+      date: Date
+    ) => {
+      if (!item.cancelledFrom) return false;
+      const from = new Date(item.cancelledFrom);
+      if (date < from) return false;
+      if (item.cancelledIndefinitely) return true;
+      if (item.cancelledTo) return date <= new Date(item.cancelledTo);
+      return false;
+    };
+
+    const sumRecurringForMonth = <T extends {
+      amount: number;
+      date: string;
+      frequency: string;
+      autopay?: boolean;
+      variablePrice?: boolean;
+      monthlyPrices?: { [m: string]: number };
+      paidMonths?: string[];
+      cancelledFrom?: string | null;
+      cancelledTo?: string | null;
+      cancelledIndefinitely?: boolean;
+    }>(item: T, monthKey: string, mtdOnly: boolean): number => {
+      const [year, month] = monthKey.split("-").map(Number);
+      const monthStartDate = new Date(year, month - 1, 1);
+      const monthEndDate = new Date(year, month, 0);
+
+      // If item hasn't started by this month, nothing to count
+      const startDate = new Date(item.date);
+      if (startDate > monthEndDate) return 0;
+
+      // Paid this month → use override price if variable, else base
+      if (item.paidMonths?.includes(monthKey)) {
+        return item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
+      }
+
+      if (!item.autopay) return 0;
+
+      // Count autopay occurrences in this month (respect cancellation, MTD cutoff)
+      const occurrences = getRecurringOccurrencesInMonth(
+        startDate,
+        item.frequency as never,
+        monthStartDate
+      );
+      const cutoff = mtdOnly && isSameMonth(monthStartDate, today) ? today : monthEndDate;
+      const counted = occurrences.filter((occ) => occ <= cutoff && !isCancelled(item, occ));
+      const price = item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
+      return counted.length * price;
+    };
+
     let totalBills = 0;
     let totalSubs = 0;
-    let totalDebt = 0;
-    let totalTithe = 0;
+    for (const key of monthKeys) {
+      for (const b of bills) totalBills += sumRecurringForMonth(b, key, timeframe === "single");
+      for (const s of subscriptions) totalSubs += sumRecurringForMonth(s, key, timeframe === "single");
+    }
 
-    // For single month view, show MTD for current month; for multi-month, show averages
-    if (timeframe === "single") {
-      totalBills = bills.reduce((sum, b) => {
-        if (b.paidMonths?.includes(currentMonthKey)) {
-          return sum + (b.variablePrice ? (b.monthlyPrices?.[currentMonthKey] || b.amount) : b.amount);
-        }
-        if (b.autopay) {
-          const day = new Date(b.date).getDate();
-          const due = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-          if (due <= selectedDate) return sum + b.amount;
-        }
-        return sum;
-      }, 0);
+    let totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
+    let totalTithe = tithes
+      .filter((t) => monthKeys.some((k) => t.date.startsWith(k)))
+      .reduce((sum, t) => sum + t.amount, 0);
 
-      totalSubs = subscriptions.reduce((sum, s) => {
-        if (s.paidMonths?.includes(currentMonthKey)) {
-          return sum + (s.variablePrice ? (s.monthlyPrices?.[currentMonthKey] || s.amount) : s.amount);
-        }
-        if (s.autopay) {
-          const day = new Date(s.date).getDate();
-          const due = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-          if (due <= selectedDate) return sum + s.amount;
-        }
-        return sum;
-      }, 0);
-
-      totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
-      totalTithe = tithes.filter((t) => t.date.startsWith(currentMonthKey)).reduce((sum, t) => sum + t.amount, 0);
-    } else {
-      // Average across months in range
-      const monthKeys = getMonthKeysInRange();
-
-      totalBills = bills.reduce((sum, b) => {
-        return sum + monthKeys.reduce((monthSum, monthKey) => {
-          if (b.paidMonths?.includes(monthKey)) {
-            return monthSum + (b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount);
-          }
-          if (b.autopay) {
-            const [year, month] = monthKey.split("-").map(Number);
-            const due = new Date(year, month - 1, new Date(b.date).getDate());
-            if (!isAfter(due, new Date(year, month - 1, 1))) {
-              return monthSum + b.amount;
-            }
-          }
-          return monthSum;
-        }, 0);
-      }, 0);
-
-      totalSubs = subscriptions.reduce((sum, s) => {
-        return sum + monthKeys.reduce((monthSum, monthKey) => {
-          if (s.paidMonths?.includes(monthKey)) {
-            return monthSum + (s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount);
-          }
-          if (s.autopay) {
-            const [year, month] = monthKey.split("-").map(Number);
-            const due = new Date(year, month - 1, new Date(s.date).getDate());
-            if (!isAfter(due, new Date(year, month - 1, 1))) {
-              return monthSum + s.amount;
-            }
-          }
-          return monthSum;
-        }, 0);
-      }, 0);
-
-      totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
-      totalTithe = tithes.reduce((sum, t) => {
-        return sum + (monthKeys.some((monthKey) => t.date.startsWith(monthKey)) ? t.amount : 0);
-      }, 0) / monthKeys.length;
-
-      // Average across months
+    if (timeframe !== "single" && monthKeys.length > 0) {
       totalBills /= monthKeys.length;
       totalSubs /= monthKeys.length;
+      totalTithe /= monthKeys.length;
     }
 
     return { totalBills, totalSubs, totalDebt, totalTithe };

@@ -130,6 +130,7 @@ export default function Income() {
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState<string | null>(null);
   const [variablePay, setVariablePay] = useState(false);
+  const [notTitheable, setNotTitheable] = useState(false);
   const [applyRetroactive, setApplyRetroactive] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -163,6 +164,7 @@ export default function Income() {
       notes: notes.trim(),
       variablePay: variablePay,
       periodAmounts: {},
+      notTitheable: notTitheable,
     });
 
     // Retroactive application is now informational only — wallet sync handles actual allocation
@@ -202,6 +204,7 @@ export default function Income() {
     setAssetId(null);
     setApplyRetroactive(false);
     setVariablePay(false);
+    setNotTitheable(false);
   };
 
   const handleRemoveIncome = (id: string) => {
@@ -272,6 +275,7 @@ export default function Income() {
       preTax: editingIncome.preTax,
       notes: editingIncome.notes,
       assetId: editingIncome.assetId,
+      notTitheable: editingIncome.notTitheable,
     };
 
     updateIncome(editingIncome.id, updates);
@@ -397,6 +401,12 @@ export default function Income() {
               {entry.frequency !== "One-time" && <span>{entry.frequency}</span>}
               {entry.frequency !== "One-time" && <span>•</span>}
               <span>{entry.preTax ? "Pre-tax" : "Post-tax"}</span>
+              {entry.notTitheable && (
+                <>
+                  <span>•</span>
+                  <span className="text-accent font-medium">Not titheable</span>
+                </>
+              )}
               {entry.frequency === "One-time" && <span>•</span>}
               {entry.frequency === "One-time" && (
                 <span>{format(new Date(entry.date), "PPP")}</span>
@@ -1113,6 +1123,18 @@ export default function Income() {
               <Label htmlFor="variable-pay" className="cursor-pointer">Variable pay (allow per-period overrides)</Label>
             </div>
 
+            {/* Titheable toggle */}
+            <div className="md:col-span-2 flex items-center gap-3">
+              <Switch
+                checked={!notTitheable}
+                onCheckedChange={(v) => setNotTitheable(!v)}
+                id="titheable"
+              />
+              <Label htmlFor="titheable" className="cursor-pointer">
+                Titheable income (counts toward 10% tithe)
+              </Label>
+            </div>
+
             {/* Apply Retroactive Toggle */}
             {walletEnabled && assetId && frequency !== "One-time" && (
               <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
@@ -1282,6 +1304,19 @@ export default function Income() {
                   </Select>
                 </div>
               )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <Switch
+                  checked={!editingIncome.notTitheable}
+                  onCheckedChange={(v) =>
+                    setEditingIncome({ ...editingIncome, notTitheable: !v })
+                  }
+                  id="edit-titheable"
+                />
+                <Label htmlFor="edit-titheable" className="cursor-pointer">
+                  Titheable income (counts toward 10% tithe)
+                </Label>
+              </div>
             </div>
 
             <DialogFooter>
