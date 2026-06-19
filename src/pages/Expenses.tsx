@@ -167,6 +167,12 @@ export default function Expenses() {
     to: new Date(),
   });
   const [isFilterDateOpen, setIsFilterDateOpen] = useState(false);
+  const [recentLimit, setRecentLimit] = useState(20);
+
+  useEffect(() => {
+    // Reset the visible window whenever the filter range changes
+    setRecentLimit(20);
+  }, [filterDateRange.from, filterDateRange.to]);
 
   // Category breakdown modal
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
