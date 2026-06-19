@@ -854,7 +854,7 @@ export default function Expenses() {
               {(() => {
                 // Group range expenses by rangeGroupId so we display them as one entry
                 const displayedRangeGroups = new Set<string>();
-                const expensesToShow: typeof expenses = [];
+                const matched: typeof expenses = [];
 
                 // Sort expenses by date descending (newest first)
                 const sortedExpenses = [...expenses].sort((a, b) =>
@@ -870,20 +870,24 @@ export default function Expenses() {
                   if (expense.rangeGroupId) {
                     if (!displayedRangeGroups.has(expense.rangeGroupId)) {
                       displayedRangeGroups.add(expense.rangeGroupId);
-                      expensesToShow.push(expense);
+                      matched.push(expense);
                     }
                   } else {
-                    expensesToShow.push(expense);
+                    matched.push(expense);
                   }
-                  if (expensesToShow.length >= 20) break;
                 }
+
+                const totalMatched = matched.length;
+                const expensesToShow = matched.slice(0, recentLimit);
+                const hasMore = totalMatched > expensesToShow.length;
 
                 return expensesToShow.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     No expenses found in this date range.
                   </p>
                 ) : (
-                  expensesToShow.map((expense) => {
+                  <>
+                  {expensesToShow.map((expense) => {
                     // Calculate total amount if it's a range expense
                     const isRangeExpense = expense.rangeGroupId && expense.dateRangeStart && expense.dateRangeEnd;
                     let displayAmount = expense.amount;
@@ -975,7 +979,22 @@ export default function Expenses() {
                         </div>
                       </div>
                     );
-                  })
+                  })}
+                  <div className="flex flex-col items-center gap-1 pt-2">
+                    <p className="text-xs text-muted-foreground">
+                      Showing {expensesToShow.length} of {totalMatched}
+                    </p>
+                    {hasMore && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRecentLimit((n) => n + 20)}
+                      >
+                        Load more
+                      </Button>
+                    )}
+                  </div>
+                  </>
                 );
               })()}
             </div>
