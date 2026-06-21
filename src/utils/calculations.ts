@@ -259,59 +259,35 @@ export const getPeriodIndex = (entry: IncomeEntry, date: Date): number => {
 
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
 export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
-  // If entry supports variable pay and has a monthly override, prefer that
-  if (entry.variablePay) {
-    try {
-      // New canonical key: integer index of period from entry.start
-      const idxKey = String(getPeriodIndex(entry, date));
-      if (
-        entry.periodAmounts &&
-        typeof entry.periodAmounts[idxKey] === "number"
-      ) {
-        return entry.periodAmounts[idxKey];
-      }
+  // If entry supports variable pay, check for overrides
+  if (entry.variablePay && entry.periodAmounts) {
+    // Get the anchor date for the period containing this date
+    const anchor = getPeriodAnchor(entry, date);
+    // Format anchor as YYYY-MM-DD string key
+    const dateKey = localYMD(anchor);
 
-      // Back-compat: previously keyed by localYMD/localYM derived from anchor
-      const periodKey = getPeriodKey(entry, date);
+    if (typeof entry.periodAmounts[dateKey] === "number") {
+      return entry.periodAmounts[dateKey];
+    }
 
-      if (
-        entry.periodAmounts &&
-        typeof entry.periodAmounts[periodKey] === "number"
-      ) {
-        return entry.periodAmounts[periodKey];
+    // Back-compat: check index-based keys
+    const idxKey = String(getPeriodIndex(entry, date));
+    if (typeof entry.periodAmounts[idxKey] === "number") {
+      return entry.periodAmounts[idxKey];
+    }
+
+    // Back-compat: monthly amounts for older data
+    if (entry.monthlyAmounts) {
+      const monthKey = localYM(date);
+      if (typeof entry.monthlyAmounts[monthKey] === "number") {
+        return entry.monthlyAmounts[monthKey];
       }
-      if (
-        entry.monthlyAmounts &&
-        typeof entry.monthlyAmounts[periodKey] === "number"
-      ) {
-        return entry.monthlyAmounts[periodKey];
-      }
-      // Back-compat: legacy keys produced via toISOString slice (may be off by tz)
-      const legacyKey =
-        entry.frequency === "Weekly" ||
-        entry.frequency === "Biweekly" ||
-        entry.frequency === "One-time"
-          ? date.toISOString().slice(0, 10)
-          : date.toISOString().slice(0, 7);
-      if (
-        entry.periodAmounts &&
-        typeof entry.periodAmounts[legacyKey] === "number"
-      ) {
-        return entry.periodAmounts[legacyKey];
-      }
-      if (
-        entry.monthlyAmounts &&
-        typeof entry.monthlyAmounts[legacyKey] === "number"
-      ) {
-        return entry.monthlyAmounts[legacyKey];
-      }
-    } catch {
-      // fall through to changes/amount
     }
   }
+
+  // Check pay changes
   if (!entry.changes || entry.changes.length === 0) return entry.amount;
   const target = toDateOnly(date).getTime();
-  // Ensure changes are processed in ascending start order
   const changes = [...entry.changes].sort(
     (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
   );
@@ -322,7 +298,6 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
       return ch.amount;
     }
   }
-  // Fallback: return the last change amount
   return changes[changes.length - 1].amount;
 };
 
