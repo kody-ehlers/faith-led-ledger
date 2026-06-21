@@ -164,14 +164,18 @@ export const getPeriodAnchor = (entry: IncomeEntry, date: Date): Date => {
 
   switch (entry.frequency) {
     case "Weekly": {
-      const days = Math.floor(
+      // Use Math.round for a DST-safe whole-day count (local-midnight dates can
+      // differ by ±1 hour across daylight-saving transitions).
+      const days = Math.round(
         (target.getTime() - start.getTime()) / 86400000,
       );
       const periods = Math.floor(days / 7);
       return addDays(start, periods * 7);
     }
     case "Biweekly": {
-      const days = Math.floor(
+      // Use Math.round for a DST-safe whole-day count (local-midnight dates can
+      // differ by ±1 hour across daylight-saving transitions).
+      const days = Math.round(
         (target.getTime() - start.getTime()) / 86400000,
       );
       const periods = Math.floor(days / 14);
@@ -230,10 +234,16 @@ export const getPeriodIndex = (entry: IncomeEntry, date: Date): number => {
   if (target.getTime() <= start.getTime()) return 0;
 
   switch (entry.frequency) {
-    case "Weekly":
-      return Math.floor((target.getTime() - start.getTime()) / (7 * 86400000));
-    case "Biweekly":
-      return Math.floor((target.getTime() - start.getTime()) / (14 * 86400000));
+    case "Weekly": {
+      // DST-safe whole-day count, then divide into periods.
+      const days = Math.round((target.getTime() - start.getTime()) / 86400000);
+      return Math.floor(days / 7);
+    }
+    case "Biweekly": {
+      // DST-safe whole-day count, then divide into periods.
+      const days = Math.round((target.getTime() - start.getTime()) / 86400000);
+      return Math.floor(days / 14);
+    }
     case "Monthly":
     case "Bimonthly":
     case "Quarterly":

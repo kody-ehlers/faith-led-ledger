@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: ["sb-28prgmc79d9n.vercel.run"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(
     Boolean
