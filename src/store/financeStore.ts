@@ -202,6 +202,12 @@ export interface DebtEntry {
   assetId?: string | null;
   autopay?: boolean;
   autopayDay?: number;
+  // Default allocation percentages (0-100) for a payment.
+  // When set, the pay dialog will prefill interest/fee portions as
+  //   amount * pct/100. Principal = amount - interest - fee.
+  principalPct?: number;
+  interestPct?: number;
+  feePct?: number;
   paymentHistory?: Array<{
     id: string;
     date: string;
