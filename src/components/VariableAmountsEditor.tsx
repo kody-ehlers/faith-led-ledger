@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { IncomeEntry } from "@/store/financeStore";
 import { addDays, addMonths, addYears, format } from "date-fns";
 import { X } from "lucide-react";
+import { getPeriodIndex } from "@/utils/calculations";
 
 /**
  * Variable-amounts editor — index-based.
@@ -15,6 +16,9 @@ import { X } from "lucide-react";
  * The "base" amount shown for each period respects the pay change history
  * (entry.changes), so if a raise is scheduled for a future date, periods
  * after that date will show the new rate as the default.
+ *
+ * IMPORTANT: This component uses getPeriodIndex from calculations.ts to
+ * ensure consistency between editor display and amount calculations.
  */
 
 type Props = {
@@ -25,11 +29,16 @@ type Props = {
 
 const PAGE_SIZE = 12;
 
+/**
+ * Get anchor date for period at given index - uses local midnight
+ * to match calculations.ts behavior exactly.
+ */
 function stepFromStart(
   start: Date,
   frequency: IncomeEntry["frequency"],
   n: number,
 ): Date {
+  // start is already at local midnight (from useMemo below)
   switch (frequency) {
     case "Weekly":
       return addDays(start, 7 * n);
@@ -45,40 +54,6 @@ function stepFromStart(
       return addMonths(start, n);
     default:
       return start;
-  }
-}
-
-function currentPeriodIndex(
-  start: Date,
-  frequency: IncomeEntry["frequency"],
-  today: Date,
-): number {
-  if (today.getTime() <= start.getTime()) return 0;
-  switch (frequency) {
-    case "Weekly":
-      return Math.floor((today.getTime() - start.getTime()) / (7 * 86400000));
-    case "Biweekly":
-      return Math.floor((today.getTime() - start.getTime()) / (14 * 86400000));
-    case "Monthly":
-    case "Bimonthly":
-    case "Quarterly":
-    case "Yearly": {
-      const step =
-        frequency === "Monthly"
-          ? 1
-          : frequency === "Bimonthly"
-            ? 2
-            : frequency === "Quarterly"
-              ? 3
-              : 12;
-      const months =
-        (today.getFullYear() - start.getFullYear()) * 12 +
-        (today.getMonth() - start.getMonth());
-      const adj = today.getDate() < start.getDate() ? -1 : 0;
-      return Math.max(0, Math.floor((months + adj) / step));
-    }
-    default:
-      return 0;
   }
 }
 
@@ -114,17 +89,18 @@ export default function VariableAmountsEditor({
   onChange,
   getPeriodDisplay,
 }: Props) {
-  // Normalize the entry's start date to local noon to avoid TZ drift
+  // Normalize the entry's start date to local midnight to match calculations.ts
   const start = useMemo(() => {
     const d = new Date(entry.date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }, [entry.date]);
 
+  // Use getPeriodIndex from calculations.ts for consistency
   const todayIndex = useMemo(() => {
     const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    return currentPeriodIndex(start, entry.frequency, today);
-  }, [start, entry.frequency]);
+    today.setHours(0, 0, 0, 0);
+    return getPeriodIndex(entry, today);
+  }, [entry]);
 
   const [fromIndex, setFromIndex] = useState(() => Math.max(0, todayIndex - 3));
   const [toIndex, setToIndex] = useState(() => todayIndex + 8);
@@ -169,11 +145,6 @@ export default function VariableAmountsEditor({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Leave a period blank to use the default amount for that period (based on pay history).
-        Overrides apply only to the period shown.
-      </p>
-
       <div className="flex justify-center">
         <Button
           type="button"

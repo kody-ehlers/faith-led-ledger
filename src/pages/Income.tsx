@@ -716,9 +716,6 @@ export default function Income() {
               <DialogTitle>Settings</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Quick actions for this income
-              </p>
               <div className="grid gap-2">
                 <Button
                   variant="outline"

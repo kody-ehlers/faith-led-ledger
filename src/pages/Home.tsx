@@ -464,9 +464,6 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Showing income plus investment and savings interest against expenses, bills, subscriptions, and debt.
-            </p>
           </CardContent>
         </Card>
       )}
@@ -480,7 +477,6 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">{formatCurrency(monthlyIncomeMTD)}</div>
-            <p className="text-xs text-muted-foreground mt-1">All income + interest + earnings</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -490,7 +486,6 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{formatCurrency(monthlyExpensesMTD)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Bills + subs + expenses + debt</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -500,7 +495,6 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">{formatCurrency(titheMTD)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Contributions this month</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -512,7 +506,6 @@ export default function Home() {
             <div className={`text-2xl font-bold ${totalSavingsMTD >= 0 ? "text-success" : "text-destructive"}`}>
               {formatCurrency(totalSavingsMTD)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Income − Expenses − Tithe</p>
           </CardContent>
         </Card>
       </div>
@@ -579,7 +572,6 @@ export default function Home() {
                 <button className="p-2 rounded hover:bg-muted/10" onClick={() => setFocusedMonth(startOfMonth(new Date()))}><CalendarIcon className="h-4 w-4" /></button>
                 <button className="p-2 rounded hover:bg-muted/10" onClick={() => setFocusedMonth(addMonths(focusedMonth, 1))}><ChevronRight className="h-4 w-4" /></button>
               </div>
-              <div className="text-sm text-muted-foreground">Use arrows to navigate months</div>
             </div>
             <div className="px-2">
               {monthsToShow.map((month) => {

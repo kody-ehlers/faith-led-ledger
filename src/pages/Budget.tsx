@@ -455,7 +455,6 @@ export default function Budget() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-destructive">{formatCurrency(fixedCosts + titheMTD)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Bills + Subs + Debt + Tithe</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -471,7 +470,6 @@ export default function Budget() {
             <p className={`text-2xl font-bold ${potentialSavings >= 0 ? "text-success" : "text-destructive"}`}>
               {formatCurrency(potentialSavings)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Potential monthly savings</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -487,7 +485,6 @@ export default function Budget() {
             <p className={`text-2xl font-bold ${actualSavings >= 0 ? "text-success" : "text-destructive"}`}>
               {formatCurrency(actualSavings)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Based on current spending</p>
           </CardContent>
         </Card>
       </div>

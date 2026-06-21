@@ -292,9 +292,6 @@ export default function Bills() {
               <DialogTitle>Bill Settings</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Quick actions for this bill
-              </p>
               <div className="grid gap-2">
                 <Button
                   variant="outline"
