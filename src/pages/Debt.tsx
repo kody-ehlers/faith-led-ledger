@@ -315,9 +315,34 @@ export default function Debt() {
                 <Label>Notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <DatePicker selected={startDate} onSelect={(d) => setStartDate(d)} />
+              </div>
               <div className="flex items-center space-x-2">
                 <Switch checked={autopay} onCheckedChange={setAutopay} />
                 <Label>Autopay Enabled</Label>
+              </div>
+              <div className="md:col-span-2 space-y-2 p-3 rounded-lg border bg-muted/30">
+                <Label className="text-sm">Default Payment Allocation (% of payment)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Optional. When set, the Pay dialog will prefill interest & fees
+                  using these percentages. Principal = remainder.
+                </p>
+                <div className="grid gap-2 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Principal %</Label>
+                    <Input type="text" inputMode="decimal" value={principalPct} onChange={(e) => setPrincipalPct(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Interest %</Label>
+                    <Input type="text" inputMode="decimal" value={interestPct} onChange={(e) => setInterestPct(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fees / Other %</Label>
+                    <Input type="text" inputMode="decimal" value={feePct} onChange={(e) => setFeePct(e.target.value)} />
+                  </div>
+                </div>
               </div>
               {walletEnabled && (
                 <div className="md:col-span-2 space-y-2">
