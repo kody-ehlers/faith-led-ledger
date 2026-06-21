@@ -2,9 +2,16 @@ import React, { useMemo, useState } from "react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Button } from "@/components/ui/button";
 import { IncomeEntry } from "@/store/financeStore";
-import { getPeriodKey } from "@/utils/calculations";
-import { addDays, addMonths, addYears } from "date-fns";
+import { addDays, addMonths, addYears, format } from "date-fns";
 import { X } from "lucide-react";
+
+/**
+ * Variable-amounts editor — index-based.
+ *
+ * Each period override is keyed by its integer offset from the entry's
+ * start date ("0" = first occurrence, "1" = next, ...). This avoids any
+ * date / timezone / re-anchoring collisions that caused duplicate rows.
+ */
 
 type Props = {
   entry: IncomeEntry;
@@ -14,7 +21,11 @@ type Props = {
 
 const PAGE_SIZE = 12;
 
-function stepFromStart(start: Date, frequency: IncomeEntry["frequency"], n: number): Date {
+function stepFromStart(
+  start: Date,
+  frequency: IncomeEntry["frequency"],
+  n: number,
+): Date {
   switch (frequency) {
     case "Weekly":
       return addDays(start, 7 * n);
@@ -33,7 +44,11 @@ function stepFromStart(start: Date, frequency: IncomeEntry["frequency"], n: numb
   }
 }
 
-function currentPeriodIndex(start: Date, frequency: IncomeEntry["frequency"], today: Date): number {
+function currentPeriodIndex(
+  start: Date,
+  frequency: IncomeEntry["frequency"],
+  today: Date,
+): number {
   if (today.getTime() <= start.getTime()) return 0;
   switch (frequency) {
     case "Weekly":
@@ -45,7 +60,13 @@ function currentPeriodIndex(start: Date, frequency: IncomeEntry["frequency"], to
     case "Quarterly":
     case "Yearly": {
       const step =
-        frequency === "Monthly" ? 1 : frequency === "Bimonthly" ? 2 : frequency === "Quarterly" ? 3 : 12;
+        frequency === "Monthly"
+          ? 1
+          : frequency === "Bimonthly"
+            ? 2
+            : frequency === "Quarterly"
+              ? 3
+              : 12;
       const months =
         (today.getFullYear() - start.getFullYear()) * 12 +
         (today.getMonth() - start.getMonth());
@@ -57,7 +78,11 @@ function currentPeriodIndex(start: Date, frequency: IncomeEntry["frequency"], to
   }
 }
 
-export default function VariableAmountsEditor({ entry, onChange, getPeriodDisplay }: Props) {
+export default function VariableAmountsEditor({
+  entry,
+  onChange,
+  getPeriodDisplay,
+}: Props) {
   // Normalize the entry's start date to local noon to avoid TZ drift
   const start = useMemo(() => {
     const d = new Date(entry.date);
@@ -70,21 +95,24 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
     return currentPeriodIndex(start, entry.frequency, today);
   }, [start, entry.frequency]);
 
-  // Start by showing 3 past + 8 future periods around today, anchored to entry.start.
   const [fromIndex, setFromIndex] = useState(() => Math.max(0, todayIndex - 3));
   const [toIndex, setToIndex] = useState(() => todayIndex + 8);
 
+  const overrides = entry.periodAmounts ?? {};
+
   const periods = useMemo(() => {
-    const rows: { key: string; label: string; anchor: Date; isCurrent: boolean; index: number }[] = [];
-    const seen = new Set<string>();
+    const rows: {
+      key: string;
+      label: string;
+      anchor: Date;
+      isCurrent: boolean;
+      index: number;
+    }[] = [];
     for (let i = fromIndex; i <= toIndex; i++) {
       if (i < 0) continue;
       const anchor = stepFromStart(start, entry.frequency, i);
-      const key = getPeriodKey(entry, anchor);
-      if (seen.has(key)) continue; // safety against any duplicate keys
-      seen.add(key);
       rows.push({
-        key,
+        key: String(i),
         anchor,
         label: getPeriodDisplay(entry.frequency, anchor),
         isCurrent: i === todayIndex,
@@ -92,9 +120,7 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
       });
     }
     return rows;
-  }, [start, entry.frequency, entry, fromIndex, toIndex, todayIndex, getPeriodDisplay]);
-
-  const overrides = entry.periodAmounts ?? {};
+  }, [start, entry.frequency, fromIndex, toIndex, todayIndex, getPeriodDisplay]);
 
   const setOverride = (key: string, value: number | null) => {
     const next = { ...overrides };
@@ -127,7 +153,10 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
 
       <div className="max-h-80 overflow-y-auto rounded-md border border-border divide-y divide-border">
         {periods.map((p) => {
-          const hasOverride = Object.prototype.hasOwnProperty.call(overrides, p.key);
+          const hasOverride = Object.prototype.hasOwnProperty.call(
+            overrides,
+            p.key,
+          );
           return (
             <div
               key={p.key}
@@ -135,11 +164,10 @@ export default function VariableAmountsEditor({ entry, onChange, getPeriodDispla
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{p.label}</p>
-                {p.isCurrent && (
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Current
-                  </p>
-                )}
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  #{p.index + 1} · {format(p.anchor, "MMM d, yyyy")}
+                  {p.isCurrent ? " · Current" : ""}
+                </p>
               </div>
               <div className="w-36">
                 <CurrencyInput

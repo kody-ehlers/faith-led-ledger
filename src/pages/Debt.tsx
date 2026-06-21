@@ -85,6 +85,10 @@ export default function Debt() {
   const [assetId, setAssetId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [autopay, setAutopay] = useState(false);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [principalPct, setPrincipalPct] = useState<string>("");
+  const [interestPct, setInterestPct] = useState<string>("");
+  const [feePct, setFeePct] = useState<string>("");
 
   // Payment dialog state
   const [payFor, setPayFor] = useState<string | null>(null);
@@ -99,6 +103,9 @@ export default function Debt() {
 
   const handleAdd = () => {
     if (!name.trim()) { toast.error("Enter a name"); return; }
+    const pPct = principalPct ? parseFloat(principalPct) : NaN;
+    const iPct = interestPct ? parseFloat(interestPct) : NaN;
+    const fPct = feePct ? parseFloat(feePct) : NaN;
     addDebt({
       name: name.trim(),
       balance: balance ?? 0,
@@ -106,21 +113,34 @@ export default function Debt() {
       interestRate: interestRate ? parseFloat(interestRate) : 0,
       minimumPayment: minPayment ?? 0,
       termMonths: termMonths ? parseInt(termMonths) : undefined,
-      dueDate: new Date().toISOString(),
+      dueDate: startDate.toISOString(),
       notes: notes.trim(),
       assetId: walletEnabled ? (assetId ?? undefined) : undefined,
       autopay,
+      principalPct: isNaN(pPct) ? undefined : pPct,
+      interestPct: isNaN(iPct) ? undefined : iPct,
+      feePct: isNaN(fPct) ? undefined : fPct,
     });
     toast.success("Debt added");
     setName(""); setBalance(null); setMinPayment(null); setInterestRate("");
     setTermMonths(""); setNotes(""); setAssetId(null); setShowForm(false); setAutopay(false);
+    setStartDate(new Date());
+    setPrincipalPct(""); setInterestPct(""); setFeePct("");
   };
 
   const openPay = (debtId: string, debtMinPayment: number) => {
     setPayFor(debtId);
     setPayAmount(debtMinPayment);
-    setPayInterest(null);
-    setPayFee(0);
+    const d = debts.find((x) => x.id === debtId);
+    // Prefill interest/fee from per-debt percentages if configured
+    if (d && (d.interestPct != null || d.feePct != null)) {
+      const amt = debtMinPayment || 0;
+      setPayInterest(d.interestPct != null ? +(amt * d.interestPct / 100).toFixed(2) : null);
+      setPayFee(d.feePct != null ? +(amt * d.feePct / 100).toFixed(2) : 0);
+    } else {
+      setPayInterest(null);
+      setPayFee(0);
+    }
     setPayAsset(walletEnabled ? (assets.find((a) => a.type !== "Credit Card")?.id ?? null) : null);
     setPayDate(new Date());
   };
@@ -133,10 +153,17 @@ export default function Debt() {
     const debt = debts.find((d) => d.id === payFor);
     if (!debt) return;
 
+    // Use the values entered in the dialog (which may have been prefilled
+    // from the debt's stored percentages).
     const monthlyRate = debt.interestRate / 100 / 12;
-    const interestPortion = parseFloat((debt.balance * monthlyRate).toFixed(2));
-    const principalPortion = parseFloat(Math.max(0, amt - interestPortion).toFixed(2));
-    const feePortion = payFee ?? 0;
+    const computedInterest = debt.balance * monthlyRate;
+    const interestPortion = parseFloat(
+      (payInterest != null ? payInterest : computedInterest).toFixed(2),
+    );
+    const feePortion = parseFloat((payFee ?? 0).toFixed(2));
+    const principalPortion = parseFloat(
+      Math.max(0, amt - interestPortion - feePortion).toFixed(2),
+    );
 
     if (walletEnabled && payAsset) {
       addAssetTransaction(payAsset, {
@@ -288,9 +315,34 @@ export default function Debt() {
                 <Label>Notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <DatePicker selected={startDate} onSelect={(d) => setStartDate(d)} />
+              </div>
               <div className="flex items-center space-x-2">
                 <Switch checked={autopay} onCheckedChange={setAutopay} />
                 <Label>Autopay Enabled</Label>
+              </div>
+              <div className="md:col-span-2 space-y-2 p-3 rounded-lg border bg-muted/30">
+                <Label className="text-sm">Default Payment Allocation (% of payment)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Optional. When set, the Pay dialog will prefill interest & fees
+                  using these percentages. Principal = remainder.
+                </p>
+                <div className="grid gap-2 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Principal %</Label>
+                    <Input type="text" inputMode="decimal" value={principalPct} onChange={(e) => setPrincipalPct(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Interest %</Label>
+                    <Input type="text" inputMode="decimal" value={interestPct} onChange={(e) => setInterestPct(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fees / Other %</Label>
+                    <Input type="text" inputMode="decimal" value={feePct} onChange={(e) => setFeePct(e.target.value)} />
+                  </div>
+                </div>
               </div>
               {walletEnabled && (
                 <div className="md:col-span-2 space-y-2">
@@ -438,7 +490,17 @@ export default function Debt() {
             )}
             <div className="space-y-2">
               <Label>Amount</Label>
-              <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
+              <CurrencyInput
+                value={payAmount}
+                onChange={(v) => {
+                  setPayAmount(v);
+                  const d = debts.find((x) => x.id === payFor);
+                  if (d && v != null && (d.interestPct != null || d.feePct != null)) {
+                    if (d.interestPct != null) setPayInterest(+(v * d.interestPct / 100).toFixed(2));
+                    if (d.feePct != null) setPayFee(+(v * d.feePct / 100).toFixed(2));
+                  }
+                }}
+              />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">

@@ -209,11 +209,60 @@ export const getPeriodKey = (entry: IncomeEntry, date: Date): string => {
   return localYM(anchor);
 };
 
+/**
+ * Returns the integer offset (0-based) of the period that contains `date`,
+ * counted from the entry's start date in units of its frequency.
+ * This is the canonical key for `periodAmounts` going forward.
+ */
+export const getPeriodIndex = (entry: IncomeEntry, date: Date): number => {
+  const start = toDateOnly(new Date(entry.date));
+  const target = toDateOnly(date);
+  if (entry.frequency === "One-time") return 0;
+  if (target.getTime() <= start.getTime()) return 0;
+
+  switch (entry.frequency) {
+    case "Weekly":
+      return Math.floor((target.getTime() - start.getTime()) / (7 * 86400000));
+    case "Biweekly":
+      return Math.floor((target.getTime() - start.getTime()) / (14 * 86400000));
+    case "Monthly":
+    case "Bimonthly":
+    case "Quarterly":
+    case "Yearly": {
+      const step =
+        entry.frequency === "Monthly"
+          ? 1
+          : entry.frequency === "Bimonthly"
+            ? 2
+            : entry.frequency === "Quarterly"
+              ? 3
+              : 12;
+      const months =
+        (target.getFullYear() - start.getFullYear()) * 12 +
+        (target.getMonth() - start.getMonth());
+      const adj = target.getDate() < start.getDate() ? -1 : 0;
+      return Math.max(0, Math.floor((months + adj) / step));
+    }
+    default:
+      return 0;
+  }
+};
+
 // Helper: get the amount that applies for an income entry on a specific date (date-only comparisons)
 export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
   // If entry supports variable pay and has a monthly override, prefer that
   if (entry.variablePay) {
     try {
+      // New canonical key: integer index of period from entry.start
+      const idxKey = String(getPeriodIndex(entry, date));
+      if (
+        entry.periodAmounts &&
+        typeof entry.periodAmounts[idxKey] === "number"
+      ) {
+        return entry.periodAmounts[idxKey];
+      }
+
+      // Back-compat: previously keyed by localYMD/localYM derived from anchor
       const periodKey = getPeriodKey(entry, date);
 
       if (
