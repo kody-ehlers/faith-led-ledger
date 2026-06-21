@@ -71,7 +71,7 @@ export const getEntryIncomeForMonth = (
 
   // One-time
   if (entry.frequency === "One-time") {
-    const d = new Date(entry.date);
+    const d = parseLocalDate(entry.date);
     if (
       d.getFullYear() === monthStart.getFullYear() &&
       d.getMonth() === monthStart.getMonth()
@@ -83,7 +83,7 @@ export const getEntryIncomeForMonth = (
 
   // Recurring: iterate occurrences within the month and sum per-occurrence amounts
   let total = 0;
-  let occurrence = new Date(entry.date);
+  let occurrence = parseLocalDate(entry.date);
   const advanceOnce = (date: Date) => {
     switch (entry.frequency) {
       case "Weekly":
@@ -134,6 +134,15 @@ export const getEntryIncomeForMonth = (
 const toDateOnly = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+// Helper: parse a date string (YYYY-MM-DD) as local midnight regardless of timezone
+const parseLocalDate = (dateStr: string): Date => {
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return new Date(dateStr); // fall back to default parsing
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+
 // Format helpers using LOCAL date components (no timezone shifts)
 const localYMD = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -148,7 +157,7 @@ const localYM = (d: Date) =>
  * the entry start. For One-time entries, always returns the entry date.
  */
 export const getPeriodAnchor = (entry: IncomeEntry, date: Date): Date => {
-  const start = toDateOnly(new Date(entry.date));
+  const start = parseLocalDate(entry.date);
   const target = toDateOnly(date);
   if (entry.frequency === "One-time") return start;
   if (target.getTime() <= start.getTime()) return start;
@@ -215,7 +224,7 @@ export const getPeriodKey = (entry: IncomeEntry, date: Date): string => {
  * This is the canonical key for `periodAmounts` going forward.
  */
 export const getPeriodIndex = (entry: IncomeEntry, date: Date): number => {
-  const start = toDateOnly(new Date(entry.date));
+  const start = parseLocalDate(entry.date);
   const target = toDateOnly(date);
   if (entry.frequency === "One-time") return 0;
   if (target.getTime() <= start.getTime()) return 0;
@@ -307,8 +316,8 @@ export const getAmountForDate = (entry: IncomeEntry, date: Date): number => {
     (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
   );
   for (const ch of changes) {
-    const start = toDateOnly(new Date(ch.start)).getTime();
-    const end = ch.end ? toDateOnly(new Date(ch.end)).getTime() : null;
+    const start = parseLocalDate(ch.start).getTime();
+    const end = ch.end ? parseLocalDate(ch.end).getTime() : null;
     if (target >= start && (!end || target <= end)) {
       return ch.amount;
     }
@@ -428,7 +437,7 @@ const calculateIncomeForMonth = (
   for (const entry of income) {
     if (!includePreTax && entry.preTax) continue;
 
-    const start = new Date(entry.date);
+    const start = parseLocalDate(entry.date);
 
     if (entry.frequency === "One-time") {
       const d = start;
@@ -517,7 +526,7 @@ export const calculatePostTaxIncomeForMonth = (
     if (entry.preTax) continue; // skip pre-tax incomes for tithe
     if (entry.notTitheable) continue; // user-marked non-titheable
 
-    const start = new Date(entry.date);
+    const start = parseLocalDate(entry.date);
 
     if (entry.frequency === "One-time") {
       const d = start;
@@ -611,7 +620,7 @@ export const calculatePostTaxIncomeReceivedSoFar = (
     if (entry.preTax) continue;
     if (entry.notTitheable) continue; // user-marked non-titheable
 
-    const start = new Date(entry.date);
+    const start = parseLocalDate(entry.date);
 
     if (entry.frequency === "One-time") {
       const d = start;
@@ -880,7 +889,7 @@ export const calculateWalletTransactions = (
   for (const incomeEntry of income) {
     if (incomeEntry.assetId !== assetId) continue;
 
-    const startDate = new Date(incomeEntry.date);
+    const startDate = parseLocalDate(incomeEntry.date);
     if (isAfter(startDate, today)) continue;
 
     if (incomeEntry.frequency === "One-time") {

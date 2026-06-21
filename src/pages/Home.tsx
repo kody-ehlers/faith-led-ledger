@@ -151,7 +151,9 @@ export default function Home() {
   const getIncomeForDay = (day: Date) => {
     const list: { source: string; amount: number }[] = [];
     for (const inc of income) {
-      const start = new Date(inc.date);
+      // Parse date string as local midnight to avoid timezone issues
+      const dateParts = inc.date.slice(0, 10).split('-').map(Number);
+      const start = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
       const isSuspendedOn = (entry: typeof inc, d: Date) => {
         if (!entry.suspendedFrom) return false;
@@ -162,7 +164,7 @@ export default function Home() {
         return true;
       };
       if (inc.frequency === "One-time") {
-        if (isSameDay(new Date(inc.date), dayOnly) && !isSuspendedOn(inc, dayOnly))
+        if (isSameDay(start, dayOnly) && !isSuspendedOn(inc, dayOnly))
           list.push({ source: inc.source, amount: getAmountForDate(inc, dayOnly) });
         continue;
       }

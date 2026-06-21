@@ -30,6 +30,18 @@ type Props = {
 const PAGE_SIZE = 12;
 
 /**
+ * Parse date string (YYYY-MM-DD) as local midnight - CRITICAL for timezone consistency.
+ * Without this, new Date("2026-01-05") parses as UTC and can shift date in some timezones.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return new Date(dateStr);
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+/**
  * Get anchor date for period at given index - uses local midnight
  * to match calculations.ts behavior exactly.
  */
@@ -71,12 +83,10 @@ function getBaseAmountForDate(entry: IncomeEntry, date: Date): number {
   );
 
   for (const ch of changes) {
-    const start = new Date(ch.start);
-    const startOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
-    const end = ch.end ? new Date(ch.end) : null;
-    const endOnly = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() : null;
+    const start = parseLocalDate(ch.start);
+    const end = ch.end ? parseLocalDate(ch.end) : null;
 
-    if (target >= startOnly && (!endOnly || target <= endOnly)) {
+    if (target >= start.getTime() && (!end || target <= end.getTime())) {
       return ch.amount;
     }
   }
@@ -89,11 +99,8 @@ export default function VariableAmountsEditor({
   onChange,
   getPeriodDisplay,
 }: Props) {
-  // Normalize the entry's start date to local midnight to match calculations.ts
-  const start = useMemo(() => {
-    const d = new Date(entry.date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }, [entry.date]);
+  // CRITICAL: Parse as local date to match how calculations.ts parses entry.date
+  const start = useMemo(() => parseLocalDate(entry.date), [entry.date]);
 
   // Use getPeriodIndex from calculations.ts for consistency
   const todayIndex = useMemo(() => {
