@@ -20,7 +20,7 @@ import {
   formatCurrency,
   getRecurringOccurrencesInMonth,
 } from "@/utils/calculations";
-import { Target, TrendingUp, PiggyBank, AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
+import { Target, TrendingUp, PiggyBank, TriangleAlert as AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
 import {
   startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, isBefore, isAfter,
 } from "date-fns";
