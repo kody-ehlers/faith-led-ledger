@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { startOfMonth, endOfMonth, subMonths, startOfYear, format, addMonths, isAfter } from "date-fns";
-import { formatCurrency, dateIsSuspended, getRecurringOccurrencesInMonth } from "@/utils/calculations";
+import { startOfMonth, endOfMonth, subMonths, startOfYear, format, addMonths, isAfter, isBefore, isEqual } from "date-fns";
+import { formatCurrency, dateIsSuspended, getRecurringOccurrencesInMonth, getAmountForDate, getEntryIncomeForMonth, calculateIncomeForMonthPublic } from "@/utils/calculations";
 import CleanPieChart from "@/components/CleanPieChart";
 import { Heart, Church } from "lucide-react";
 
@@ -103,24 +103,43 @@ export default function Statistics() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   // ── ALL Money In (income + investment earnings + savings interest) ──
+  // Properly calculate income by iterating occurrences and respecting changes/suspensions/variable pay
   const incomeInPeriod = income.reduce((sum, inc) => {
     if (inc.preTax) return sum;
+
     if (inc.frequency === "One-time") {
       const d = new Date(inc.date);
-      if (d >= start && d <= end) return sum + inc.amount;
+      if ((isAfter(d, start) || isEqual(d, start)) && (isBefore(d, end) || isEqual(d, end))) {
+        if (!dateIsSuspended(d, inc.suspendedFrom, inc.suspendedTo ?? undefined, inc.suspendedIndefinitely)) {
+          return sum + getAmountForDate(inc, d);
+        }
+      }
       return sum;
     }
-    // Estimate recurring: months * amount
-    const monthsInPeriod = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)));
-    let monthlyEquiv = inc.amount;
-    switch (inc.frequency) {
-      case "Weekly": monthlyEquiv = inc.amount * 4.33; break;
-      case "Biweekly": monthlyEquiv = inc.amount * 2.17; break;
-      case "Bimonthly": monthlyEquiv = inc.amount * 0.5; break;
-      case "Quarterly": monthlyEquiv = inc.amount / 3; break;
-      case "Yearly": monthlyEquiv = inc.amount / 12; break;
+
+    // For recurring income, iterate each month in the period and count occurrences
+    const monthKeys: string[] = [];
+    let m = startOfMonth(start);
+    while (!isAfter(m, end)) {
+      monthKeys.push(format(m, "yyyy-MM"));
+      m = addMonths(m, 1);
     }
-    return sum + monthlyEquiv * monthsInPeriod;
+
+    let total = 0;
+    monthKeys.forEach((mk) => {
+      const [y, mm] = mk.split("-").map(Number);
+      const monthStart = new Date(y, mm - 1, 1);
+      const monthEnd = endOfMonth(monthStart);
+
+      const occurrences = getRecurringOccurrencesInMonth(new Date(inc.date), inc.frequency, monthStart, monthEnd);
+      occurrences.forEach((occurrence) => {
+        if (occurrence < start || occurrence > end) return;
+        if (dateIsSuspended(occurrence, inc.suspendedFrom, inc.suspendedTo ?? undefined, inc.suspendedIndefinitely)) return;
+        total += getAmountForDate(inc, occurrence);
+      });
+    });
+
+    return sum + total;
   }, 0);
 
   const investmentEarningsInPeriod = investments.reduce((sum, inv) => {

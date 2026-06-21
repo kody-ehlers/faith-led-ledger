@@ -11,6 +11,10 @@ import { X } from "lucide-react";
  * Each period override is keyed by its integer offset from the entry's
  * start date ("0" = first occurrence, "1" = next, ...). This avoids any
  * date / timezone / re-anchoring collisions that caused duplicate rows.
+ *
+ * The "base" amount shown for each period respects the pay change history
+ * (entry.changes), so if a raise is scheduled for a future date, periods
+ * after that date will show the new rate as the default.
  */
 
 type Props = {
@@ -78,6 +82,33 @@ function currentPeriodIndex(
   }
 }
 
+/**
+ * Get the base amount for a given date, respecting the pay change history.
+ * This is a simplified version of getAmountForDate that looks at entry.changes
+ * but NOT variable pay overrides (since this is for showing the default).
+ */
+function getBaseAmountForDate(entry: IncomeEntry, date: Date): number {
+  if (!entry.changes || entry.changes.length === 0) return entry.amount;
+
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const changes = [...entry.changes].sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+  );
+
+  for (const ch of changes) {
+    const start = new Date(ch.start);
+    const startOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+    const end = ch.end ? new Date(ch.end) : null;
+    const endOnly = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() : null;
+
+    if (target >= startOnly && (!endOnly || target <= endOnly)) {
+      return ch.amount;
+    }
+  }
+
+  return changes[changes.length - 1].amount;
+}
+
 export default function VariableAmountsEditor({
   entry,
   onChange,
@@ -100,6 +131,7 @@ export default function VariableAmountsEditor({
 
   const overrides = entry.periodAmounts ?? {};
 
+  // Compute the base amount for each period (respecting pay changes)
   const periods = useMemo(() => {
     const rows: {
       key: string;
@@ -107,20 +139,23 @@ export default function VariableAmountsEditor({
       anchor: Date;
       isCurrent: boolean;
       index: number;
+      baseAmount: number;
     }[] = [];
     for (let i = fromIndex; i <= toIndex; i++) {
       if (i < 0) continue;
       const anchor = stepFromStart(start, entry.frequency, i);
+      const baseAmount = getBaseAmountForDate(entry, anchor);
       rows.push({
         key: String(i),
         anchor,
         label: getPeriodDisplay(entry.frequency, anchor),
         isCurrent: i === todayIndex,
         index: i,
+        baseAmount,
       });
     }
     return rows;
-  }, [start, entry.frequency, fromIndex, toIndex, todayIndex, getPeriodDisplay]);
+  }, [start, entry, fromIndex, toIndex, todayIndex, getPeriodDisplay]);
 
   const setOverride = (key: string, value: number | null) => {
     const next = { ...overrides };
@@ -135,7 +170,7 @@ export default function VariableAmountsEditor({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Leave a period blank to use the base amount (${entry.amount.toFixed(2)}).
+        Leave a period blank to use the default amount for that period (based on pay history).
         Overrides apply only to the period shown.
       </p>
 
@@ -173,7 +208,7 @@ export default function VariableAmountsEditor({
                 <CurrencyInput
                   value={hasOverride ? overrides[p.key] : null}
                   onChange={(v) => setOverride(p.key, v)}
-                  placeholder={entry.amount.toFixed(2)}
+                  placeholder={p.baseAmount.toFixed(2)}
                 />
               </div>
               <Button
