@@ -210,9 +210,14 @@ export default function Investments() {
 
   const handleAddContribution = () => {
     if (!contributionTarget || contributionAmount2 === null || contributionAmount2 === 0) { toast.error("Please provide amount"); return; }
-    addEarnings(contributionTarget, -contributionAmount2, "One-time contribution");
+    addEarnings(
+      contributionTarget,
+      -contributionAmount2,
+      "One-time contribution",
+      contributionDate.toISOString(),
+    );
     toast.success("Contribution recorded");
-    setContributionTarget(null); setContributionAmount2(null);
+    setContributionTarget(null); setContributionAmount2(null); setContributionDate(new Date());
   };
 
   const handleAddEarnings = () => {
