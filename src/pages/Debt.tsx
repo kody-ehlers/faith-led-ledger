@@ -490,7 +490,17 @@ export default function Debt() {
             )}
             <div className="space-y-2">
               <Label>Amount</Label>
-              <CurrencyInput value={payAmount} onChange={(v) => setPayAmount(v)} />
+              <CurrencyInput
+                value={payAmount}
+                onChange={(v) => {
+                  setPayAmount(v);
+                  const d = debts.find((x) => x.id === payFor);
+                  if (d && v != null && (d.interestPct != null || d.feePct != null)) {
+                    if (d.interestPct != null) setPayInterest(+(v * d.interestPct / 100).toFixed(2));
+                    if (d.feePct != null) setPayFee(+(v * d.feePct / 100).toFixed(2));
+                  }
+                }}
+              />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
