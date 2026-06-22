@@ -1,7 +1,7 @@
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
-import { useFinanceStore } from "@/store/financeStore";
+import { useFinanceStore, RecurringFrequency } from "@/store/financeStore";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
