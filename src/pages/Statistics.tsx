@@ -131,7 +131,7 @@ export default function Statistics() {
       const monthStart = new Date(y, mm - 1, 1);
       const monthEnd = endOfMonth(monthStart);
 
-      const occurrences = getRecurringOccurrencesInMonth(new Date(inc.date), inc.frequency, monthStart, monthEnd);
+      const occurrences = getRecurringOccurrencesInMonth(new Date(inc.date), inc.frequency as RecurringFrequency, monthStart, monthEnd);
       occurrences.forEach((occurrence) => {
         if (occurrence < start || occurrence > end) return;
         if (dateIsSuspended(occurrence, inc.suspendedFrom, inc.suspendedTo ?? undefined, inc.suspendedIndefinitely)) return;
