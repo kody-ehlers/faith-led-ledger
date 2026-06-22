@@ -11,6 +11,7 @@ type Props = {
   name?: string;
   ariaLabel?: string;
   showPrefix?: boolean;
+  disabled?: boolean;
 };
 
 export function CurrencyInput({
@@ -22,6 +23,7 @@ export function CurrencyInput({
   name,
   ariaLabel,
   showPrefix = true,
+  disabled = false,
 }: Props) {
   // Use local string state for editing to avoid immediate formatting
   const [localValue, setLocalValue] = useState<string>(() => {
@@ -96,11 +98,12 @@ export function CurrencyInput({
         inputMode="decimal"
         value={localValue}
         placeholder={placeholder}
+        disabled={disabled}
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
         className={cn(
-          "min-w-0 w-full h-10 bg-background border border-input rounded-md text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "min-w-0 w-full h-10 bg-background border border-input rounded-md text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
           showPrefix ? "pl-7 pr-3 py-2" : "px-3 py-2",
           className
         )}

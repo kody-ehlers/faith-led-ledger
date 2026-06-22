@@ -3,7 +3,7 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { Button } from "@/components/ui/button";
 import { IncomeEntry } from "@/store/financeStore";
 import { addDays, addMonths, addYears, format } from "date-fns";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronUp, ChevronDown, Lock } from "lucide-react";
 
 /**
  * Variable-amounts editor — date-keyed.
@@ -20,6 +20,8 @@ type Props = {
 };
 
 const PAGE_SIZE = 12;
+const INITIAL_BEFORE = 3;
+const INITIAL_AFTER = 8;
 
 /**
  * Parse date string (YYYY-MM-DD) as local midnight.
@@ -93,6 +95,21 @@ function getBaseAmountForDate(entry: IncomeEntry, date: Date): number {
 }
 
 /**
+ * Check whether a given date falls inside the entry's suspended range.
+ */
+function isDateSuspended(entry: IncomeEntry, date: Date): boolean {
+  if (!entry.suspendedFrom) return false;
+  const from = parseLocalDate(entry.suspendedFrom);
+  if (date.getTime() < from.getTime()) return false;
+  if (entry.suspendedIndefinitely) return true;
+  if (entry.suspendedTo) {
+    const to = parseLocalDate(entry.suspendedTo);
+    return date.getTime() <= to.getTime();
+  }
+  return false;
+}
+
+/**
  * Find the period anchor date that contains the given target date.
  * For biweekly/weekly: returns the start of that period.
  */
@@ -125,7 +142,8 @@ export default function VariableAmountsEditor({
   onChange,
   getPeriodDisplay,
 }: Props) {
-  const [offset, setOffset] = useState(0);
+  const [earlierCount, setEarlierCount] = useState(INITIAL_BEFORE);
+  const [laterCount, setLaterCount] = useState(INITIAL_AFTER);
 
   // Parse entry start date as local
   const start = useMemo(() => parseLocalDate(entry.date), [entry.date]);
@@ -137,7 +155,24 @@ export default function VariableAmountsEditor({
     return findPeriodAnchor(start, entry.frequency, today);
   }, [start, entry.frequency]);
 
-  // Generate periods to display
+  // Find the earliest reachable period anchor (not before entry start)
+  const earliestAnchor = useMemo(() => {
+    let cursor = new Date(todayAnchor);
+    for (let i = 0; i < earlierCount; i++) {
+      const prev = goBackByFrequency(cursor, entry.frequency);
+      if (prev.getTime() < start.getTime()) break;
+      cursor = prev;
+    }
+    return cursor;
+  }, [todayAnchor, earlierCount, entry.frequency, start]);
+
+  // True when we cannot go further back because we'd cross the start date
+  const atStart = useMemo(() => {
+    const prev = goBackByFrequency(earliestAnchor, entry.frequency);
+    return prev.getTime() < start.getTime();
+  }, [earliestAnchor, entry.frequency, start]);
+
+  // Generate periods from earliestAnchor moving forward
   const periods = useMemo(() => {
     const rows: {
       key: string;
@@ -145,33 +180,46 @@ export default function VariableAmountsEditor({
       anchor: Date;
       isCurrent: boolean;
       baseAmount: number;
+      beforeStart: boolean;
+      suspended: boolean;
     }[] = [];
 
-    // Start at current period, then apply offset by going backward
-    let cursor = new Date(todayAnchor);
-    for (let i = 0; i < offset; i++) {
-      cursor = goBackByFrequency(cursor, entry.frequency);
+    const total =
+      // periods from earliestAnchor up to todayAnchor (inclusive) + laterCount
+      // simpler: walk from earliestAnchor forward until we've generated enough
+      0;
+    void total;
+
+    let cursor = new Date(earliestAnchor);
+    const todayKey = formatDateKey(todayAnchor);
+    // Count how many periods from earliestAnchor to todayAnchor
+    let beforeAndCurrent = 1;
+    let probe = new Date(earliestAnchor);
+    while (probe.getTime() < todayAnchor.getTime()) {
+      probe = advanceByFrequency(probe, entry.frequency);
+      beforeAndCurrent++;
     }
+    const count = beforeAndCurrent + laterCount;
 
-    // Generate PAGE_SIZE periods
-    for (let i = 0; i < PAGE_SIZE; i++) {
+    for (let i = 0; i < count; i++) {
       const key = formatDateKey(cursor);
+      const beforeStart = cursor.getTime() < start.getTime();
+      const suspended = isDateSuspended(entry, cursor);
       const baseAmount = getBaseAmountForDate(entry, cursor);
-      const isCurrent = formatDateKey(todayAnchor) === key;
-
       rows.push({
         key,
         anchor: new Date(cursor),
         label: getPeriodDisplay(entry.frequency, cursor),
-        isCurrent,
+        isCurrent: key === todayKey,
         baseAmount,
+        beforeStart,
+        suspended,
       });
-
       cursor = advanceByFrequency(cursor, entry.frequency);
     }
 
     return rows;
-  }, [start, entry, todayAnchor, getPeriodDisplay, offset]);
+  }, [earliestAnchor, todayAnchor, laterCount, entry, getPeriodDisplay, start]);
 
   const overrides = entry.periodAmounts ?? {};
 
@@ -185,68 +233,64 @@ export default function VariableAmountsEditor({
     onChange(next);
   };
 
-  const canGoBack = offset < 100; // reasonable upper bound
-  const canGoForward = offset > 0;
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-2">
+      <div className="flex justify-center">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setOffset((o) => o + PAGE_SIZE)}
-          disabled={!canGoBack}
-          className="gap-1"
+          onClick={() => setEarlierCount((c) => c + PAGE_SIZE)}
+          disabled={atStart}
+          className="gap-1 w-full"
         >
-          <ChevronLeft className="h-4 w-4" />
-          Load Earlier
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          {offset === 0 ? "Current window" : `${offset} periods back`}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
-          disabled={!canGoForward}
-          className="gap-1"
-        >
-          Load Later
-          <ChevronRight className="h-4 w-4" />
+          <ChevronUp className="h-4 w-4" />
+          {atStart ? "Reached income start date" : "Load earlier periods"}
         </Button>
       </div>
-      <div className="max-h-80 overflow-y-auto rounded-md border border-border divide-y divide-border">
+      <div className="max-h-96 overflow-y-auto rounded-md border border-border divide-y divide-border">
         {periods.map((p) => {
           const hasOverride = Object.prototype.hasOwnProperty.call(
             overrides,
             p.key,
           );
+          const locked = p.beforeStart || p.suspended;
+          const lockReason = p.beforeStart
+            ? "Before income start date"
+            : p.suspended
+              ? "Income is suspended"
+              : "";
           return (
             <div
               key={p.key}
-              className={`flex items-center gap-2 p-2 ${p.isCurrent ? "bg-muted/40" : ""}`}
+              className={`flex items-center gap-2 p-2 ${p.isCurrent ? "bg-muted/40" : ""} ${locked ? "opacity-60" : ""}`}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{p.label}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                   {format(p.anchor, "MMM d, yyyy")}
                   {p.isCurrent ? " · Current" : ""}
+                  {locked ? (
+                    <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
+                      <Lock className="h-3 w-3" />
+                      {lockReason}
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <div className="w-36">
                 <CurrencyInput
                   value={hasOverride ? overrides[p.key] : null}
                   onChange={(v) => setOverride(p.key, v)}
-                  placeholder={p.baseAmount.toFixed(2)}
+                  placeholder={locked ? "—" : p.baseAmount.toFixed(2)}
+                  disabled={locked}
                 />
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                disabled={!hasOverride}
+                disabled={!hasOverride || locked}
                 onClick={() => setOverride(p.key, null)}
                 aria-label="Reset to base amount"
                 title="Reset to base amount"
@@ -256,6 +300,18 @@ export default function VariableAmountsEditor({
             </div>
           );
         })}
+      </div>
+      <div className="flex justify-center">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setLaterCount((c) => c + PAGE_SIZE)}
+          className="gap-1 w-full"
+        >
+          <ChevronDown className="h-4 w-4" />
+          Load later periods
+        </Button>
       </div>
     </div>
   );
