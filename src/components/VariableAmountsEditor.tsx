@@ -3,7 +3,7 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { Button } from "@/components/ui/button";
 import { IncomeEntry } from "@/store/financeStore";
 import { addDays, addMonths, addYears, format } from "date-fns";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * Variable-amounts editor — date-keyed.
@@ -51,6 +51,21 @@ function advanceByFrequency(date: Date, frequency: IncomeEntry["frequency"]): Da
     case "Quarterly": return addMonths(date, 3);
     case "Yearly": return addYears(date, 1);
     default: return addMonths(date, 1);
+  }
+}
+
+/**
+ * Go back one period based on frequency.
+ */
+function goBackByFrequency(date: Date, frequency: IncomeEntry["frequency"]): Date {
+  switch (frequency) {
+    case "Weekly": return addDays(date, -7);
+    case "Biweekly": return addDays(date, -14);
+    case "Monthly": return addMonths(date, -1);
+    case "Bimonthly": return addMonths(date, -2);
+    case "Quarterly": return addMonths(date, -3);
+    case "Yearly": return addYears(date, -1);
+    default: return addMonths(date, -1);
   }
 }
 
@@ -110,6 +125,8 @@ export default function VariableAmountsEditor({
   onChange,
   getPeriodDisplay,
 }: Props) {
+  const [offset, setOffset] = useState(0);
+
   // Parse entry start date as local
   const start = useMemo(() => parseLocalDate(entry.date), [entry.date]);
 
@@ -130,23 +147,14 @@ export default function VariableAmountsEditor({
       baseAmount: number;
     }[] = [];
 
-    // Start 3 periods before current
+    // Start at current period, then apply offset by going backward
     let cursor = new Date(todayAnchor);
-    for (let i = 0; i < 3; i++) {
-      // Go back one period
-      switch (entry.frequency) {
-        case "Weekly": cursor = addDays(cursor, -7); break;
-        case "Biweekly": cursor = addDays(cursor, -14); break;
-        case "Monthly": cursor = addMonths(cursor, -1); break;
-        case "Bimonthly": cursor = addMonths(cursor, -2); break;
-        case "Quarterly": cursor = addMonths(cursor, -3); break;
-        case "Yearly": cursor = addYears(cursor, -1); break;
-        default: cursor = addMonths(cursor, -1);
-      }
+    for (let i = 0; i < offset; i++) {
+      cursor = goBackByFrequency(cursor, entry.frequency);
     }
 
-    // Generate 12 periods
-    for (let i = 0; i < 12; i++) {
+    // Generate PAGE_SIZE periods
+    for (let i = 0; i < PAGE_SIZE; i++) {
       const key = formatDateKey(cursor);
       const baseAmount = getBaseAmountForDate(entry, cursor);
       const isCurrent = formatDateKey(todayAnchor) === key;
@@ -163,7 +171,7 @@ export default function VariableAmountsEditor({
     }
 
     return rows;
-  }, [start, entry, todayAnchor, getPeriodDisplay]);
+  }, [start, entry, todayAnchor, getPeriodDisplay, offset]);
 
   const overrides = entry.periodAmounts ?? {};
 
@@ -177,8 +185,38 @@ export default function VariableAmountsEditor({
     onChange(next);
   };
 
+  const canGoBack = offset < 100; // reasonable upper bound
+  const canGoForward = offset > 0;
+
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOffset((o) => o + PAGE_SIZE)}
+          disabled={!canGoBack}
+          className="gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Load Earlier
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {offset === 0 ? "Current window" : `${offset} periods back`}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
+          disabled={!canGoForward}
+          className="gap-1"
+        >
+          Load Later
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
       <div className="max-h-80 overflow-y-auto rounded-md border border-border divide-y divide-border">
         {periods.map((p) => {
           const hasOverride = Object.prototype.hasOwnProperty.call(

@@ -1,7 +1,7 @@
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
-import { useFinanceStore } from "@/store/financeStore";
+import { useFinanceStore, RecurringFrequency } from "@/store/financeStore";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,7 +131,7 @@ export default function Statistics() {
       const monthStart = new Date(y, mm - 1, 1);
       const monthEnd = endOfMonth(monthStart);
 
-      const occurrences = getRecurringOccurrencesInMonth(new Date(inc.date), inc.frequency, monthStart, monthEnd);
+      const occurrences = getRecurringOccurrencesInMonth(new Date(inc.date), inc.frequency as RecurringFrequency, monthStart, monthEnd);
       occurrences.forEach((occurrence) => {
         if (occurrence < start || occurrence > end) return;
         if (dateIsSuspended(occurrence, inc.suspendedFrom, inc.suspendedTo ?? undefined, inc.suspendedIndefinitely)) return;
