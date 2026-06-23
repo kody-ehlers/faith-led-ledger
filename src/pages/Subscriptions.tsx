@@ -264,15 +264,16 @@ export default function Subscriptions() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="font-semibold">
-            {entry.variablePrice ? (
-              currentMonthPrice !== null ? (
-                <span>${currentMonthPrice.toFixed(2)}</span>
-              ) : (
-                <span className="text-muted-foreground">Variable</span>
-              )
-            ) : (
-              `$${entry.amount.toFixed(2)}`
+          <div className="text-right">
+            <div className="font-semibold">
+              ${entry.variablePrice
+                ? (currentMonthPrice ?? entry.amount).toFixed(2)
+                : entry.amount.toFixed(2)}
+            </div>
+            {entry.variablePrice && (
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Variable
+              </div>
             )}
           </div>
 
@@ -430,15 +431,29 @@ export default function Subscriptions() {
         </Dialog>
 
         {/* Monthly Prices dialog */}
-        <MonthlyAmountsEditor
-          entryId={entry.id}
-          entryName={entry.name}
-          monthlyPrices={entry.monthlyPrices || {}}
-          defaultAmount={entry.amount}
-          onUpdate={updateSubscription}
-          isOpen={isMonthlyPricesOpen}
-          onOpenChange={setIsMonthlyPricesOpen}
-        />
+        <Dialog open={isMonthlyPricesOpen} onOpenChange={setIsMonthlyPricesOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Variable Prices for {entry.name}</DialogTitle>
+            </DialogHeader>
+            <MonthlyAmountsEditor
+              entryId={entry.id}
+              entryName={entry.name}
+              monthlyPrices={entry.monthlyPrices || {}}
+              defaultAmount={entry.amount}
+              onUpdate={updateSubscription}
+            />
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  setIsMonthlyPricesOpen(false);
+                }}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Payment History dialog */}
         <Dialog
