@@ -40,6 +40,7 @@ import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, getRecurringOccurrencesInMonth } from "@/utils/calculations";
+import MonthlyAmountsEditor from "@/components/MonthlyAmountsEditor";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
@@ -134,8 +135,6 @@ export default function Bills() {
     );
     const [isMonthlyPricesOpen, setIsMonthlyPricesOpen] = useState(false);
     const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
-    const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
-    const [tempPrice, setTempPrice] = useState<string>("");
 
     const isCancelledNow = () => {
       if (!entry.cancelledFrom) return false;
@@ -413,135 +412,15 @@ export default function Bills() {
         </Dialog>
 
         {/* Monthly Prices dialog */}
-        <Dialog
-          open={isMonthlyPricesOpen}
-          onOpenChange={(open) => {
-            if (!open && tempPrice) {
-              // Save on close
-              const month = new Date(
-                new Date().getFullYear(),
-                currentMonthIndex,
-                1
-              ).toISOString().slice(0, 7);
-              const newPrices = {
-                ...entry.monthlyPrices,
-                [month]: parseFloat(tempPrice) || 0,
-              };
-              updateBill(entry.id, { monthlyPrices: newPrices });
-              setTempPrice("");
-            }
-            setIsMonthlyPricesOpen(open);
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Set Monthly Prices</DialogTitle>
-            </DialogHeader>
-            {(() => {
-              const month = new Date(
-                new Date().getFullYear(),
-                currentMonthIndex,
-                1
-              ).toISOString().slice(0, 7);
-              const monthName = format(
-                new Date(new Date().getFullYear(), currentMonthIndex, 1),
-                "MMMM yyyy"
-              );
-              const savedPrice = entry.monthlyPrices?.[month] ?? 0;
-              const displayPrice = tempPrice !== "" ? tempPrice : savedPrice.toString();
-
-              const saveCurrentPrice = () => {
-                if (tempPrice) {
-                  const newPrices = {
-                    ...entry.monthlyPrices,
-                    [month]: parseFloat(tempPrice) || 0,
-                  };
-                  updateBill(entry.id, { monthlyPrices: newPrices });
-                  setTempPrice("");
-                }
-              };
-
-              const goToMonth = (newIndex: number) => {
-                saveCurrentPrice();
-                setCurrentMonthIndex(newIndex);
-              };
-
-              return (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => goToMonth((currentMonthIndex - 1 + 12) % 12)}
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M15 18l-6-6 6-6" />
-                      </svg>
-                    </Button>
-                    <h3 className="text-lg font-semibold">{monthName}</h3>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => goToMonth((currentMonthIndex + 1) % 12)}
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="monthPrice">Price for {monthName}</Label>
-                    <CurrencyInput
-                      id="monthPrice"
-                      value={tempPrice !== "" ? parseFloat(tempPrice) : savedPrice}
-                      onChange={(v) => setTempPrice(v !== null ? v.toString() : "")}
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div className="text-sm text-muted-foreground">
-                    Saved price: ${savedPrice.toFixed(2)}
-                  </div>
-                </div>
-              );
-            })()}
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  if (tempPrice) {
-                    const month = new Date(
-                      new Date().getFullYear(),
-                      currentMonthIndex,
-                      1
-                    ).toISOString().slice(0, 7);
-                    const newPrices = {
-                      ...entry.monthlyPrices,
-                      [month]: parseFloat(tempPrice) || 0,
-                    };
-                    updateBill(entry.id, { monthlyPrices: newPrices });
-                    setTempPrice("");
-                  }
-                  setIsMonthlyPricesOpen(false);
-                }}
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <MonthlyAmountsEditor
+          entryId={entry.id}
+          entryName={entry.name}
+          monthlyPrices={entry.monthlyPrices || {}}
+          defaultAmount={entry.amount}
+          onUpdate={updateBill}
+          isOpen={isMonthlyPricesOpen}
+          onOpenChange={setIsMonthlyPricesOpen}
+        />
 
         {/* Payment History dialog */}
         <Dialog
