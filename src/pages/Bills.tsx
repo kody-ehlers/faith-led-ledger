@@ -81,7 +81,7 @@ export default function Bills() {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const handleAdd = () => {
-    if (!variablePrice && (amount === null || amount <= 0)) {
+    if (amount === null || amount <= 0) {
       toast.error("Please provide valid price");
       return;
     }
@@ -92,7 +92,7 @@ export default function Bills() {
 
     addBill({
       name: name.trim(),
-      amount: variablePrice ? 0 : (amount ?? 0),
+      amount: amount ?? 0,
       frequency,
       date: date.toISOString(),
       notes: notes.trim(),
