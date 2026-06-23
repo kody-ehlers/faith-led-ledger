@@ -1,23 +1,24 @@
 import React, { useMemo, useState } from "react";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Button } from "@/components/ui/button";
-import { format, addMonths, subMonths } from "date-fns";
-import { X, ChevronUp, ChevronDown } from "lucide-react";
+import { addDays, addMonths, addYears, format } from "date-fns";
+import { X, ChevronUp, ChevronDown, Lock } from "lucide-react";
 
 /**
- * Monthly amounts editor for variable-price bills and subscriptions.
+ * Variable amounts editor for bills and subscriptions.
  *
- * Shows a list of months with pre-populated input fields for setting
- * the price for each month. Keys are "YYYY-MM" format month strings.
- * Layout matches VariableAmountsEditor exactly.
+ * Uses date-keyed periods like VariableAmountsEditor for income.
+ * Handles all frequencies: Weekly, Biweekly, Monthly, Bimonthly, Quarterly, Yearly.
  */
 
 type Props = {
   entryId: string;
   entryName: string;
-  monthlyPrices: Record<string, number>;
+  frequency: "Weekly" | "Biweekly" | "Monthly" | "Bimonthly" | "Quarterly" | "Yearly";
+  startDate: string;
+  periodAmounts: Record<string, number>;
   defaultAmount: number;
-  onUpdate: (id: string, updates: { monthlyPrices: Record<string, number> }) => void;
+  onUpdate: (id: string, updates: { periodAmounts: Record<string, number> }) => void;
 };
 
 const PAGE_SIZE = 12;
@@ -25,66 +26,176 @@ const INITIAL_BEFORE = 3;
 const INITIAL_AFTER = 8;
 
 /**
- * Format date as YYYY-MM month string.
+ * Parse date string (YYYY-MM-DD) as local midnight.
  */
-function formatMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return new Date(dateStr);
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+/**
+ * Format date as YYYY-MM-DD string.
+ */
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Advance date by one period based on frequency.
+ */
+function advanceByFrequency(date: Date, frequency: Props["frequency"]): Date {
+  switch (frequency) {
+    case "Weekly": return addDays(date, 7);
+    case "Biweekly": return addDays(date, 14);
+    case "Monthly": return addMonths(date, 1);
+    case "Bimonthly": return addMonths(date, 2);
+    case "Quarterly": return addMonths(date, 3);
+    case "Yearly": return addYears(date, 1);
+    default: return addMonths(date, 1);
+  }
+}
+
+/**
+ * Go back one period based on frequency.
+ */
+function goBackByFrequency(date: Date, frequency: Props["frequency"]): Date {
+  switch (frequency) {
+    case "Weekly": return addDays(date, -7);
+    case "Biweekly": return addDays(date, -14);
+    case "Monthly": return addMonths(date, -1);
+    case "Bimonthly": return addMonths(date, -2);
+    case "Quarterly": return addMonths(date, -3);
+    case "Yearly": return addYears(date, -1);
+    default: return addMonths(date, -1);
+  }
+}
+
+/**
+ * Find the period anchor date that contains the given target date.
+ */
+function findPeriodAnchor(startDate: Date, frequency: Props["frequency"], targetDate: Date): Date {
+  const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+  if (target.getTime() <= start.getTime()) return start;
+
+  let current = new Date(start);
+  let prev = new Date(start);
+
+  while (current.getTime() < target.getTime()) {
+    prev = new Date(current);
+    current = advanceByFrequency(current, frequency);
+  }
+
+  if (current.getTime() === target.getTime()) {
+    return current;
+  }
+
+  return prev;
+}
+
+/**
+ * Get display label for a period based on frequency.
+ */
+function getPeriodDisplay(frequency: Props["frequency"], date: Date): string {
+  switch (frequency) {
+    case "Weekly":
+      return `Week of ${format(date, "MMM d, yyyy")}`;
+    case "Biweekly":
+      return `Pay period of ${format(date, "MMM d, yyyy")}`;
+    case "Monthly":
+      return `Month of ${format(date, "MMMM yyyy")}`;
+    case "Bimonthly":
+      return `Bimonthly period of ${format(date, "MMM yyyy")}`;
+    case "Quarterly":
+      return `Quarter starting ${format(date, "MMM d, yyyy")}`;
+    case "Yearly":
+      return `Year of ${date.getFullYear()}`;
+    default:
+      return format(date, "MMM d, yyyy");
+  }
 }
 
 export default function MonthlyAmountsEditor({
   entryId,
   entryName,
-  monthlyPrices,
+  frequency,
+  startDate,
+  periodAmounts,
   defaultAmount,
   onUpdate,
 }: Props) {
   const [earlierCount, setEarlierCount] = useState(INITIAL_BEFORE);
   const [laterCount, setLaterCount] = useState(INITIAL_AFTER);
-  const [localPrices, setLocalPrices] = useState<Record<string, number>>(() => ({ ...monthlyPrices }));
+  const [localPrices, setLocalPrices] = useState<Record<string, number>>(() => ({ ...periodAmounts }));
 
-  // Find current month
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
+  // Parse entry start date as local
+  const start = useMemo(() => parseLocalDate(startDate), [startDate]);
 
-  const currentMonthKey = useMemo(() => formatMonthKey(today), [today]);
+  // Find current period anchor (the period containing today)
+  const todayAnchor = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return findPeriodAnchor(start, frequency, today);
+  }, [start, frequency]);
 
-  // Find the earliest month to show
-  const earliestMonth = useMemo(() => {
-    let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  // Find the earliest reachable period anchor (not before entry start)
+  const earliestAnchor = useMemo(() => {
+    let cursor = new Date(todayAnchor);
     for (let i = 0; i < earlierCount; i++) {
-      cursor = subMonths(cursor, 1);
+      const prev = goBackByFrequency(cursor, frequency);
+      if (prev.getTime() < start.getTime()) break;
+      cursor = prev;
     }
     return cursor;
-  }, [today, earlierCount]);
+  }, [todayAnchor, earlierCount, frequency, start]);
 
-  // Generate months to display
-  const months = useMemo(() => {
+  // True when we cannot go further back because we'd cross the start date
+  const atStart = useMemo(() => {
+    const prev = goBackByFrequency(earliestAnchor, frequency);
+    return prev.getTime() < start.getTime();
+  }, [earliestAnchor, frequency, start]);
+
+  // Generate periods from earliestAnchor moving forward
+  const periods = useMemo(() => {
     const rows: {
       key: string;
       label: string;
-      date: Date;
+      anchor: Date;
       isCurrent: boolean;
+      beforeStart: boolean;
     }[] = [];
 
-    const count = INITIAL_BEFORE + 1 + laterCount;
-    let cursor = new Date(earliestMonth);
+    let cursor = new Date(earliestAnchor);
+    const todayKey = formatDateKey(todayAnchor);
+
+    // Count how many periods from earliestAnchor to todayAnchor
+    let beforeAndCurrent = 1;
+    let probe = new Date(earliestAnchor);
+    while (probe.getTime() < todayAnchor.getTime()) {
+      probe = advanceByFrequency(probe, frequency);
+      beforeAndCurrent++;
+    }
+    const count = beforeAndCurrent + laterCount;
 
     for (let i = 0; i < count; i++) {
-      const key = formatMonthKey(cursor);
+      const key = formatDateKey(cursor);
+      const beforeStart = cursor.getTime() < start.getTime();
       rows.push({
         key,
-        label: `Month of ${format(cursor, "MMMM yyyy")}`,
-        date: new Date(cursor),
-        isCurrent: key === currentMonthKey,
+        anchor: new Date(cursor),
+        label: getPeriodDisplay(frequency, cursor),
+        isCurrent: key === todayKey,
+        beforeStart,
       });
-      cursor = addMonths(cursor, 1);
+      cursor = advanceByFrequency(cursor, frequency);
     }
 
     return rows;
-  }, [earliestMonth, currentMonthKey, laterCount]);
+  }, [earliestAnchor, todayAnchor, laterCount, frequency, start]);
 
   const setPrice = (key: string, value: number | null) => {
     const next = { ...localPrices };
@@ -94,7 +205,7 @@ export default function MonthlyAmountsEditor({
       next[key] = value;
     }
     setLocalPrices(next);
-    onUpdate(entryId, { monthlyPrices: next });
+    onUpdate(entryId, { periodAmounts: next });
   };
 
   return (
@@ -105,40 +216,49 @@ export default function MonthlyAmountsEditor({
           variant="outline"
           size="sm"
           onClick={() => setEarlierCount((c) => c + PAGE_SIZE)}
+          disabled={atStart}
           className="gap-1 w-full"
         >
           <ChevronUp className="h-4 w-4" />
-          Load earlier months
+          {atStart ? "Reached start date" : "Load earlier periods"}
         </Button>
       </div>
       <div className="max-h-96 overflow-y-auto rounded-md border border-border divide-y divide-border">
-        {months.map((m) => {
-          const hasOverride = Object.prototype.hasOwnProperty.call(localPrices, m.key);
+        {periods.map((p) => {
+          const hasOverride = Object.prototype.hasOwnProperty.call(localPrices, p.key);
+          const locked = p.beforeStart;
           return (
             <div
-              key={m.key}
-              className={`flex items-center gap-2 p-2 ${m.isCurrent ? "bg-muted/40" : ""}`}
+              key={p.key}
+              className={`flex items-center gap-2 p-2 ${p.isCurrent ? "bg-muted/40" : ""} ${locked ? "opacity-60" : ""}`}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{m.label}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {format(m.date, "MMM yyyy")}
-                  {m.isCurrent ? " · Current" : ""}
+                <p className="text-sm font-medium truncate">{p.label}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                  {format(p.anchor, "MMM d, yyyy")}
+                  {p.isCurrent ? " · Current" : ""}
+                  {locked ? (
+                    <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
+                      <Lock className="h-3 w-3" />
+                      Before start date
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <div className="w-36">
                 <CurrencyInput
-                  value={hasOverride ? localPrices[m.key] : null}
-                  onChange={(v) => setPrice(m.key, v)}
-                  placeholder={defaultAmount.toFixed(2)}
+                  value={hasOverride ? localPrices[p.key] : null}
+                  onChange={(v) => setPrice(p.key, v)}
+                  placeholder={locked ? "—" : defaultAmount.toFixed(2)}
+                  disabled={locked}
                 />
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                disabled={!hasOverride}
-                onClick={() => setPrice(m.key, null)}
+                disabled={!hasOverride || locked}
+                onClick={() => setPrice(p.key, null)}
                 aria-label="Reset to default amount"
                 title="Reset to default amount"
               >
@@ -157,7 +277,7 @@ export default function MonthlyAmountsEditor({
           className="gap-1 w-full"
         >
           <ChevronDown className="h-4 w-4" />
-          Load later months
+          Load later periods
         </Button>
       </div>
     </div>

@@ -25,7 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, subDays, isAfter } from "date-fns";
+import { format, subDays, isAfter, addDays, addMonths, addYears } from "date-fns";
 import DatePicker from "@/components/DatePicker";
 import {
   Dialog,
@@ -44,6 +44,86 @@ import MonthlyAmountsEditor from "@/components/MonthlyAmountsEditor";
 
 import type { RecurringFrequency } from "@/store/financeStore";
 type Frequency = RecurringFrequency;
+
+/**
+ * Parse date string (YYYY-MM-DD) as local midnight.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return new Date(dateStr);
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+/**
+ * Format date as YYYY-MM-DD string.
+ */
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Advance date by one period based on frequency.
+ */
+function advanceByFrequency(date: Date, frequency: Frequency): Date {
+  switch (frequency) {
+    case "Weekly": return addDays(date, 7);
+    case "Biweekly": return addDays(date, 14);
+    case "Monthly": return addMonths(date, 1);
+    case "Bimonthly": return addMonths(date, 2);
+    case "Quarterly": return addMonths(date, 3);
+    case "Yearly": return addYears(date, 1);
+    default: return addMonths(date, 1);
+  }
+}
+
+/**
+ * Find the period anchor date that contains the given target date.
+ */
+function findPeriodAnchor(startDate: Date, frequency: Frequency, targetDate: Date): Date {
+  const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+  if (target.getTime() <= start.getTime()) return start;
+
+  let current = new Date(start);
+  let prev = new Date(start);
+
+  while (current.getTime() < target.getTime()) {
+    prev = new Date(current);
+    current = advanceByFrequency(current, frequency);
+  }
+
+  if (current.getTime() === target.getTime()) {
+    return current;
+  }
+
+  return prev;
+}
+
+/**
+ * Get the amount for a bill entry for a specific date, accounting for variable prices.
+ */
+function getAmountForDate(entry: BillEntry, date: Date): number {
+  if (!entry.variablePrice) return entry.amount;
+
+  const start = parseLocalDate(entry.date);
+  const anchor = findPeriodAnchor(start, entry.frequency, date);
+  const dateKey = formatDateKey(anchor);
+
+  if (entry.monthlyPrices && typeof entry.monthlyPrices[dateKey] === "number") {
+    return entry.monthlyPrices[dateKey];
+  }
+
+  // Back-compat: check month-based keys
+  const monthKey = format(anchor, "yyyy-MM");
+  if (entry.monthlyPrices && typeof entry.monthlyPrices[monthKey] === "number") {
+    return entry.monthlyPrices[monthKey];
+  }
+
+  return entry.amount;
+}
 
 export default function Bills() {
   const {
@@ -188,7 +268,7 @@ export default function Bills() {
       }
     }
 
-    const currentMonthPrice = entry.variablePrice ? (entry.monthlyPrices?.[currentMonth] ?? null) : null;
+    const currentPeriodPrice = entry.variablePrice ? getAmountForDate(entry, now) : entry.amount;
 
     const togglePaidThisMonth = () => {
       const updated = isPaidCurrentIteration
@@ -248,9 +328,7 @@ export default function Bills() {
         <div className="flex items-center gap-2">
           <div className="text-right">
             <div className="font-semibold">
-              ${entry.variablePrice
-                ? (currentMonthPrice ?? entry.amount).toFixed(2)
-                : entry.amount.toFixed(2)}
+              ${currentPeriodPrice.toFixed(2)}
             </div>
             {entry.variablePrice && (
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -421,9 +499,11 @@ export default function Bills() {
             <MonthlyAmountsEditor
               entryId={entry.id}
               entryName={entry.name}
-              monthlyPrices={entry.monthlyPrices || {}}
+              frequency={entry.frequency}
+              startDate={entry.date}
+              periodAmounts={entry.monthlyPrices || {}}
               defaultAmount={entry.amount}
-              onUpdate={updateBill}
+              onUpdate={(id, updates) => updateBill(id, { monthlyPrices: updates.periodAmounts })}
             />
             <DialogFooter>
               <Button
