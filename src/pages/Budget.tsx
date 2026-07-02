@@ -323,8 +323,23 @@ export default function Budget() {
 
   const totalBudgetGoals = Object.values(monthGoals).reduce((s, v) => s + v, 0);
   const totalCategorySpending = Object.values(categorySpending).reduce((s, v) => s + v, 0);
-  const potentialSavings = monthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
-  const projectedSavings = recurringMonthlyIncome - fixedCosts - titheMTD - totalBudgetGoals;
+
+  // Build the full-period "effective" budget: user-set goal per category, or the
+  // projected/default cost when no goal is set (bills, subscriptions, debt min
+  // payments, tithe). This makes "If You Meet Goals" account for recurring
+  // fixed costs even when the user hasn't manually entered a goal for them.
+  const categoriesForEffective = new Set<string>([
+    ...Object.keys(monthGoals),
+    ...Object.keys(categoryProjected),
+  ]);
+  const effectiveGoalsTotal = Array.from(categoriesForEffective).reduce((sum, cat) => {
+    const userGoal = monthGoals[cat] || 0;
+    const projected = categoryProjected[cat] || 0;
+    return sum + (userGoal > 0 ? userGoal : projected);
+  }, 0);
+
+  const potentialSavings = monthlyIncome - effectiveGoalsTotal;
+  const projectedSavings = recurringMonthlyIncome - effectiveGoalsTotal;
   const actualSpendingAboveMinDebt = Math.max(0, totalCategorySpending - debtPaymentsMTD);
   const actualSavings = monthlyIncome - fixedCosts - titheMTD - actualSpendingAboveMinDebt;
 
