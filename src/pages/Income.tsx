@@ -736,7 +736,10 @@ export default function Income() {
                         setIsSettingsOpen(false);
                         setAdjustAmount(entry.amount.toString());
                         setAdjustDate(new Date());
-                        setIsAdjustOpen(true);
+                        // Defer so the Settings dialog fully unmounts before the
+                        // Adjust dialog opens (avoids Radix focus/pointer conflict
+                        // that would otherwise close the new dialog instantly).
+                        setTimeout(() => setIsAdjustOpen(true), 150);
                       }}
                     >
                       <TrendingUp className="mr-2 h-4 w-4" /> Adjust Pay
@@ -748,7 +751,7 @@ export default function Income() {
                         setIsSettingsOpen(false);
                         setVpEnabled(entry.variablePay ?? false);
                         setVpOverrides(entry.periodAmounts ?? {});
-                        setIsVariablePayOpen(true);
+                        setTimeout(() => setIsVariablePayOpen(true), 150);
                       }}
                     >
                       <DollarSign className="mr-2 h-4 w-4" /> Variable Pay
