@@ -19,6 +19,7 @@ import {
   calculatePostTaxIncomeForMonth,
   formatCurrency,
   getRecurringOccurrencesInMonth,
+  calculateTitheAmount,
 } from "@/utils/calculations";
 import { Target, TrendingUp, PiggyBank, TriangleAlert as AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
 import {
@@ -66,6 +67,65 @@ export default function Budget() {
   const dateRange = getDateRange();
   const currentMonthKey = getMonthKey(selectedDate);
 
+  // ---- Shared helpers for recurring bill/subscription math ----
+  const today = new Date();
+
+  const isCancelledOn = (
+    item: { cancelledFrom?: string | null; cancelledTo?: string | null; cancelledIndefinitely?: boolean },
+    date: Date
+  ) => {
+    if (!item.cancelledFrom) return false;
+    const from = new Date(item.cancelledFrom);
+    if (date < from) return false;
+    if (item.cancelledIndefinitely) return true;
+    if (item.cancelledTo) return date <= new Date(item.cancelledTo);
+    return false;
+  };
+
+  type RecurringItem = {
+    amount: number;
+    date: string;
+    frequency: string;
+    autopay?: boolean;
+    variablePrice?: boolean;
+    monthlyPrices?: { [m: string]: number };
+    paidMonths?: string[];
+    cancelledFrom?: string | null;
+    cancelledTo?: string | null;
+    cancelledIndefinitely?: boolean;
+  };
+
+  // Sum for a single month. `mtdOnly` caps autopay occurrences at "today" when
+  // the month is the current month. `paidMonths` always counts (already paid).
+  const sumRecurringForMonthKey = (
+    item: RecurringItem,
+    monthKey: string,
+    mtdOnly: boolean
+  ): number => {
+    const [year, month] = monthKey.split("-").map(Number);
+    const monthStartDate = new Date(year, month - 1, 1);
+    const monthEndDate = new Date(year, month, 0);
+
+    const startDate = new Date(item.date);
+    if (startDate > monthEndDate) return 0;
+
+    if (item.paidMonths?.includes(monthKey)) {
+      return item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
+    }
+
+    if (!item.autopay) return 0;
+
+    const occurrences = getRecurringOccurrencesInMonth(
+      startDate,
+      item.frequency as never,
+      monthStartDate
+    );
+    const cutoff = mtdOnly && isSameMonth(monthStartDate, today) ? today : monthEndDate;
+    const counted = occurrences.filter((occ) => occ <= cutoff && !isCancelledOn(item, occ));
+    const price = item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
+    return counted.length * price;
+  };
+
   // Calculate spending per category
   const categorySpending: Record<string, number> = {};
   const isInRange = (dateStr: string) => {
@@ -98,46 +158,29 @@ export default function Budget() {
     categorySpending["Debt Payments"] = (categorySpending["Debt Payments"] || 0) + debtPaymentsInRange;
   }
 
-  const billSpendingInRange = bills.reduce((sum, b) => {
-    let total = 0;
-    let month = startOfMonth(dateRange.start);
-    while (!isAfter(month, dateRange.end)) {
-      const monthKey = getMonthKey(month);
-      if (b.paidMonths?.includes(monthKey)) {
-        total += b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
-      } else if (b.autopay) {
-        const dueDay = new Date(b.date).getDate();
-        const dueDate = new Date(month.getFullYear(), month.getMonth(), dueDay);
-        if (dueDate >= dateRange.start && dueDate <= dateRange.end) {
-          total += b.amount;
-        }
-      }
-      month = addMonths(month, 1);
+  // Build month keys inside the range up front so we can reuse the helper.
+  const rangeMonthKeys: string[] = (() => {
+    const keys: string[] = [];
+    let cur = startOfMonth(dateRange.start);
+    while (!isAfter(cur, dateRange.end)) {
+      keys.push(getMonthKey(cur));
+      cur = addMonths(cur, 1);
     }
-    return sum + total;
-  }, 0);
+    return keys;
+  })();
+
+  const billSpendingInRange = bills.reduce(
+    (sum, b) => sum + rangeMonthKeys.reduce((s, k) => s + sumRecurringForMonthKey(b, k, true), 0),
+    0
+  );
   if (billSpendingInRange > 0) {
     categorySpending["Bills"] = (categorySpending["Bills"] || 0) + billSpendingInRange;
   }
 
-  const subscriptionSpendingInRange = subscriptions.reduce((sum, s) => {
-    let total = 0;
-    let month = startOfMonth(dateRange.start);
-    while (!isAfter(month, dateRange.end)) {
-      const monthKey = getMonthKey(month);
-      if (s.paidMonths?.includes(monthKey)) {
-        total += s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
-      } else if (s.autopay) {
-        const dueDay = new Date(s.date).getDate();
-        const dueDate = new Date(month.getFullYear(), month.getMonth(), dueDay);
-        if (dueDate >= dateRange.start && dueDate <= dateRange.end) {
-          total += s.amount;
-        }
-      }
-      month = addMonths(month, 1);
-    }
-    return sum + total;
-  }, 0);
+  const subscriptionSpendingInRange = subscriptions.reduce(
+    (sum, s) => sum + rangeMonthKeys.reduce((k2, k) => k2 + sumRecurringForMonthKey(s, k, true), 0),
+    0
+  );
   if (subscriptionSpendingInRange > 0) {
     categorySpending["Subscriptions"] = (categorySpending["Subscriptions"] || 0) + subscriptionSpendingInRange;
   }
@@ -150,76 +193,18 @@ export default function Budget() {
   }
 
   const getMonthKeysInRange = () => {
-    const keys: string[] = [];
-    let current = startOfMonth(dateRange.start);
-    while (!isAfter(current, dateRange.end)) {
-      keys.push(getMonthKey(current));
-      current = addMonths(current, 1);
-    }
-    return keys;
+    return rangeMonthKeys;
   };
 
   // Calculate fixed monthly costs
   const calculateFixedCosts = () => {
     const monthKeys = getMonthKeysInRange();
-    const today = new Date();
-
-    const isCancelled = (
-      item: { cancelledFrom?: string | null; cancelledTo?: string | null; cancelledIndefinitely?: boolean },
-      date: Date
-    ) => {
-      if (!item.cancelledFrom) return false;
-      const from = new Date(item.cancelledFrom);
-      if (date < from) return false;
-      if (item.cancelledIndefinitely) return true;
-      if (item.cancelledTo) return date <= new Date(item.cancelledTo);
-      return false;
-    };
-
-    const sumRecurringForMonth = <T extends {
-      amount: number;
-      date: string;
-      frequency: string;
-      autopay?: boolean;
-      variablePrice?: boolean;
-      monthlyPrices?: { [m: string]: number };
-      paidMonths?: string[];
-      cancelledFrom?: string | null;
-      cancelledTo?: string | null;
-      cancelledIndefinitely?: boolean;
-    }>(item: T, monthKey: string, mtdOnly: boolean): number => {
-      const [year, month] = monthKey.split("-").map(Number);
-      const monthStartDate = new Date(year, month - 1, 1);
-      const monthEndDate = new Date(year, month, 0);
-
-      // If item hasn't started by this month, nothing to count
-      const startDate = new Date(item.date);
-      if (startDate > monthEndDate) return 0;
-
-      // Paid this month → use override price if variable, else base
-      if (item.paidMonths?.includes(monthKey)) {
-        return item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
-      }
-
-      if (!item.autopay) return 0;
-
-      // Count autopay occurrences in this month (respect cancellation, MTD cutoff)
-      const occurrences = getRecurringOccurrencesInMonth(
-        startDate,
-        item.frequency as never,
-        monthStartDate
-      );
-      const cutoff = mtdOnly && isSameMonth(monthStartDate, today) ? today : monthEndDate;
-      const counted = occurrences.filter((occ) => occ <= cutoff && !isCancelled(item, occ));
-      const price = item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
-      return counted.length * price;
-    };
 
     let totalBills = 0;
     let totalSubs = 0;
     for (const key of monthKeys) {
-      for (const b of bills) totalBills += sumRecurringForMonth(b, key, timeframe === "single");
-      for (const s of subscriptions) totalSubs += sumRecurringForMonth(s, key, timeframe === "single");
+      for (const b of bills) totalBills += sumRecurringForMonthKey(b, key, timeframe === "single");
+      for (const s of subscriptions) totalSubs += sumRecurringForMonthKey(s, key, timeframe === "single");
     }
 
     let totalDebt = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
@@ -238,6 +223,32 @@ export default function Budget() {
 
   const { totalBills: billsMTD, totalSubs: subsMTD, totalDebt: debtPaymentsMTD, totalTithe: titheMTD } = calculateFixedCosts();
   const fixedCosts = billsMTD + subsMTD + debtPaymentsMTD;
+
+  // ---- Projected (full-period, not MTD) totals for each fixed category ----
+  // Used to auto-suggest a default goal amount when the user hasn't set one.
+  const projectedBills = bills.reduce(
+    (sum, b) => sum + rangeMonthKeys.reduce((s, k) => s + sumRecurringForMonthKey(b, k, false), 0),
+    0
+  );
+  const projectedSubs = subscriptions.reduce(
+    (sum, s) => sum + rangeMonthKeys.reduce((s2, k) => s2 + sumRecurringForMonthKey(s, k, false), 0),
+    0
+  );
+  const projectedDebt = debts.reduce((s, d) => s + d.minimumPayment, 0) * rangeMonthKeys.length;
+  // Tithe projection: 10% of titheable post-tax income across the range.
+  const titheableIncome = income.filter((i) => !i.notTitheable);
+  const projectedTithe = rangeMonthKeys.reduce((sum, k) => {
+    const [y, m] = k.split("-").map(Number);
+    const monthDate = new Date(y, m - 1, 1);
+    return sum + calculateTitheAmount(calculatePostTaxIncomeForMonth(titheableIncome, monthDate));
+  }, 0);
+
+  const categoryProjected: Record<string, number> = {
+    Bills: projectedBills,
+    Subscriptions: projectedSubs,
+    "Debt Payments": projectedDebt,
+    Tithe: projectedTithe,
+  };
 
   // Get goals for current month
   const monthGoals = goals[currentMonthKey] || {};
@@ -524,9 +535,13 @@ export default function Budget() {
             const spent = categorySpending[category] || 0;
 
             // Sum goals across the timeframe for this category
-            const goalRange = timeframe === "single"
+            const userGoalRange = timeframe === "single"
               ? (monthGoals[category] || 0)
               : monthKeysInRange.reduce((s, key) => s + ((goals[key]?.[category]) || 0), 0);
+            // Fall back to projected/expected for fixed categories when unset.
+            const projected = categoryProjected[category] || 0;
+            const goalRange = userGoalRange > 0 ? userGoalRange : projected;
+            const isDefaultGoal = userGoalRange === 0 && projected > 0;
 
             const percent = goalRange > 0 ? Math.min((spent / goalRange) * 100, 100) : 0;
             const over = goalRange > 0 && spent > goalRange;
@@ -539,9 +554,19 @@ export default function Budget() {
                     {over && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
                   </div>
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-                    <span className="text-sm text-muted-foreground">
-                      {formatCurrency(spent)} {"/"} {formatCurrency(goalRange)}
-                    </span>
+                    <div className="text-sm text-muted-foreground text-right md:text-left">
+                      <div>
+                        {formatCurrency(spent)} {"/"} {formatCurrency(goalRange)}
+                        {isDefaultGoal && (
+                          <span className="ml-1 text-xs italic">(projected)</span>
+                        )}
+                      </div>
+                      {projected > 0 && spent < projected && (
+                        <div className="text-xs">
+                          Upcoming: {formatCurrency(Math.max(0, projected - spent))}
+                        </div>
+                      )}
+                    </div>
                     {timeframe === "single" && (
                       <>
                         <div>
@@ -570,7 +595,7 @@ export default function Budget() {
                           <CurrencyInput
                             value={(monthGoals[category] || 0) || null}
                             onChange={(v) => setGoal(category, v ?? 0)}
-                            placeholder="Goal"
+                            placeholder={projected > 0 ? formatCurrency(projected) : "Goal"}
                           />
                         </div>
                       </>
