@@ -235,6 +235,8 @@ interface FinanceState {
   expenseCategories: string[];
   cardOrders: Record<string, string[]>;
   theme: "light" | "dark";
+  finalizedDays: string[];
+  setDayFinalized: (date: string, finalized: boolean) => void;
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
