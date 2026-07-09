@@ -15,11 +15,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
 import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import {
   format,
@@ -56,6 +57,11 @@ import { useEffect } from "react";
 export default function Home() {
   const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments, walletEnabled } =
     useFinanceStore();
+  const finalizedDays = useFinanceStore((s) => s.finalizedDays);
+  const setDayFinalized = useFinanceStore((s) => s.setDayFinalized);
+  const finalizedSet = new Set(finalizedDays);
+  const toDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const now = new Date();
   const monthKey = now.toISOString().slice(0, 7);
