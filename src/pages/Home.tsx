@@ -622,16 +622,15 @@ export default function Home() {
                         const isFinalized = finalizedSet.has(dayKey);
                         const hasActivity = incomeTotal !== 0 || dayCost !== 0 || dateRangeExpenses.length > 0;
                         const finalizedBg = isFinalized
-                          ? (dayNet >= 0 ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30")
-                          : "";
+                          ? "bg-success/10 border-success/30"
+                          : "bg-destructive/10 border-destructive/30";
 
                         return (
                           <HoverCard key={d.toISOString()} openDelay={100} closeDelay={150}>
                             <HoverCardTrigger asChild>
                               <div className={`min-h-[80px] p-2 rounded border cursor-pointer ${
-                                finalizedBg ? finalizedBg :
                                 today ? "border-primary/50 bg-primary/5" :
-                                muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
+                                muted ? "bg-muted/5 text-muted-foreground" : finalizedBg
                                 } hover:shadow-sm`}>
                                 <div className="flex justify-between items-start">
                                   <div className={`text-sm font-medium ${muted ? "opacity-60" : ""} ${today ? "text-primary font-bold" : ""}`}>
