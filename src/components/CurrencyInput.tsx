@@ -96,6 +96,7 @@ export function CurrencyInput({
         name={name}
         aria-label={ariaLabel}
         inputMode="decimal"
+        autoComplete="off"
         value={localValue}
         placeholder={placeholder}
         disabled={disabled}
