@@ -235,6 +235,8 @@ interface FinanceState {
   expenseCategories: string[];
   cardOrders: Record<string, string[]>;
   theme: "light" | "dark";
+  finalizedDays: string[];
+  setDayFinalized: (date: string, finalized: boolean) => void;
 
   // Actions
   addIncome: (entry: Omit<IncomeEntry, "id">) => void;
@@ -399,6 +401,7 @@ export const useFinanceStore = create<FinanceState>()(
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       walletEnabled: true,
       theme: "light",
+      finalizedDays: [],
       expenseCategories: [
         "Groceries",
         "Dining",
@@ -1247,6 +1250,14 @@ export const useFinanceStore = create<FinanceState>()(
         set(() => ({
           theme,
         })),
+
+      setDayFinalized: (date, finalized) =>
+        set((state) => {
+          const has = state.finalizedDays.includes(date);
+          if (finalized && !has) return { finalizedDays: [...state.finalizedDays, date] };
+          if (!finalized && has) return { finalizedDays: state.finalizedDays.filter((d) => d !== date) };
+          return {} as any;
+        }),
 
       addExpenseCategory: (category) =>
         set((state) => ({

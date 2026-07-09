@@ -15,11 +15,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
 import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import {
   format,
@@ -56,6 +57,11 @@ import { useEffect } from "react";
 export default function Home() {
   const { income, expenses, savings, debts, bills, subscriptions, tithes, assets, investments, walletEnabled } =
     useFinanceStore();
+  const finalizedDays = useFinanceStore((s) => s.finalizedDays);
+  const setDayFinalized = useFinanceStore((s) => s.setDayFinalized);
+  const finalizedSet = new Set(finalizedDays);
+  const toDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const now = new Date();
   const monthKey = now.toISOString().slice(0, 7);
@@ -612,11 +618,19 @@ export default function Home() {
                         const dayNet = dayRevenue - dayCost;
                         const muted = !isSameMonth(d, mStart);
                         const today = isToday(d);
+                        const dayKey = toDateKey(d);
+                        const isFinalized = finalizedSet.has(dayKey);
+                        const hasActivity = incomeTotal !== 0 || dayCost !== 0 || dateRangeExpenses.length > 0;
+                        const finalizedBg = isFinalized
+                          ? (dayNet >= 0 ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30")
+                          : "";
 
                         return (
-                          <Tooltip key={d.toISOString()}>
-                            <TooltipTrigger asChild>
-                              <div className={`min-h-[80px] p-2 rounded border ${today ? "border-primary/50 bg-primary/5" :
+                          <HoverCard key={d.toISOString()} openDelay={100} closeDelay={150}>
+                            <HoverCardTrigger asChild>
+                              <div className={`min-h-[80px] p-2 rounded border cursor-pointer ${
+                                finalizedBg ? finalizedBg :
+                                today ? "border-primary/50 bg-primary/5" :
                                 muted ? "bg-muted/5 text-muted-foreground" : "bg-card"
                                 } hover:shadow-sm`}>
                                 <div className="flex justify-between items-start">
@@ -641,9 +655,25 @@ export default function Home() {
                                   )}
                                 </div>
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="w-80">
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
                               <div className="space-y-2">
+                                <div className="flex items-center justify-between pb-2 border-b">
+                                  <div>
+                                    <div className="text-sm font-semibold">{format(d, "EEEE, MMM d")}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {isFinalized ? "Marked as finalized" : "Not yet finalized"}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Label htmlFor={`fin-${dayKey}`} className="text-xs">Finalized</Label>
+                                    <Switch
+                                      id={`fin-${dayKey}`}
+                                      checked={isFinalized}
+                                      onCheckedChange={(v) => setDayFinalized(dayKey, v)}
+                                    />
+                                  </div>
+                                </div>
                                 <div className="grid grid-cols-3 gap-3 py-2 text-sm">
                                   <div>
                                     <div className="text-xs text-muted-foreground mb-1">Revenue</div>
@@ -733,8 +763,8 @@ export default function Home() {
                                   </div>
                                 )}
                               </div>
-                            </TooltipContent>
-                          </Tooltip>
+                            </HoverCardContent>
+                          </HoverCard>
                         );
                       })}
                     </div>
