@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -21,7 +22,7 @@ import {
   getRecurringOccurrencesInMonth,
   calculateTitheAmount,
 } from "@/utils/calculations";
-import { Target, TrendingUp, PiggyBank, TriangleAlert as AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy } from "lucide-react";
+import { Target, TrendingUp, PiggyBank, TriangleAlert as AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy, StickyNote } from "lucide-react";
 import {
   startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth, isBefore, isAfter,
 } from "date-fns";
@@ -44,6 +45,19 @@ export default function Budget() {
     setGoals(updated);
     localStorage.setItem("budget-goals", JSON.stringify(updated));
   };
+
+  // Budget notes: per-month, per-category free-form text.
+  const [notes, setNotes] = useState<Record<string, Record<string, string>>>(() => {
+    const saved = localStorage.getItem("budget-notes");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const saveNotes = (updated: Record<string, Record<string, string>>) => {
+    setNotes(updated);
+    localStorage.setItem("budget-notes", JSON.stringify(updated));
+  };
+
+  const [openNotesCategory, setOpenNotesCategory] = useState<string | null>(null);
 
   // Get month key from a date
   const getMonthKey = (date: Date) => date.toISOString().slice(0, 7);
