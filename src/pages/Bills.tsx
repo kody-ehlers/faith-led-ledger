@@ -401,7 +401,7 @@ export default function Bills() {
                     variant="outline"
                     onClick={() => {
                       setIsSettingsOpen(false);
-                      setIsMonthlyPricesOpen(true);
+                      setTimeout(() => setIsMonthlyPricesOpen(true), 150);
                     }}
                   >
                     <SquarePen className="mr-2 h-4 w-4" /> Set Monthly Prices
