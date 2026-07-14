@@ -192,7 +192,12 @@ export default function DevOps() {
                                     value={newBug}
                                     onChange={(e) => setNewBug(e.target.value)}
                                     placeholder="Describe the bug..."
-                                    onKeyDown={(e) => e.key === "Enter" && addItem(newBug, setBugs)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            addItem(newBug, setBugs);
+                                            setNewBug("");
+                                        }
+                                    }}
                                 />
                                 <Button onClick={() => {
                                     addItem(newBug, setBugs);
@@ -295,7 +300,12 @@ export default function DevOps() {
                                     value={newRequest}
                                     onChange={(e) => setNewRequest(e.target.value)}
                                     placeholder="Describe the feature..."
-                                    onKeyDown={(e) => e.key === "Enter" && addItem(newRequest, setRequests)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            addItem(newRequest, setRequests);
+                                            setNewRequest("");
+                                        }
+                                    }}
                                 />
                                 <Button onClick={() => {
                                     addItem(newRequest, setRequests);
