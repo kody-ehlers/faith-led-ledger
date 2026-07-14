@@ -160,6 +160,12 @@ export default function Bills() {
   const [editing, setEditing] = useState<BillEntry | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
+  // Hoisted so the dialog survives BillCard remounts caused by store updates.
+  const [monthlyPricesForId, setMonthlyPricesForId] = useState<string | null>(null);
+  const monthlyPricesEntry = monthlyPricesForId
+    ? bills.find((b) => b.id === monthlyPricesForId) ?? null
+    : null;
+
   const handleAdd = () => {
     if (amount === null || amount <= 0) {
       toast.error("Please provide valid price");
@@ -401,7 +407,7 @@ export default function Bills() {
                     variant="outline"
                     onClick={() => {
                       setIsSettingsOpen(false);
-                      setTimeout(() => setIsMonthlyPricesOpen(true), 150);
+                      setTimeout(() => setMonthlyPricesForId(entry.id), 150);
                     }}
                   >
                     <SquarePen className="mr-2 h-4 w-4" /> Set Monthly Prices
@@ -486,33 +492,6 @@ export default function Bills() {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsSettingsOpen(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Monthly Prices dialog */}
-        <Dialog open={isMonthlyPricesOpen} onOpenChange={setIsMonthlyPricesOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Variable Prices for {entry.name}</DialogTitle>
-            </DialogHeader>
-            <MonthlyAmountsEditor
-              entryId={entry.id}
-              entryName={entry.name}
-              frequency={entry.frequency}
-              startDate={entry.date}
-              periodAmounts={entry.monthlyPrices || {}}
-              defaultAmount={entry.amount}
-              onUpdate={(id, updates) => updateBill(id, { monthlyPrices: updates.periodAmounts })}
-            />
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  setIsMonthlyPricesOpen(false);
-                }}
-              >
-                Done
-              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1122,6 +1101,40 @@ export default function Bills() {
               Save
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Monthly Prices dialog (hoisted so typing doesn't remount the card) */}
+      <Dialog
+        open={monthlyPricesEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setMonthlyPricesForId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {monthlyPricesEntry && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Variable Prices for {monthlyPricesEntry.name}
+                </DialogTitle>
+              </DialogHeader>
+              <MonthlyAmountsEditor
+                entryId={monthlyPricesEntry.id}
+                entryName={monthlyPricesEntry.name}
+                frequency={monthlyPricesEntry.frequency}
+                startDate={monthlyPricesEntry.date}
+                periodAmounts={monthlyPricesEntry.monthlyPrices || {}}
+                defaultAmount={monthlyPricesEntry.amount}
+                onUpdate={(id, updates) =>
+                  updateBill(id, { monthlyPrices: updates.periodAmounts })
+                }
+              />
+              <DialogFooter>
+                <Button onClick={() => setMonthlyPricesForId(null)}>Done</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
