@@ -1103,6 +1103,40 @@ export default function Bills() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Monthly Prices dialog (hoisted so typing doesn't remount the card) */}
+      <Dialog
+        open={monthlyPricesEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setMonthlyPricesForId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {monthlyPricesEntry && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Variable Prices for {monthlyPricesEntry.name}
+                </DialogTitle>
+              </DialogHeader>
+              <MonthlyAmountsEditor
+                entryId={monthlyPricesEntry.id}
+                entryName={monthlyPricesEntry.name}
+                frequency={monthlyPricesEntry.frequency}
+                startDate={monthlyPricesEntry.date}
+                periodAmounts={monthlyPricesEntry.monthlyPrices || {}}
+                defaultAmount={monthlyPricesEntry.amount}
+                onUpdate={(id, updates) =>
+                  updateBill(id, { monthlyPrices: updates.periodAmounts })
+                }
+              />
+              <DialogFooter>
+                <Button onClick={() => setMonthlyPricesForId(null)}>Done</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
