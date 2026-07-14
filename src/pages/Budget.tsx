@@ -266,11 +266,21 @@ export default function Budget() {
 
   // Get goals for current month
   const monthGoals = goals[currentMonthKey] || {};
+  const monthNotes = notes[currentMonthKey] || {};
 
   // Set goal for a category
   const setGoal = (category: string, amount: number) => {
     const updated = { ...goals, [currentMonthKey]: { ...monthGoals, [category]: amount } };
     saveGoals(updated);
+  };
+
+  const setNote = (category: string, text: string) => {
+    const next = { ...notes };
+    const cur = { ...(next[currentMonthKey] || {}) };
+    if (text.trim()) cur[category] = text;
+    else delete cur[category];
+    next[currentMonthKey] = cur;
+    saveNotes(next);
   };
 
   const previousMonthKey = getMonthKey(subMonths(selectedDate, 1));
@@ -357,12 +367,30 @@ export default function Budget() {
   const actualSpendingAboveMinDebt = Math.max(0, totalCategorySpending - debtPaymentsMTD);
   const actualSavings = monthlyIncome - fixedCosts - titheMTD - actualSpendingAboveMinDebt;
 
-  // Compute total budget goals across the selected date range (sum of each month's goals)
+  // Compute total budget goals across the selected date range.
+  // For fixed categories (Bills/Subs/Debt/Tithe) without a user-set goal,
+  // fall back to the projected/expected cost so the "budgeted" figure
+  // stays comparable to the "spent" figure (which counts those fixed costs).
   const monthKeysInRange = getMonthKeysInRange();
-  const totalBudgetGoalsRange = monthKeysInRange.reduce((sum, key) => {
-    const g = goals[key] || {};
-    return sum + Object.values(g).reduce((s, v) => s + v, 0);
-  }, 0);
+  const fixedFallbackCategories: Record<string, number> = {
+    Bills: projectedBills,
+    Subscriptions: projectedSubs,
+    "Debt Payments": projectedDebt,
+    Tithe: projectedTithe,
+  };
+  const totalBudgetGoalsRange = (() => {
+    const userSum = monthKeysInRange.reduce((sum, key) => {
+      const g = goals[key] || {};
+      return sum + Object.values(g).reduce((s, v) => s + v, 0);
+    }, 0);
+    // Add projected fallback for fixed categories with no user goal in ANY month of the range.
+    let fallback = 0;
+    for (const [cat, projected] of Object.entries(fixedFallbackCategories)) {
+      const userHasGoal = monthKeysInRange.some((k) => (goals[k]?.[cat] || 0) > 0);
+      if (!userHasGoal) fallback += projected;
+    }
+    return userSum + fallback;
+  })();
 
   // totalCategorySpending already sums spending across the dateRange
   const totalSpentRange = totalCategorySpending;
@@ -620,6 +648,28 @@ export default function Budget() {
                             </TooltipContent>
                           </Tooltip>
                         </div>
+                        <div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={monthNotes[category] ? "default" : "outline"}
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                onClick={() =>
+                                  setOpenNotesCategory(
+                                    openNotesCategory === category ? null : category
+                                  )
+                                }
+                              >
+                                <StickyNote className="mr-1 h-4 w-4" />
+                                Notes
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs">
+                              Add notes for this category (e.g. what you're budgeting for).
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         <div className="w-28">
                           <CurrencyInput
                             value={(monthGoals[category] || 0) || null}
@@ -631,6 +681,20 @@ export default function Budget() {
                     )}
                   </div>
                 </div>
+                {timeframe === "single" && openNotesCategory === category && (
+                  <Textarea
+                    value={monthNotes[category] ?? ""}
+                    onChange={(e) => setNote(category, e.target.value)}
+                    placeholder="e.g. bags of sand, new shovel, birthday gift..."
+                    rows={2}
+                    className="text-sm"
+                  />
+                )}
+                {timeframe === "single" && openNotesCategory !== category && monthNotes[category] && (
+                  <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">
+                    {monthNotes[category]}
+                  </p>
+                )}
                 {goalRange > 0 && (
                   <Progress
                     value={percent}
