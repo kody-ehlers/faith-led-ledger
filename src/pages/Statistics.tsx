@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format, addMonths, isAfter, isBefore, isEqual } from "date-fns";
-import { formatCurrency, dateIsSuspended, getRecurringOccurrencesInMonth, getAmountForDate, getEntryIncomeForMonth, calculateIncomeForMonthPublic } from "@/utils/calculations";
+import { formatCurrency, dateIsSuspended, getRecurringOccurrencesInMonth, getAmountForDate, getEntryIncomeForMonth, calculateIncomeForMonthPublic, getRecurringAmountForOccurrence } from "@/utils/calculations";
 import CleanPieChart from "@/components/CleanPieChart";
 import { Heart, Church } from "lucide-react";
 
@@ -62,8 +62,7 @@ export default function Statistics() {
       occurrences.forEach((occurrence) => {
         if (occurrence < start || occurrence > end) return;
         if (dateIsSuspended(occurrence, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) return;
-        const monthKey = format(occurrence, "yyyy-MM");
-        total += b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
+        total += getRecurringAmountForOccurrence(b, occurrence);
       });
     });
 
@@ -84,8 +83,7 @@ export default function Statistics() {
       occurrences.forEach((occurrence) => {
         if (occurrence < start || occurrence > end) return;
         if (dateIsSuspended(occurrence, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) return;
-        const monthKey = format(occurrence, "yyyy-MM");
-        total += s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
+        total += getRecurringAmountForOccurrence(s, occurrence);
       });
     });
 
