@@ -766,36 +766,41 @@ export const calculateMonthlyExpenses = (
     }
   }
 
-  // 3) Bills that have been marked paid for this month (paidMonths contains YYYY-MM)
+  // 3) Bills that are paid this month, including autopay occurrences due so far.
   for (const b of bills) {
-    if (!b.paidMonths) continue;
-    if (b.paidMonths.includes(monthKey)) {
-      const amount = getRecurringAmountForOccurrence(b, now);
-      total += amount;
+    const paidForMonth = b.paidMonths?.includes(monthKey) ?? false;
+    if (!paidForMonth && !b.autopay) continue;
+
+    const occurrences = getRecurringOccurrencesInMonth(
+      parseLocalDate(b.date),
+      b.frequency,
+      now,
+      paidForMonth ? endOfMonth(now) : now,
+    );
+    for (const occurrence of occurrences) {
+      if (dateIsSuspended(occurrence, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) {
+        continue;
+      }
+      total += getRecurringAmountForOccurrence(b, occurrence);
     }
   }
 
   // 4) Subscriptions: include if paidMonths includes monthKey, or if autopay and scheduled occurrence for this month is on-or-before today
   for (const s of subscriptions) {
-    if (s.paidMonths && s.paidMonths.includes(monthKey)) {
-      total += getRecurringAmountForOccurrence(s, now);
-      continue;
-    }
+    const paidForMonth = s.paidMonths?.includes(monthKey) ?? false;
+    if (!paidForMonth && !s.autopay) continue;
 
-    if (s.autopay) {
-      const start = new Date(s.date);
-      if (isAfter(start, now)) continue;
-
-      const occurrences = getRecurringOccurrencesInMonth(
-        start,
-        s.frequency,
-        now,
-        now,
-      );
-      const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
-      for (const occ of dueOccurrences) {
-        total += getRecurringAmountForOccurrence(s, occ);
+    const occurrences = getRecurringOccurrencesInMonth(
+      parseLocalDate(s.date),
+      s.frequency,
+      now,
+      paidForMonth ? endOfMonth(now) : now,
+    );
+    for (const occurrence of occurrences) {
+      if (dateIsSuspended(occurrence, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) {
+        continue;
       }
+      total += getRecurringAmountForOccurrence(s, occurrence);
     }
   }
 
