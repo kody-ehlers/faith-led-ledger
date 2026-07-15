@@ -29,6 +29,7 @@ import {
 } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import type { RecurringFrequency } from "@/store/financeStore";
 
 export default function Budget() {
   const { expenses, bills, subscriptions, debts, income, tithes, expenseCategories, investments } = useFinanceStore();
@@ -100,7 +101,7 @@ export default function Budget() {
   type RecurringItem = {
     amount: number;
     date: string;
-    frequency: string;
+    frequency: RecurringFrequency;
     autopay?: boolean;
     variablePrice?: boolean;
     monthlyPrices?: { [m: string]: number };
