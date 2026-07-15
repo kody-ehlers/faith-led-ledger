@@ -212,7 +212,7 @@ export default function Home() {
       const paid = b.paidMonths?.includes(monthKey);
       todayItems.push({
         label: `${b.name}${paid ? " ✓" : b.autopay ? " (autopay)" : " ⚠"}`,
-        amount: b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount,
+        amount: getRecurringAmountForOccurrence(b, now),
         type: "bill",
       });
     }
@@ -233,7 +233,7 @@ export default function Home() {
       const paid = s.paidMonths?.includes(monthKey);
       todayItems.push({
         label: `${s.name}${paid ? " ✓" : s.autopay ? " (autopay)" : " ⚠"}`,
-        amount: s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount,
+        amount: getRecurringAmountForOccurrence(s, now),
         type: "subscription",
       });
     }
