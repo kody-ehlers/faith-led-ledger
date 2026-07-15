@@ -14,7 +14,7 @@ import {
   getRecurringAmountForOccurrence,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
+import type { IncomeEntry } from "@/store/financeStore";
 import {
   HoverCard,
   HoverCardTrigger,

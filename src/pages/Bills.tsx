@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency, getRecurringOccurrencesInMonth } from "@/utils/calculations";
+import { formatCurrency, getRecurringAmountForOccurrence, getRecurringOccurrencesInMonth } from "@/utils/calculations";
 import MonthlyAmountsEditor from "@/components/MonthlyAmountsEditor";
 
 import type { RecurringFrequency } from "@/store/financeStore";
@@ -729,8 +729,6 @@ export default function Bills() {
   // Calculate total monthly bills
   const monthlyTotal = useMemo(() => {
     const now = new Date();
-    const currentMonth = format(now, "yyyy-MM");
-
     return bills.reduce((sum, b) => {
       // Skip if cancelled now
       if (b.cancelledFrom) {
@@ -746,8 +744,9 @@ export default function Bills() {
       const occurrences = getRecurringOccurrencesInMonth(startDate, b.frequency, now);
       if (occurrences.length === 0) return sum;
 
-      const amount = b.variablePrice ? b.monthlyPrices?.[currentMonth] ?? b.amount : b.amount;
-      return sum + amount * occurrences.length;
+      return sum + occurrences.reduce((total, occurrence) => {
+        return total + getRecurringAmountForOccurrence(b, occurrence);
+      }, 0);
     }, 0);
   }, [bills]);
 
