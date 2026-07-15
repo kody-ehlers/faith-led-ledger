@@ -21,6 +21,23 @@ import {
   isSameDay,
 } from "date-fns";
 
+const dateOnlyFromPossiblyUtcDateString = (date: Date): Date => {
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0 &&
+    (date.getHours() !== 0 ||
+      date.getMinutes() !== 0 ||
+      date.getSeconds() !== 0 ||
+      date.getMilliseconds() !== 0)
+  ) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  }
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 /**
  * Get the variable-price amount for a single occurrence of a bill/subscription.
  *
@@ -30,6 +47,8 @@ import {
 export const getRecurringAmountForOccurrence = (
   item: {
     amount: number;
+    date?: string;
+    frequency?: RecurringFrequency;
     variablePrice?: boolean;
     monthlyPrices?: { [key: string]: number };
   },
@@ -38,9 +57,21 @@ export const getRecurringAmountForOccurrence = (
   if (!item.variablePrice) return item.amount;
   const map = item.monthlyPrices;
   if (!map) return item.amount;
-  const dateKey = `${occurrence.getFullYear()}-${String(
-    occurrence.getMonth() + 1,
-  ).padStart(2, "0")}-${String(occurrence.getDate()).padStart(2, "0")}`;
+
+  let effectiveOccurrence = dateOnlyFromPossiblyUtcDateString(occurrence);
+  if (item.date && item.frequency) {
+    let anchor = parseLocalDate(item.date);
+    let guard = 0;
+    while (isBefore(anchor, effectiveOccurrence) && guard < 1000) {
+      const next = advanceRecurringDate(anchor, item.frequency);
+      if (isAfter(next, effectiveOccurrence)) break;
+      anchor = next;
+      guard++;
+    }
+    effectiveOccurrence = anchor;
+  }
+
+  const dateKey = localYMD(effectiveOccurrence);
   if (typeof map[dateKey] === "number") return map[dateKey];
   const monthKey = dateKey.slice(0, 7);
   if (typeof map[monthKey] === "number") return map[monthKey];
@@ -369,7 +400,7 @@ export const getRecurringOccurrencesInMonth = (
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
 
-  let occurrence = new Date(startDate);
+  let occurrence = dateOnlyFromPossiblyUtcDateString(startDate);
   if (isAfter(occurrence, monthEnd)) return occurrences;
 
   let guard = 0;
@@ -405,7 +436,7 @@ export const isRecurringOnDate = (
     targetDate.getMonth(),
     targetDate.getDate(),
   );
-  let occurrence = new Date(startDate);
+  let occurrence = dateOnlyFromPossiblyUtcDateString(startDate);
   if (isAfter(occurrence, targetDay)) return false;
 
   let guard = 0;
