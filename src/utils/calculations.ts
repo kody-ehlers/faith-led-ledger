@@ -1018,39 +1018,48 @@ export const calculateWalletTransactions = (
     });
   }
 
-  // Add bill payments (when marked as paid in paidMonths)
+  // Add bill payments from actual due occurrences so variable prices use the
+  // same period keys as the editor. Autopay bills count once their due date
+  // has passed; manually paid bills count when their paid month contains the occurrence.
   for (const bill of bills) {
     if (bill.assetId !== assetId) continue;
 
-    if (bill.paidMonths && bill.paidMonths.length > 0) {
-      for (const paidMonth of bill.paidMonths) {
-        // Parse YYYY-MM format and create payment date on the 1st of the month
-        const [year, month] = paidMonth.split("-").map(Number);
-        const paymentDate = new Date(year, month - 1, 1);
+    const paidMonths = new Set(bill.paidMonths || []);
+    if (!bill.autopay && paidMonths.size === 0) continue;
 
-        if (isAfter(paymentDate, enactDate) && isBefore(paymentDate, today)) {
-          // skip payments that fall within a cancelled/suspended window
-          if (
-            dateIsSuspended(
-              paymentDate,
-              bill.cancelledFrom,
-              bill.cancelledTo,
-              bill.cancelledIndefinitely,
-            )
-          )
-            continue;
-          const amount = getRecurringAmountForOccurrence(bill, paymentDate);
+    let occurrence = parseLocalDate(bill.date);
+    let guard = 0;
+    while (isBefore(occurrence, enactDate) && guard < 1000) {
+      occurrence = advanceRecurringDate(occurrence, bill.frequency);
+      guard++;
+    }
 
-          transactions.push({
-            dateObj: paymentDate,
-            date: paymentDate.toISOString().slice(0, 10),
-            amount: -amount,
-            description: `Bill Payment: ${bill.name}`,
-            type: "bill",
-            balance: 0,
-          });
-        }
+    guard = 0;
+    while (isBefore(occurrence, today) && guard < 1000) {
+      const occurrenceMonth = localYM(occurrence);
+      const shouldCount = bill.autopay || paidMonths.has(occurrenceMonth);
+      const isCancelled = dateIsSuspended(
+        occurrence,
+        bill.cancelledFrom,
+        bill.cancelledTo,
+        bill.cancelledIndefinitely,
+      );
+
+      if (shouldCount && !isCancelled) {
+        const amount = getRecurringAmountForOccurrence(bill, occurrence);
+
+        transactions.push({
+          dateObj: occurrence,
+          date: localYMD(occurrence),
+          amount: -amount,
+          description: `Bill Payment: ${bill.name}`,
+          type: "bill",
+          balance: 0,
+        });
       }
+
+      occurrence = advanceRecurringDate(occurrence, bill.frequency);
+      guard++;
     }
   }
 
@@ -1058,7 +1067,7 @@ export const calculateWalletTransactions = (
   for (const subscription of subscriptions) {
     if (subscription.assetId !== assetId) continue;
 
-    const startDate = new Date(subscription.date);
+    const startDate = parseLocalDate(subscription.date);
     if (isAfter(startDate, today)) continue;
 
     if (subscription.frequency) {
