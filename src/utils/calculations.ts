@@ -739,20 +739,15 @@ export const calculateMonthlyExpenses = (
   for (const b of bills) {
     if (!b.paidMonths) continue;
     if (b.paidMonths.includes(monthKey)) {
-      const amount = b.variablePrice
-        ? b.monthlyPrices?.[monthKey] || b.amount
-        : b.amount;
+      const amount = getRecurringAmountForOccurrence(b, now);
       total += amount;
     }
   }
 
   // 4) Subscriptions: include if paidMonths includes monthKey, or if autopay and scheduled occurrence for this month is on-or-before today
   for (const s of subscriptions) {
-    const amountForMonth = s.variablePrice
-      ? s.monthlyPrices?.[monthKey] || s.amount
-      : s.amount;
     if (s.paidMonths && s.paidMonths.includes(monthKey)) {
-      total += amountForMonth;
+      total += getRecurringAmountForOccurrence(s, now);
       continue;
     }
 
@@ -767,8 +762,8 @@ export const calculateMonthlyExpenses = (
         now,
       );
       const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
-      if (dueOccurrences.length > 0) {
-        total += amountForMonth * dueOccurrences.length;
+      for (const occ of dueOccurrences) {
+        total += getRecurringAmountForOccurrence(s, occ);
       }
     }
   }
@@ -1008,9 +1003,7 @@ export const calculateWalletTransactions = (
             )
           )
             continue;
-          const amount = bill.variablePrice
-            ? bill.monthlyPrices?.[paidMonth] || bill.amount
-            : bill.amount;
+          const amount = getRecurringAmountForOccurrence(bill, paymentDate);
 
           transactions.push({
             dateObj: paymentDate,
@@ -1071,10 +1064,7 @@ export const calculateWalletTransactions = (
           );
 
         if (!isCancelled) {
-          const monthKey = occurrence.toISOString().slice(0, 7); // YYYY-MM
-          const amount = subscription.variablePrice
-            ? subscription.monthlyPrices?.[monthKey] || subscription.amount
-            : subscription.amount;
+          const amount = getRecurringAmountForOccurrence(subscription, occurrence);
 
           transactions.push({
             dateObj: occurrence,
