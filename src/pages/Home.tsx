@@ -11,6 +11,7 @@ import {
   getRecurringOccurrencesInMonth,
   isRecurringOnDate,
   dateIsSuspended,
+  getRecurringAmountForOccurrence,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
