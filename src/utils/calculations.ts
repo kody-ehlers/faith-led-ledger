@@ -21,6 +21,32 @@ import {
   isSameDay,
 } from "date-fns";
 
+/**
+ * Get the variable-price amount for a single occurrence of a bill/subscription.
+ *
+ * Handles both the newer date-keyed overrides ("YYYY-MM-DD") written by
+ * MonthlyAmountsEditor and legacy month-keyed overrides ("YYYY-MM").
+ */
+export const getRecurringAmountForOccurrence = (
+  item: {
+    amount: number;
+    variablePrice?: boolean;
+    monthlyPrices?: { [key: string]: number };
+  },
+  occurrence: Date,
+): number => {
+  if (!item.variablePrice) return item.amount;
+  const map = item.monthlyPrices;
+  if (!map) return item.amount;
+  const dateKey = `${occurrence.getFullYear()}-${String(
+    occurrence.getMonth() + 1,
+  ).padStart(2, "0")}-${String(occurrence.getDate()).padStart(2, "0")}`;
+  if (typeof map[dateKey] === "number") return map[dateKey];
+  const monthKey = dateKey.slice(0, 7);
+  if (typeof map[monthKey] === "number") return map[monthKey];
+  return item.amount;
+};
+
 export const calculateMonthlyIncome = (income: IncomeEntry[]): number => {
   // Calculate the total income for the current month by enumerating occurrences
   // and using any change history to determine the amount for each occurrence.
