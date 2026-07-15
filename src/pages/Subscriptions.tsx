@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { SortableCardGrid, getOrdered } from "@/components/SortableCardGrid";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency, getRecurringOccurrencesInMonth } from "@/utils/calculations";
+import { formatCurrency, getRecurringAmountForOccurrence, getRecurringOccurrencesInMonth } from "@/utils/calculations";
 import MonthlyAmountsEditor from "@/components/MonthlyAmountsEditor";
 
 import type { RecurringFrequency } from "@/store/financeStore";
@@ -772,8 +772,6 @@ export default function Subscriptions() {
   // Calculate total monthly subscriptions
   const monthlyTotal = useMemo(() => {
     const now = new Date();
-    const currentMonth = format(now, "yyyy-MM");
-
     return subscriptions.reduce((sum, s) => {
       // Skip if cancelled now
       if (s.cancelledFrom) {
@@ -788,8 +786,9 @@ export default function Subscriptions() {
       const occurrences = getRecurringOccurrencesInMonth(startDate, s.frequency, now);
       if (occurrences.length === 0) return sum;
 
-      const amountForMonth = s.variablePrice ? s.monthlyPrices?.[currentMonth] ?? s.amount : s.amount;
-      return sum + amountForMonth * occurrences.length;
+      return sum + occurrences.reduce((total, occurrence) => {
+        return total + getRecurringAmountForOccurrence(s, occurrence);
+      }, 0);
     }, 0);
   }, [subscriptions]);
 

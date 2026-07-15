@@ -29,6 +29,7 @@ import {
 } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import type { RecurringFrequency } from "@/store/financeStore";
 
 export default function Budget() {
   const { expenses, bills, subscriptions, debts, income, tithes, expenseCategories, investments } = useFinanceStore();
@@ -100,7 +101,7 @@ export default function Budget() {
   type RecurringItem = {
     amount: number;
     date: string;
-    frequency: string;
+    frequency: RecurringFrequency;
     autopay?: boolean;
     variablePrice?: boolean;
     monthlyPrices?: { [m: string]: number };
@@ -124,18 +125,15 @@ export default function Budget() {
     const startDate = new Date(item.date);
     if (startDate > monthEndDate) return 0;
 
-    if (item.paidMonths?.includes(monthKey)) {
-      return getRecurringAmountForOccurrence(item, monthStartDate);
-    }
-
-    if (!item.autopay) return 0;
+    const paidForMonth = item.paidMonths?.includes(monthKey) ?? false;
+    if (!paidForMonth && !item.autopay) return 0;
 
     const occurrences = getRecurringOccurrencesInMonth(
       startDate,
       item.frequency as never,
       monthStartDate
     );
-    const cutoff = mtdOnly && isSameMonth(monthStartDate, today) ? today : monthEndDate;
+    const cutoff = paidForMonth || !mtdOnly || !isSameMonth(monthStartDate, today) ? monthEndDate : today;
     const counted = occurrences.filter((occ) => occ <= cutoff && !isCancelledOn(item, occ));
     return counted.reduce((sum, occ) => sum + getRecurringAmountForOccurrence(item, occ), 0);
   };

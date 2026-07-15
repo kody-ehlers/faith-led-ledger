@@ -21,6 +21,23 @@ import {
   isSameDay,
 } from "date-fns";
 
+const dateOnlyFromPossiblyUtcDateString = (date: Date): Date => {
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0 &&
+    (date.getHours() !== 0 ||
+      date.getMinutes() !== 0 ||
+      date.getSeconds() !== 0 ||
+      date.getMilliseconds() !== 0)
+  ) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  }
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 /**
  * Get the variable-price amount for a single occurrence of a bill/subscription.
  *
@@ -30,6 +47,8 @@ import {
 export const getRecurringAmountForOccurrence = (
   item: {
     amount: number;
+    date?: string;
+    frequency?: RecurringFrequency;
     variablePrice?: boolean;
     monthlyPrices?: { [key: string]: number };
   },
@@ -38,9 +57,21 @@ export const getRecurringAmountForOccurrence = (
   if (!item.variablePrice) return item.amount;
   const map = item.monthlyPrices;
   if (!map) return item.amount;
-  const dateKey = `${occurrence.getFullYear()}-${String(
-    occurrence.getMonth() + 1,
-  ).padStart(2, "0")}-${String(occurrence.getDate()).padStart(2, "0")}`;
+
+  let effectiveOccurrence = dateOnlyFromPossiblyUtcDateString(occurrence);
+  if (item.date && item.frequency) {
+    let anchor = parseLocalDate(item.date);
+    let guard = 0;
+    while (isBefore(anchor, effectiveOccurrence) && guard < 1000) {
+      const next = advanceRecurringDate(anchor, item.frequency);
+      if (isAfter(next, effectiveOccurrence)) break;
+      anchor = next;
+      guard++;
+    }
+    effectiveOccurrence = anchor;
+  }
+
+  const dateKey = localYMD(effectiveOccurrence);
   if (typeof map[dateKey] === "number") return map[dateKey];
   const monthKey = dateKey.slice(0, 7);
   if (typeof map[monthKey] === "number") return map[monthKey];
@@ -369,7 +400,7 @@ export const getRecurringOccurrencesInMonth = (
   const monthStart = startOfMonth(targetDate);
   const monthEnd = endOfMonth(targetDate);
 
-  let occurrence = new Date(startDate);
+  let occurrence = dateOnlyFromPossiblyUtcDateString(startDate);
   if (isAfter(occurrence, monthEnd)) return occurrences;
 
   let guard = 0;
@@ -405,7 +436,7 @@ export const isRecurringOnDate = (
     targetDate.getMonth(),
     targetDate.getDate(),
   );
-  let occurrence = new Date(startDate);
+  let occurrence = dateOnlyFromPossiblyUtcDateString(startDate);
   if (isAfter(occurrence, targetDay)) return false;
 
   let guard = 0;
@@ -735,36 +766,41 @@ export const calculateMonthlyExpenses = (
     }
   }
 
-  // 3) Bills that have been marked paid for this month (paidMonths contains YYYY-MM)
+  // 3) Bills that are paid this month, including autopay occurrences due so far.
   for (const b of bills) {
-    if (!b.paidMonths) continue;
-    if (b.paidMonths.includes(monthKey)) {
-      const amount = getRecurringAmountForOccurrence(b, now);
-      total += amount;
+    const paidForMonth = b.paidMonths?.includes(monthKey) ?? false;
+    if (!paidForMonth && !b.autopay) continue;
+
+    const occurrences = getRecurringOccurrencesInMonth(
+      parseLocalDate(b.date),
+      b.frequency,
+      now,
+      paidForMonth ? endOfMonth(now) : now,
+    );
+    for (const occurrence of occurrences) {
+      if (dateIsSuspended(occurrence, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely)) {
+        continue;
+      }
+      total += getRecurringAmountForOccurrence(b, occurrence);
     }
   }
 
   // 4) Subscriptions: include if paidMonths includes monthKey, or if autopay and scheduled occurrence for this month is on-or-before today
   for (const s of subscriptions) {
-    if (s.paidMonths && s.paidMonths.includes(monthKey)) {
-      total += getRecurringAmountForOccurrence(s, now);
-      continue;
-    }
+    const paidForMonth = s.paidMonths?.includes(monthKey) ?? false;
+    if (!paidForMonth && !s.autopay) continue;
 
-    if (s.autopay) {
-      const start = new Date(s.date);
-      if (isAfter(start, now)) continue;
-
-      const occurrences = getRecurringOccurrencesInMonth(
-        start,
-        s.frequency,
-        now,
-        now,
-      );
-      const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
-      for (const occ of dueOccurrences) {
-        total += getRecurringAmountForOccurrence(s, occ);
+    const occurrences = getRecurringOccurrencesInMonth(
+      parseLocalDate(s.date),
+      s.frequency,
+      now,
+      paidForMonth ? endOfMonth(now) : now,
+    );
+    for (const occurrence of occurrences) {
+      if (dateIsSuspended(occurrence, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely)) {
+        continue;
       }
+      total += getRecurringAmountForOccurrence(s, occurrence);
     }
   }
 
@@ -982,39 +1018,48 @@ export const calculateWalletTransactions = (
     });
   }
 
-  // Add bill payments (when marked as paid in paidMonths)
+  // Add bill payments from actual due occurrences so variable prices use the
+  // same period keys as the editor. Autopay bills count once their due date
+  // has passed; manually paid bills count when their paid month contains the occurrence.
   for (const bill of bills) {
     if (bill.assetId !== assetId) continue;
 
-    if (bill.paidMonths && bill.paidMonths.length > 0) {
-      for (const paidMonth of bill.paidMonths) {
-        // Parse YYYY-MM format and create payment date on the 1st of the month
-        const [year, month] = paidMonth.split("-").map(Number);
-        const paymentDate = new Date(year, month - 1, 1);
+    const paidMonths = new Set(bill.paidMonths || []);
+    if (!bill.autopay && paidMonths.size === 0) continue;
 
-        if (isAfter(paymentDate, enactDate) && isBefore(paymentDate, today)) {
-          // skip payments that fall within a cancelled/suspended window
-          if (
-            dateIsSuspended(
-              paymentDate,
-              bill.cancelledFrom,
-              bill.cancelledTo,
-              bill.cancelledIndefinitely,
-            )
-          )
-            continue;
-          const amount = getRecurringAmountForOccurrence(bill, paymentDate);
+    let occurrence = parseLocalDate(bill.date);
+    let guard = 0;
+    while (isBefore(occurrence, enactDate) && guard < 1000) {
+      occurrence = advanceRecurringDate(occurrence, bill.frequency);
+      guard++;
+    }
 
-          transactions.push({
-            dateObj: paymentDate,
-            date: paymentDate.toISOString().slice(0, 10),
-            amount: -amount,
-            description: `Bill Payment: ${bill.name}`,
-            type: "bill",
-            balance: 0,
-          });
-        }
+    guard = 0;
+    while (isBefore(occurrence, today) && guard < 1000) {
+      const occurrenceMonth = localYM(occurrence);
+      const shouldCount = bill.autopay || paidMonths.has(occurrenceMonth);
+      const isCancelled = dateIsSuspended(
+        occurrence,
+        bill.cancelledFrom,
+        bill.cancelledTo,
+        bill.cancelledIndefinitely,
+      );
+
+      if (shouldCount && !isCancelled) {
+        const amount = getRecurringAmountForOccurrence(bill, occurrence);
+
+        transactions.push({
+          dateObj: occurrence,
+          date: localYMD(occurrence),
+          amount: -amount,
+          description: `Bill Payment: ${bill.name}`,
+          type: "bill",
+          balance: 0,
+        });
       }
+
+      occurrence = advanceRecurringDate(occurrence, bill.frequency);
+      guard++;
     }
   }
 
@@ -1022,7 +1067,7 @@ export const calculateWalletTransactions = (
   for (const subscription of subscriptions) {
     if (subscription.assetId !== assetId) continue;
 
-    const startDate = new Date(subscription.date);
+    const startDate = parseLocalDate(subscription.date);
     if (isAfter(startDate, today)) continue;
 
     if (subscription.frequency) {

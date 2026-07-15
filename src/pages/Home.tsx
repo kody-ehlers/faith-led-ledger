@@ -14,7 +14,7 @@ import {
   getRecurringAmountForOccurrence,
 } from "@/utils/calculations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { IncomeEntry, SubscriptionEntry } from "@/store/financeStore";
+import type { IncomeEntry } from "@/store/financeStore";
 import {
   HoverCard,
   HoverCardTrigger,
@@ -326,11 +326,11 @@ export default function Home() {
       };
       if ((s.frequency as string) === "One-time") {
         if (isSameDay(new Date(s.date), dayOnly) && !isCancelledOn(dayOnly))
-          list.push({ name: s.name, amount: getAmountForDate(s as unknown as IncomeEntry, dayOnly) });
+          list.push({ name: s.name, amount: getRecurringAmountForOccurrence(s, dayOnly) });
         continue;
       }
       if (!isCancelledOn(dayOnly) && isRecurringOnDate(start, s.frequency, dayOnly)) {
-        list.push({ name: s.name, amount: getAmountForDate(s as unknown as IncomeEntry, dayOnly) });
+        list.push({ name: s.name, amount: getRecurringAmountForOccurrence(s, dayOnly) });
       }
     }
     return list;
