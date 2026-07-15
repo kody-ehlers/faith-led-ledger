@@ -21,6 +21,7 @@ import {
   formatCurrency,
   getRecurringOccurrencesInMonth,
   calculateTitheAmount,
+  getRecurringAmountForOccurrence,
 } from "@/utils/calculations";
 import { Target, TrendingUp, PiggyBank, TriangleAlert as AlertTriangle, ChevronLeft, ChevronRight, Heart, Church, Copy, StickyNote } from "lucide-react";
 import {
@@ -124,7 +125,7 @@ export default function Budget() {
     if (startDate > monthEndDate) return 0;
 
     if (item.paidMonths?.includes(monthKey)) {
-      return item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
+      return getRecurringAmountForOccurrence(item, monthStartDate);
     }
 
     if (!item.autopay) return 0;
@@ -136,8 +137,7 @@ export default function Budget() {
     );
     const cutoff = mtdOnly && isSameMonth(monthStartDate, today) ? today : monthEndDate;
     const counted = occurrences.filter((occ) => occ <= cutoff && !isCancelledOn(item, occ));
-    const price = item.variablePrice ? (item.monthlyPrices?.[monthKey] ?? item.amount) : item.amount;
-    return counted.length * price;
+    return counted.reduce((sum, occ) => sum + getRecurringAmountForOccurrence(item, occ), 0);
   };
 
   // Calculate spending per category
