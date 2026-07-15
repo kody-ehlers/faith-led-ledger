@@ -90,16 +90,14 @@ export default function Home() {
     const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
     const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely));
     if (valid.length === 0) return sum;
-    const amount = b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
-    return sum + amount * valid.length;
+    return sum + valid.reduce((s, occ) => s + getRecurringAmountForOccurrence(b, occ), 0);
   }, 0);
   const subsMTD = subscriptions.reduce((sum, s) => {
     const occurrences = getRecurringOccurrencesInMonth(new Date(s.date), s.frequency, now);
     const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
     const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely));
     if (valid.length === 0) return sum;
-    const amount = s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
-    return sum + amount * valid.length;
+    return sum + valid.reduce((acc, occ) => acc + getRecurringAmountForOccurrence(s, occ), 0);
   }, 0);
   const debtPaymentsMTD = debts.reduce((sum, d) => {
     return sum + (d.paymentHistory || [])
@@ -132,8 +130,8 @@ export default function Home() {
     const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
     const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, b.cancelledFrom, b.cancelledTo, b.cancelledIndefinitely));
     if (valid.length === 0) return;
-    const amt = b.variablePrice ? (b.monthlyPrices?.[monthKey] || b.amount) : b.amount;
-    categoryTotals["Bills"] = (categoryTotals["Bills"] || 0) + amt * valid.length;
+    const amt = valid.reduce((s, occ) => s + getRecurringAmountForOccurrence(b, occ), 0);
+    categoryTotals["Bills"] = (categoryTotals["Bills"] || 0) + amt;
   });
 
   // Add subscriptions to category data
@@ -142,8 +140,8 @@ export default function Home() {
     const dueOccurrences = occurrences.filter((occ) => !isAfter(occ, now));
     const valid = dueOccurrences.filter((occ) => !dateIsSuspended(occ, s.cancelledFrom, s.cancelledTo, s.cancelledIndefinitely));
     if (valid.length === 0) return;
-    const amt = s.variablePrice ? (s.monthlyPrices?.[monthKey] || s.amount) : s.amount;
-    categoryTotals["Subscriptions"] = (categoryTotals["Subscriptions"] || 0) + amt * valid.length;
+    const amt = valid.reduce((acc, occ) => acc + getRecurringAmountForOccurrence(s, occ), 0);
+    categoryTotals["Subscriptions"] = (categoryTotals["Subscriptions"] || 0) + amt;
   });
 
   const categoryData = Object.entries(categoryTotals)
@@ -358,10 +356,9 @@ export default function Home() {
           return;
         }
       }
-      const dayMonthKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}`;
       list.push({
         name: b.name,
-        amount: b.variablePrice ? (b.monthlyPrices?.[dayMonthKey] || b.amount) : b.amount,
+        amount: getRecurringAmountForOccurrence(b, dayOnly),
       });
     });
     return list;
